@@ -1,0 +1,3 @@
+sphinx
+pytest-cov
+mock

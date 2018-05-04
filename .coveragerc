@@ -1,0 +1,12 @@
+[run]
+branch = True
+include =
+    fedora_messaging/*
+
+[report]
+fail_under = 100
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
+omit =
+    fedora_messaging/tests/*
