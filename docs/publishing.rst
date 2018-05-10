@@ -9,7 +9,7 @@ Publishing messages is simple. Messages are made up of a topic, some optional
 headers, and a body. Messages are encapsulated in a
 :class:`fedora_messaging.message.Message` object. For details on defining
 messages, see the :ref:`messages` documentation. For details on the publishing
-API, see the :ref:`pub-api` documentation.
+API, see the :ref:`pub-api` API documentation.
 
 Topics
 ------
