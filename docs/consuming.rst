@@ -22,6 +22,10 @@ Introduction
 The first step is to implement some code to run when a message is received. The
 API expects a callable object that accepts a single positional argument::
 
+    from fedora_messaging import api
+
+    # First, define a function to be used as our callback. This will be called
+    # whenever a message is received from the server.
     def printer_callback(message):
         """
         Print the message to standard output.
@@ -32,27 +36,22 @@ API expects a callable object that accepts a single positional argument::
         """
         print(str(message))
 
-Next, we need a queue to consume messages from. We can define the queue configuration
-in a dictionary::
-
+    # Next, we need a queue to consume messages from. We can define
+    # the queue configuration in this dictionary
     binding = {
         'exchange': 'amq.topic',  # The AMQP exchange to bind our queue to
         'queue_name': 'demo',  # The unique name of our queue on the AMQP broker
         'routing_key': '#',  # The topics that should be delivered to the queue
     }
 
-.. note:: In AMQP, "#" matches everything, and "*" matches everything until the
-    next "." character. Refer to the `RabbitMQ tutorials`_ for details.
+    # Start consuming messages using our callback. This call will block until
+    # a KeyboardInterrupt is raised, or the process receives a SIGINT or SIGTERM
+    # signal.
+    api.consume(printer_callback, binding)
 
-A queue can have multiple routing keys binding it to exchanges, but for this
-example we'll stick with just this one.
-
-Now that we have a callback and a queue definition, we can start consuming
-messages with it::
-
-    from fedora_messaging import api
-
-    api.consume(printer_callback, binding)  # This call will block until a KeyboardInterrupt
+In this example, there's one queue and the queue only has one binding, but it's
+possible to consume from multiple queues and each queue can have multiple
+bindings.
 
 
 Handling Errors
@@ -101,7 +100,7 @@ received with a certain topic::
 
     def callback_with_storage(message, counter=defaultdict(int)):
         counter[message.topic] += 1
-        print('We've seen {} messages on the {} topic!'.format(
+        print("We've seen {} messages on the {} topic!".format(
             counter[message.topic], message.topic))
 
 Keep in mind that it's up to the callback to ensure the storage doesn't use up
