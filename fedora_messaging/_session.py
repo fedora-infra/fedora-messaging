@@ -19,7 +19,6 @@ from __future__ import absolute_import, unicode_literals
 import json
 import logging
 import signal
-import sys
 import uuid
 
 import blinker
@@ -56,7 +55,7 @@ publish_signal = blinker.signal('fedora_publish_success', doc=_pub_docs)
 publish_failed_signal = blinker.signal('fedora_publish_success', doc=_pub_fail_docs)
 
 
-class BlockingSession(object):
+class PublisherSession(object):
     """A session with blocking APIs for publishing to an AMQP broker."""
 
     def __init__(self, amqp_url=None, exchange=None, confirms=True):
@@ -128,7 +127,7 @@ class BlockingSession(object):
             publish_signal.send(self, message=message)
 
 
-class AsyncSession(object):
+class ConsumerSession(object):
     """A session using the asynchronous APIs offered by Pika."""
 
     def __init__(self, retries=-1, retry_max_interval=60):
@@ -269,8 +268,8 @@ class AsyncSession(object):
         signature should accept a single positional argument which is an
         instance of a :class:`Message` (or a sub-class of it).
 
-        >>> from fedora_messaging import session
-        >>> sess = session.AsyncSession()
+        >>> from fedora_messaging import _session
+        >>> sess = _session.ConsumerSession()
         >>> def callback(message):
         ...     print(str(message))
         >>> bindings = [{

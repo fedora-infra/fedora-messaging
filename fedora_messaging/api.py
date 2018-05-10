@@ -1,6 +1,6 @@
 """The API for publishing messages and consuming from message queues."""
 
-from ._session import AsyncSession, BlockingSession
+from ._session import ConsumerSession, PublisherSession
 
 _session = None
 
@@ -29,7 +29,7 @@ def consume(callback, bindings=None):
     """
     if isinstance(bindings, dict):
         bindings = [bindings]
-    session = AsyncSession()
+    session = ConsumerSession()
     session.consume(callback, bindings)
 
 
@@ -54,5 +54,5 @@ def publish(message):
     # TODO make thread-local registry, probably
     global _session
     if _session is None:
-        _session = BlockingSession()
+        _session = PublisherSession()
     _session.publish(message)
