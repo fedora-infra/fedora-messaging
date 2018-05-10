@@ -3,3 +3,4 @@ click
 jsonschema
 pytoml
 pika
+six
