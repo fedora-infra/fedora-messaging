@@ -18,10 +18,11 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 import logging
+import signal
+import sys
 import uuid
-import inspect
 
-from blinker import signal
+import blinker
 import pika
 import jsonschema
 
@@ -50,9 +51,9 @@ instance of the :class:`Message` that failed to be sent, and ``error``, the
 exception that was raised.
 """
 
-pre_publish_signal = signal('fedora_pre_publish', doc=_pre_pub_docs)
-publish_signal = signal('fedora_publish_success', doc=_pub_docs)
-publish_failed_signal = signal('fedora_publish_success', doc=_pub_fail_docs)
+pre_publish_signal = blinker.signal('fedora_pre_publish', doc=_pre_pub_docs)
+publish_signal = blinker.signal('fedora_publish_success', doc=_pub_docs)
+publish_failed_signal = blinker.signal('fedora_publish_success', doc=_pub_fail_docs)
 
 
 class BlockingSession(object):
@@ -142,7 +143,33 @@ class AsyncSession(object):
         self._retry_interval = 3
         self._retries_left = self._retries
         self._current_retry_interval = self._retry_interval
-        self._consumer_tags = []
+        self._running = False
+
+        def _signal_handler(signum, frame):
+            """
+            Signal handler that gracefully shuts down the consumer
+
+            Args:
+                signum (int): The signal this process received.
+                frame (frame): The current stack frame (unused).
+            """
+            if signum in (signal.SIGTERM, signal.SIGINT):
+                self._connection.add_timeout(0, self._shutdown)
+
+        signal.signal(signal.SIGTERM, _signal_handler)
+        signal.signal(signal.SIGINT, _signal_handler)
+
+    def _shutdown(self):
+        """Gracefully shut down the consumer and exit."""
+        if self._channel:
+            _log.info('Halting %r consumer sessions', self._channel.consumer_tags)
+        self._running = False
+        self._connection.close()
+
+    def _on_cancelok(self, cancel_frame):
+        """Called when the server acknowledges a cancel request."""
+        _log.info('Consumer canceled; returning all unprocessed messages to the queue')
+        self._channel.basic_nack(delivery_tag=0, multiple=True, requeue=True)
 
     def _on_channel_open(self, channel):
         """
@@ -176,9 +203,13 @@ class AsyncSession(object):
 
     def _on_connection_close(self, connection, reply_code, reply_text):
         self._channel = None
-        _log.warning('Connection to %s closed (%d): %s', connection.params.host,
-                     reply_code, reply_text)
-        self._reconnect()
+        if reply_code == 200:
+            # Normal shutdown, exit the consumer.
+            _log.info('Server connection closed (%s), shutting down', reply_text)
+        else:
+            _log.warning('Connection to %s closed unexpectedly (%d): %s',
+                         connection.params.host, reply_code, reply_text)
+            self._reconnect()
 
     def _on_connection_error(self, connection, error_message):
         self._channel = None
@@ -223,8 +254,7 @@ class AsyncSession(object):
                 self._channel.queue_bind(
                     None, binding['queue_name'], binding['exchange'],
                     binding['routing_key'])
-        tag = self._channel.basic_consume(self._on_message, frame.method.queue)
-        self._consumer_tags.append(tag)
+        self._channel.basic_consume(self._on_message, frame.method.queue)
 
     def _on_cancel(self, cancel_frame):
         """Callback used when the server sends a consumer cancel frame."""
@@ -255,10 +285,12 @@ class AsyncSession(object):
             on_open_callback=self._on_connection_open,
             on_open_error_callback=self._on_connection_error,
             on_close_callback=self._on_connection_close,
+            stop_ioloop_on_close=True,
         )
         self._bindings = bindings
         self._consumer_callback = callback
-        while True:
+        self._running = True
+        while self._running:
             self._connection.ioloop.start()
 
     def _on_message(self, channel, delivery_frame, properties, body):
