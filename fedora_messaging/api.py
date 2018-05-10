@@ -1,6 +1,6 @@
 """The API for publishing messages and consuming from message queues."""
 
-from .session import AsyncSession, BlockingSession
+from ._session import AsyncSession, BlockingSession
 
 _session = None
 
