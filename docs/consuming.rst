@@ -65,7 +65,7 @@ which drops it.
 To place the message back on the queue (a send "nack" to AMQP), raise the
 :class:`fedora_messaging.exceptions.Nack` exception in your callback. To reject
 the message and have it dropped, raise the
-:class:`fedora_messaging.exceptions.Reject` exception.
+:class:`fedora_messaging.exceptions.Drop` exception.
 
 If an unexpected exception is raised by the callable object, the API will log
 the complete traceback, return all pre-fetched messages to the queue, cancel

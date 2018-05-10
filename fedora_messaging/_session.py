@@ -27,6 +27,7 @@ import jsonschema
 
 from . import config
 from .message import _schema_name, get_class, Message
+from .exceptions import Nack, Drop, HaltConsumer
 
 _log = logging.getLogger(__name__)
 
@@ -143,6 +144,7 @@ class ConsumerSession(object):
         self._retries_left = self._retries
         self._current_retry_interval = self._retry_interval
         self._running = False
+        self._exit_code = 0
 
         def _signal_handler(signum, frame):
             """
@@ -153,7 +155,7 @@ class ConsumerSession(object):
                 frame (frame): The current stack frame (unused).
             """
             if signum in (signal.SIGTERM, signal.SIGINT):
-                self._connection.add_timeout(0, self._shutdown)
+                self._shutdown()
 
         signal.signal(signal.SIGTERM, _signal_handler)
         signal.signal(signal.SIGINT, _signal_handler)
@@ -292,6 +294,8 @@ class ConsumerSession(object):
         while self._running:
             self._connection.ioloop.start()
 
+        return self._exit_code
+
     def _on_message(self, channel, delivery_frame, properties, body):
         """
         Callback when a message is received from the server.
@@ -347,7 +351,17 @@ class ConsumerSession(object):
                       properties.message_id)
             self._consumer_callback(message)
             channel.basic_ack(delivery_tag=delivery_frame.delivery_tag)
+        except Nack:
+            _log.info('Returning message id %s to the queue', properties.message_id)
+            channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=True)
+        except Drop:
+            _log.info('Dropping message id %s', properties.message_id)
+            channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=False)
+        except HaltConsumer:
+            _log.warning('Consumer indicated it wishes consumption to halt, shutting down')
+            self._shutdown()
         except Exception:
             _log.exception("Received unexpected exception from consumer callback")
-            channel.basic_nack(delivery_tag=delivery_frame.delivery_tag)
-            self._channel.stop_consuming()
+            channel.basic_nack(delivery_tag=0, multiple=True, requeue=True)
+            self._exit_code = 1
+            self._shutdown()
