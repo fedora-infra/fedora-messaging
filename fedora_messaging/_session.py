@@ -27,7 +27,7 @@ import jsonschema
 
 from . import config
 from .message import _schema_name, get_class, Message
-from .exceptions import Nack, Drop, HaltConsumer
+from .exceptions import Nack, Drop, HaltConsumer, ValidationError
 
 _log = logging.getLogger(__name__)
 
@@ -143,7 +143,6 @@ class ConsumerSession(object):
         self._retries_left = self._retries
         self._current_retry_interval = self._retry_interval
         self._running = False
-        self._exit_code = 0
 
         def _signal_handler(signum, frame):
             """
@@ -167,7 +166,13 @@ class ConsumerSession(object):
         self._connection.close()
 
     def _on_cancelok(self, cancel_frame):
-        """Called when the server acknowledges a cancel request."""
+        """
+        Called when the server acknowledges a cancel request.
+
+        Args:
+            cancel_frame (pika.spec.Basic.CancelOk): The cancelok frame from
+                the server.
+        """
         _log.info('Consumer canceled; returning all unprocessed messages to the queue')
         self._channel.basic_nack(delivery_tag=0, multiple=True, requeue=True)
 
@@ -186,22 +191,52 @@ class ConsumerSession(object):
         channel.basic_qos(self._on_qosok, prefetch_size=0, prefetch_count=0)
 
     def _on_qosok(self, qosok_frame):
+        """
+        Callback invoked when the server acknowledges the QoS settings.
+
+        Args:
+            qosok_frame (pika.spec.Basic.Qos): The frame send from the server.
+        """
         for binding in self._bindings:
             self._channel.exchange_declare(
                 self._on_exchange_declareok, binding['exchange'],
                 exchange_type='topic', durable=True)
 
     def _on_channel_close(self, channel, reply_code, reply_text):
+        """
+        Callback invoked when the channel is closed.
+
+        Args:
+            channel (pika.channel.Channel): The channel that got closed.
+            reply_code (int): The AMQP code indicating why the channel was closed.
+            reply_text (str): The human-readable reason for the channel's closure.
+        """
         _log.info('Channel %r closed (%d): %s', channel, reply_code, reply_text)
         self._channel = None
 
     def _on_connection_open(self, connection):
+        """
+        Callback invoked when the connection is successfully established.
+
+        Args:
+            connection (pika.connection.SelectConnection): The newly-estabilished
+                connection.
+        """
         _log.info('Successfully opened connection to %s', connection.params.host)
         self._current_retries = self._retries
         self._current_retry_interval = self._retry_interval
         self._channel = connection.channel(on_open_callback=self._on_channel_open)
 
     def _on_connection_close(self, connection, reply_code, reply_text):
+        """
+        Callback invoked when a previously-opened connection is closed.
+
+        Args:
+            connection (pika.connection.SelectConnection): The connection that
+                was just closed.
+            reply_code (int): The AMQP code indicating why the connection was closed.
+            reply_text (str): The human-readable reason the connection was closed.
+        """
         self._channel = None
         if reply_code == 200:
             # Normal shutdown, exit the consumer.
@@ -212,12 +247,25 @@ class ConsumerSession(object):
             self._reconnect()
 
     def _on_connection_error(self, connection, error_message):
+        """
+        Callback invoked when the connection failed to be established.
+
+        Args:
+            connection (pika.connection.SelectConnection): The connection that
+                failed to open.
+            error_message (str): The reason the connection couldn't be opened.
+        """
         self._channel = None
         _log.error(error_message)
         self._reconnect()
 
     def _reconnect(self):
-        """Reconnect to the broker, with a backoff."""
+        """
+        Reconnect to the broker, a configurable number of times, with a backoff.
+
+        The connection object has a reconnect setting with an interval, but this
+        backs off up to a configurable limit.
+        """
         if self._retries_left != 0:
             _log.info('Reconnecting in %d seconds', self._current_retry_interval)
             self._connection.add_timeout(
@@ -235,7 +283,8 @@ class ConsumerSession(object):
         :meth:`_on_queue_declareok` callback.
 
         Args:
-            frame (pika.frame.Method): The message sent from the server.
+            frame (pika.spec.Exchange.DeclareOk): The DeclareOk frame from the
+                server.
         """
         for binding in self._bindings:
             self._channel.queue_declare(
@@ -257,7 +306,13 @@ class ConsumerSession(object):
         self._channel.basic_consume(self._on_message, frame.method.queue)
 
     def _on_cancel(self, cancel_frame):
-        """Callback used when the server sends a consumer cancel frame."""
+        """
+        Callback used when the server sends a consumer cancel frame.
+
+        Args:
+            cancel_frame (pika.spec.Basic.Cancel): The cancel frame from
+                the server.
+        """
         _log.info('Server canceled consumer')
 
     def consume(self, callback, bindings):
@@ -279,6 +334,16 @@ class ConsumerSession(object):
         ...     'routing_key': 'particularly.silly.#'
         ... }]
         >>> sess.consume(callback, bindings)
+
+        Args:
+            callback (callable): The callable to pass the message to when one
+                arrives.
+            bindings (list): A list of dictionaries, each one describing a queue
+                binding. Consumers are attached to the queues in these bindings.
+
+        Raises:
+            HaltConsumer: Raised when the consumer halts.
+            ValidationError: When a message fails schema validation.
         """
         self._connection = pika.SelectConnection(
             self._parameters,
@@ -292,8 +357,6 @@ class ConsumerSession(object):
         self._running = True
         while self._running:
             self._connection.ioloop.start()
-
-        return self._exit_code
 
     def _on_message(self, channel, delivery_frame, properties, body):
         """
@@ -317,8 +380,19 @@ class ConsumerSession(object):
             properties (pika.spec.BasicProperties): The message properties like
                 the message headers.
             body (bytes): The message payload.
+
+        Raises:
+            HaltConsumer: Raised when the consumer halts.
+            ValidationError: When a message fails schema validation.
         """
         _log.debug('Message arrived with delivery tag %s', delivery_frame.delivery_tag)
+        try:
+            MessageClass = get_class(properties.headers['fedora_messaging_schema'])
+        except KeyError:
+            _log.error('Message (headers=%r, body=%r) arrived without a schema header.'
+                       ' A publisher is misbehaving!', properties.headers, body)
+            MessageClass = Message
+
         if properties.content_encoding is None:
             _log.error('Message arrived without a content encoding')
             properties.content_encoding = 'utf-8'
@@ -327,16 +401,12 @@ class ConsumerSession(object):
         except UnicodeDecodeError:
             _log.error('Unable to decode message body %r with %s content encoding',
                        body, delivery_frame.content_encoding)
+
         try:
             body = json.loads(body)
         except ValueError as e:
             _log.error('Failed to load message body %r, %r', body, e)
-        try:
-            MessageClass = get_class(properties.headers['fedora_messaging_schema'])
-        except KeyError:
-            _log.error('Message (headers=%r, body=%r) arrived without a schema header.'
-                       ' A publisher is misbehaving!', properties.headers, body)
-            MessageClass = Message
+            raise ValidationError(e)
 
         message = MessageClass(
             body=body, headers=properties.headers, topic=delivery_frame.routing_key)
@@ -345,6 +415,8 @@ class ConsumerSession(object):
             _log.debug('Successfully validated message %r', message)
         except jsonschema.exceptions.ValidationError as e:
             _log.error('Message validation of %r failed: %r', message, e)
+            raise ValidationError(e)
+
         try:
             _log.info('Consuming message from topic "%s" (id %s)', message.topic,
                       properties.message_id)
@@ -357,10 +429,12 @@ class ConsumerSession(object):
             _log.info('Dropping message id %s', properties.message_id)
             channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=False)
         except HaltConsumer:
-            _log.warning('Consumer indicated it wishes consumption to halt, shutting down')
+            _log.info('Consumer requested halt, returning messages to queue')
+            channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=True)
             self._shutdown()
-        except Exception:
+            raise
+        except Exception as e:
             _log.exception("Received unexpected exception from consumer callback")
             channel.basic_nack(delivery_tag=0, multiple=True, requeue=True)
-            self._exit_code = 1
             self._shutdown()
+            raise HaltConsumer(exit_code=1, reason=e)
