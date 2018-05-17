@@ -15,9 +15,10 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """
-fedora-messaging can be configured by either placing a file in
-``/etc/fedora-messaging/`` or by setting the ``FEDORA_MESSAGING_CONF``
-environment variable to the path of the configuration file.
+fedora-messaging can be configured with the
+``/etc/fedora-messaging/config.toml`` file or by setting the
+``FEDORA_MESSAGING_CONF`` environment variable to the path of the configuration
+file.
 
 Each configuration option has a default value.
 
@@ -184,7 +185,7 @@ def load(filename=None):
 
     If the ``FEDORA_MESSAGING_CONF`` environment variable is set to a
     filesystem path, the configuration will be loaded from that location.
-    Otherwise, the path defaults to ``/etc/fedora_messaging/config.toml``.
+    Otherwise, the path defaults to ``/etc/fedora-messaging/config.toml``.
     """
     config = DEFAULTS.copy()
 
@@ -193,7 +194,7 @@ def load(filename=None):
     elif 'FEDORA_MESSAGING_CONF' in os.environ:
         config_path = os.environ['FEDORA_MESSAGING_CONF']
     else:
-        config_path = '/etc/fedora_messaging/config.toml'
+        config_path = '/etc/fedora-messaging/config.toml'
 
     if os.path.exists(config_path):
         _log.info('Loading configuration from {}'.format(config_path))
