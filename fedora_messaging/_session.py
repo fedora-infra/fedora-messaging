@@ -125,7 +125,6 @@ class PublisherSession(object):
             self._channel.publish(self._exchange, message.topic.encode('utf-8'),
                                   json.dumps(message.body).encode('utf-8'), properties)
             publish_signal.send(self, message=message)
-            publish_signal.send(self, message=message)
 
 
 class ConsumerSession(object):
@@ -233,7 +232,7 @@ class ConsumerSession(object):
         Callback invoked when an exchange is successfully declared.
 
         It will declare the queues in the bindings dictionary with the
-        :meth:`_on_queu_declareok` callback.
+        :meth:`_on_queue_declareok` callback.
 
         Args:
             frame (pika.frame.Method): The message sent from the server.

@@ -87,7 +87,7 @@ class ClassRegistryTests(unittest.TestCase):
                 message.get_class('fedora_messaging.message:Message'), message.Message)
 
     @mock.patch('fedora_messaging.message._registry_loaded', False)
-    def test_get_class_autoload(self):
+    def test_get_class_autoload_first_call(self):
         """Assert the registry loads classes on first call to get_class."""
         with mock.patch.dict(message._class_registry, {}, clear=True):
             self.assertEqual(
