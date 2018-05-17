@@ -60,11 +60,16 @@ def consume(amqp_url, exchange, queue_name, routing_key, callback, app_name):
             'queue_name': queue_name,
             'routing_key': routing_key
         }]
-    else:
+    elif not exchange and not queue_name and not routing_key:
         bindings = config.conf['bindings']
+    else:
+        raise click.ClickException(
+            'You must define all three of exchange, queue_name and'
+            ' routing_key, or none of them to use the configuration')
     if not bindings:
-        click.ClickException('No bindings are defined in the configuration file'
-                             ' and none were provided as arguments!')
+        raise click.ClickException(
+            'No bindings are defined in the configuration file'
+            ' and none were provided as arguments!')
 
     callback_path = callback or config.conf['callback']
     try:
