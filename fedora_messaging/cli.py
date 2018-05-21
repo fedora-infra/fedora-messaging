@@ -72,20 +72,27 @@ def consume(amqp_url, exchange, queue_name, routing_key, callback, app_name):
             ' and none were provided as arguments!')
 
     callback_path = callback or config.conf['callback']
+    if not callback_path:
+        raise click.ClickException('"callback" must be the Python path to a'
+                                   ' callable to consume')
     try:
         module, cls = callback_path.strip().split(':')
     except ValueError as e:
-        raise click.ClickException('Unable to parse the callback path ({})'.format(str(e)))
+        raise click.ClickException('Unable to parse the callback path ({}); the '
+                                   'expected format is "my_package.module:'
+                                   'callable_object"'.format(str(e)))
     try:
         module = importlib.import_module(module)
-    except ValueError as e:
+    except ImportError as e:
         raise click.ClickException('Failed to import the callback module ({})'.format(str(e)))
 
-    callback = getattr(module, cls)
-    if not callback:
+    try:
+        callback = getattr(module, cls)
+    except AttributeError as e:
         raise click.ClickException(
-            'Unable to import {}; is the package installed? The python path should '
-            'be in the format "my_package.module:callable_object"'.format(callback_path))
+            'Unable to import {} ({}); is the package installed? The python path should '
+            'be in the format "my_package.module:callable_object"'.format(
+                callback_path, str(e)))
 
     if app_name:
         config.conf['client_properties']['app'] = app_name
