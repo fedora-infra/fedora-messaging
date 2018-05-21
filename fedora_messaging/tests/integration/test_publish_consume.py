@@ -10,22 +10,23 @@ from fedora_messaging import api, message, exceptions
 
 class PubSubTests(unittest.TestCase):
 
-    def test_pub_sub(self):
-        """Publish 3 messages via the publish API, assert they arrive at the consumer."""
+    def test_pub_sub_default_settings(self):
+        """
+        Assert publishing and subscribing works with the default configuration.
+
+        This should work because the publisher uses the 'amq.topic' exchange by
+        default and the consumer also uses the 'amq.topic' exchange with its
+        auto-named queue and a default subscription key of '#'.
+        """
 
         # Consumer setup
         def counting_callback(message, storage=defaultdict(int)):
             storage[message.topic] += 1
             if storage[message.topic] == 3:
-                raise exceptions.HaltConsumer
+                raise exceptions.HaltConsumer()
 
-        bindings = [{
-            'exchange': 'amq.topic',
-            'queue_name': 'fedora_messages_integration_tests',
-            'routing_key': 'nice.message',
-        }]
         consumer_process = multiprocessing.Process(
-            target=api.consume, args=(counting_callback, bindings))
+            target=api.consume, args=(counting_callback,))
         msg = message.Message(topic=u'nice.message', headers={u'niceness': u'very'},
                               body={u'encouragement': u"You're doing great!"})
 

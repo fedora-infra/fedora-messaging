@@ -188,19 +188,27 @@ class ConsumerSession(object):
         channel.add_on_close_callback(self._on_channel_close)
         channel.add_on_cancel_callback(self._on_cancel)
 
-        channel.basic_qos(self._on_qosok, prefetch_size=0, prefetch_count=0)
+        channel.basic_qos(self._on_qosok, **config.conf['qos'])
 
     def _on_qosok(self, qosok_frame):
         """
         Callback invoked when the server acknowledges the QoS settings.
 
+        Asserts or creates the exchanges and queues exist.
+
         Args:
             qosok_frame (pika.spec.Basic.Qos): The frame send from the server.
         """
-        for binding in self._bindings:
+        for name, args in self._exchanges.items():
             self._channel.exchange_declare(
-                self._on_exchange_declareok, binding['exchange'],
-                exchange_type='topic', durable=True)
+                self._on_exchange_declareok, name, exchange_type=args['type'],
+                durable=args['durable'], auto_delete=args['auto_delete'],
+                arguments=args['arguments'])
+        for name, args in self._queues.items():
+            self._channel.queue_declare(
+                self._on_queue_declareok, queue=name, durable=args['durable'],
+                auto_delete=args['auto_delete'], exclusive=args['exclusive'],
+                arguments=args['arguments'])
 
     def _on_channel_close(self, channel, reply_code, reply_text):
         """
@@ -286,10 +294,7 @@ class ConsumerSession(object):
             frame (pika.spec.Exchange.DeclareOk): The DeclareOk frame from the
                 server.
         """
-        for binding in self._bindings:
-            self._channel.queue_declare(
-                self._on_queue_declareok, queue=binding['queue_name'],
-                durable=True, arguments=binding.get('queue_arguments'))
+        _log.info('Exchange declared successfully')
 
     def _on_queue_declareok(self, frame):
         """
@@ -298,11 +303,12 @@ class ConsumerSession(object):
         Args:
             frame (pika.frame.Method): The message sent from the server.
         """
+        _log.info('Successfully declared the %s queue', frame.method.queue)
         for binding in self._bindings:
-            if binding['queue_name'] == frame.method.queue:
-                self._channel.queue_bind(
-                    None, binding['queue_name'], binding['exchange'],
-                    binding['routing_key'])
+            if binding['queue'] == frame.method.queue:
+                for key in binding['routing_keys']:
+                    self._channel.queue_bind(None, binding['queue'],
+                                             binding['exchange'], key)
         self._channel.basic_consume(self._on_message, frame.method.queue)
 
     def _on_cancel(self, cancel_frame):
@@ -315,7 +321,7 @@ class ConsumerSession(object):
         """
         _log.info('Server canceled consumer')
 
-    def consume(self, callback, bindings):
+    def consume(self, callback, bindings=None, queues=None, exchanges=None):
         """
         Consume messages from a message queue.
 
@@ -324,22 +330,16 @@ class ConsumerSession(object):
         signature should accept a single positional argument which is an
         instance of a :class:`Message` (or a sub-class of it).
 
-        >>> from fedora_messaging import _session
-        >>> sess = _session.ConsumerSession()
-        >>> def callback(message):
-        ...     print(str(message))
-        >>> bindings = [{
-        ...     'exchange': 'amq.topic',
-        ...     'queue_name': 'silly_walks',
-        ...     'routing_key': 'particularly.silly.#'
-        ... }]
-        >>> sess.consume(callback, bindings)
-
         Args:
             callback (callable): The callable to pass the message to when one
                 arrives.
-            bindings (list): A list of dictionaries, each one describing a queue
-                binding. Consumers are attached to the queues in these bindings.
+            bindings (dict): A dictionary of bindings for queues. Refer to the
+                :ref:`conf-bindings` configuration documentation for the format.
+            queues (dict): A dictionary of queues to ensure exist. Refer to the
+                :ref:`conf-queues` configuration documentation for the format.
+            exchanges (dict): A dictionary of exchanges to ensure exist. Refer
+                to the :ref:`conf-exchanges` configuration documentation for the
+                format.
 
         Raises:
             HaltConsumer: Raised when the consumer halts.
@@ -352,7 +352,9 @@ class ConsumerSession(object):
             on_close_callback=self._on_connection_close,
             stop_ioloop_on_close=True,
         )
-        self._bindings = bindings
+        self._bindings = bindings or config.conf['bindings']
+        self._queues = queues or config.conf['queues']
+        self._exchanges = exchanges or config.conf['exchanges']
         self._consumer_callback = callback
         self._running = True
         while self._running:
@@ -428,11 +430,12 @@ class ConsumerSession(object):
         except Drop:
             _log.info('Dropping message id %s', properties.message_id)
             channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=False)
-        except HaltConsumer:
+        except HaltConsumer as e:
             _log.info('Consumer requested halt, returning messages to queue')
             channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=True)
             self._shutdown()
-            raise
+            if e.exit_code != 0:
+                raise
         except Exception as e:
             _log.exception("Received unexpected exception from consumer callback")
             channel.basic_nack(delivery_tag=0, multiple=True, requeue=True)

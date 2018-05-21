@@ -1,3 +1,6 @@
+
+.. _consumers:
+
 =========
 Consumers
 =========

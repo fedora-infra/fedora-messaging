@@ -25,6 +25,8 @@ Each configuration option has a default value.
 Generic Options
 ===============
 
+These options apply to both consumers and publishers.
+
 .. _conf-amqp-url:
 
 amqp_url
@@ -51,6 +53,38 @@ arbitrary string keys and values. The default is::
 It's recommended that applications only change the ``app`` key in the default
 set of keys.
 
+.. _conf-exchanges:
+
+exchanges
+---------
+A dictionary of exchanges that should be present in the broker. Each key should
+be an exchange name, and the value should be a dictionary with the exchange's
+configuration.  Options are:
+
+* ``type`` - the type of exchange to create.
+
+* ``durable`` - whether or not the exchange should survive a broker restart.
+
+* ``auto_delete`` - whether or not the exchange should be deleted once no queues
+  are bound to it.
+
+* ``arguments`` - dictionary of arbitrary keyword arguments for the exchange,
+  which depends on the broker in use and its extensions.
+
+For example::
+
+    {
+        'my_exchange': {
+            'type': 'fanout',
+            'durable': True,
+            'auto_delete': False,
+            'arguments': {},
+        },
+    }
+
+The default is to ensure the 'amq.topic' topic exchange exists which should be
+sufficient for most use cases.
+
 .. _conf-log-config:
 
 log_config
@@ -59,12 +93,12 @@ A dictionary describing the logging configuration to use, in a format accepted
 by :func:`logging.config.dictConfig`.
 
 
-.. _pub-config:
-
 Publisher Options
 =================
 
 The following configuration options are publisher-related.
+
+.. _conf-publish-exchange:
 
 publish_exchange
 ----------------
@@ -79,22 +113,50 @@ Consumer Options
 
 The following configuration options are consumer-related.
 
+.. _conf-queues:
+
+queues
+------
+A dictionary of queues that should be present in the broker. Each key should be
+a queue name, and the value should be a dictionary with the queue's configuration.
+Options are:
+
+* ``durable`` - whether or not the queue should survive a broker restart.
+
+* ``auto_delete`` - whether or not the queue should be deleted once the
+  consumer disconnects.
+
+* ``exclusive`` - whether or not the queue is exclusive to the current
+  connection.
+
+* ``arguments`` - dictionary of arbitrary keyword arguments for the queue, which
+  depends on the broker in use and its extensions.
+
+For example::
+
+    {
+        'my_queue': {
+            'durable': True,
+            'auto_delete': True,
+            'exclusive': False,
+            'arguments': {},
+        },
+    }
+
+
+.. _conf-bindings:
+
 bindings
 --------
-A list of dictionaries that define the queues and their bindings to exchanges.
-The consumer will connect to all the defined queues. The default is an empty
-dictionary. An example definition would be::
+A list of dictionaries that define queue bindings to exchanges. The ``queue``
+key is the queue's name. The ``exchange`` key should be the exchange name and
+the ``routing_keys`` key should be a list of routing keys. For example::
 
     [
         {
+            'queue': 'name',
             'exchange': 'amq.topic',
-            'queue_name': 'my_queue',
-            'routing_key': 'interesting.topic.#',
-        },
-        {
-            'exchange': 'amq.topic',
-            'queue_name': 'my_queue',
-            'routing_key': 'another.interesting.topic',
+            'routing_keys': ['topic1', 'topic2.#'],
         },
     ]
 
@@ -107,14 +169,39 @@ The Python path of the callback. This should be in the format
 ``<module>:<object>``. For example, if the callback was called "my_callback"
 and was located in the "my_module" module of the "my_package" package, the path
 would be defined as ``my_package.my_module:my_callback``. The default is None.
-"""
 
+Consult the :ref:`consumers` documentation for details on implementing a
+callback.
+
+consumer_config
+---------------
+A dictionary for the consumer to use as configuration. The consumer should
+access this key in its callback for any configuration it needs. Defaults to
+an empty dictionary.
+
+qos
+---
+The quality of service settings to use for consumers. This setting is a
+dictionary with two keys. ``prefetch_count`` specifies the number of messages
+to pre-fetch from the server. Pre-fetching messages improves performance by
+reducing the amount of back-and-forth between client and server. The downside
+is if the consumer encounters an unexpected problem, messages won't be returned
+to the queue and sent to a different consumer until the consumer times out.
+``prefetch_size`` limits the size of pre-fetched messages (in bytes), with 0
+meaning there is no limit. The default settings are::
+
+    {
+        'prefetch_count': 10,
+        'prefetch_size': 0,
+    }
+"""
 from __future__ import unicode_literals
 
 import logging
 import logging.config
 import os
 import sys
+import uuid
 
 import pkg_resources
 import pytoml
@@ -125,6 +212,8 @@ _log = logging.getLogger(__name__)
 _fedora_version = pkg_resources.get_distribution('fedora_messaging').version
 _pika_version = pkg_resources.get_distribution('pika').version
 
+# A default, auto-deleted queue for consumers
+_default_queue_name = str(uuid.uuid4())
 
 #: A dictionary of application configuration defaults.
 DEFAULTS = dict(
@@ -140,8 +229,35 @@ DEFAULTS = dict(
         'version': 'fedora_messaging-{} with pika-{}'.format(_fedora_version, _pika_version),
     },
     publish_exchange='amq.topic',
-    bindings={},
+    exchanges={
+        'amq.topic': {
+            'type': 'topic',
+            'durable': True,
+            'auto_delete': False,
+            'arguments': {},
+        },
+    },
+    queues={
+        _default_queue_name: {
+            'durable': False,
+            'auto_delete': True,
+            'exclusive': False,
+            'arguments': {},
+        },
+    },
+    bindings=[
+        {
+            'queue': _default_queue_name,
+            'exchange': 'amq.topic',
+            'routing_keys': ['#'],
+        },
+    ],
+    qos={
+        'prefetch_size': 0,
+        'prefetch_count': 10,
+    },
     callback=None,
+    consumer_config={},
     log_config={
         'version': 1,
         'disable_existing_loggers': False,
