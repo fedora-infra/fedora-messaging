@@ -21,7 +21,6 @@ import jsonschema
 import mock
 
 from fedora_messaging import message
-from fedora_messaging.message import Message
 
 
 class MessageTests(unittest.TestCase):
@@ -48,6 +47,7 @@ class MessageTests(unittest.TestCase):
 
     def test_repr(self):
         """Assert the message produces a valid representation of the message."""
+        Message = message.Message  # noqa
         expected = "Message(body={'my': 'key'}, headers={}, topic='test.topic')"
         msg = message.Message(topic='test.topic', body={'my': 'key'})
         self.assertEqual(expected, repr(msg))
@@ -67,8 +67,6 @@ class MessageTests(unittest.TestCase):
         message.Message().validate()
 
 
-
-
 class ClassRegistryTests(unittest.TestCase):
     """Tests for the :func:`fedora_messaging.message.load_message_classes`."""
 
@@ -77,7 +75,7 @@ class ClassRegistryTests(unittest.TestCase):
             message.load_message_classes()
             self.assertIn('fedora_messaging.message:Message', message._class_registry)
             self.assertTrue(
-            message._class_registry['fedora_messaging.message:Message'] is message.Message)
+                message._class_registry['fedora_messaging.message:Message'] is message.Message)
 
     @mock.patch('fedora_messaging.message._registry_loaded', False)
     def test_get_class_autoload(self):

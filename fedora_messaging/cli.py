@@ -24,7 +24,6 @@ from __future__ import absolute_import
 import importlib
 import logging
 import logging.config
-import sys
 
 import click
 
