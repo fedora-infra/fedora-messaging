@@ -23,8 +23,13 @@ matrix:
       env: TOXENV=py35
     - python: "3.6"
       env: TOXENV=py36
+    - python: "2.7"
+      env: TOXENV=py27-integration
+      sudo: required
+      services:
+        - rabbitmq
     - python: "3.6"
-      env: TOXENV=integration
+      env: TOXENV=py36-integration
       sudo: required
       services:
         - rabbitmq
