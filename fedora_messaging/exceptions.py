@@ -36,8 +36,8 @@ class HaltConsumer(ConsumeException):
         exit_code (int): The exit code to use when halting.
     """
 
-    def __init__(self, *args, exit_code=0, reason=None, **kwargs):
-        super(HaltConsumer, self).__init__(*args, **kwargs)
+    def __init__(self, exit_code=0, reason=None, **kwargs):
+        super(HaltConsumer, self).__init__(**kwargs)
         self.exit_code = exit_code
         self.reason = reason
 
