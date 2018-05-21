@@ -15,10 +15,14 @@ def consume(callback, bindings=None):
 
     The callback receives a single positional argument, the message:
 
+    >>> from fedora_messaging import api
     >>> def my_callback(message):
     ...     print(message)
-    >>> bindings = [{'exchange': 'amq.topic', 'queue_name': 'demo', 'routing_key': '#'}]
-    >>> consume(my_callback, bindings=bindings)
+    >>> bindings = [{'exchange': 'amq.topic', 'queue': 'demo', 'routing_keys': ['#']}]
+    >>> api.consume(my_callback, bindings=bindings)
+
+    For complete documentation on writing consumers, see the :ref:`consumers`
+    documentation.
 
     Args:
         callback (callable): A callable object that accepts one positional argument,

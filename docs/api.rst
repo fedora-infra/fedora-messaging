@@ -13,8 +13,7 @@ This documentation covers the public interfaces fedora_messaging provides.
 Publishing
 ==========
 
-.. automodule:: fedora_messaging.api
-   :members: publish
+.. autofunction:: fedora_messaging.api.publish
 
 .. _sub-api:
 
@@ -22,8 +21,7 @@ Publishing
 Subscribing
 ===========
 
-.. automodule:: fedora_messaging.api
-   :members: consume
+.. autofunction:: fedora_messaging.api.consume
 
 
 .. _message-api:
