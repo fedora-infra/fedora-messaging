@@ -148,9 +148,10 @@ For example::
 
 bindings
 --------
-A list of dictionaries that define queue bindings to exchanges. The ``queue``
-key is the queue's name. The ``exchange`` key should be the exchange name and
-the ``routing_keys`` key should be a list of routing keys. For example::
+A list of dictionaries that define queue bindings to exchanges that consumers
+will subscribe to. The ``queue`` key is the queue's name. The ``exchange`` key
+should be the exchange name and the ``routing_keys`` key should be a list of
+routing keys. For example::
 
     [
         {
@@ -161,7 +162,7 @@ the ``routing_keys`` key should be a list of routing keys. For example::
     ]
 
 This would create two bindings for the ``my_queue`` queue, both to the
-``amq.topic`` exchange.
+``amq.topic`` exchange. Consumers will consume from both queues.
 
 callback
 --------

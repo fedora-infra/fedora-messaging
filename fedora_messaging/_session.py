@@ -307,9 +307,11 @@ class ConsumerSession(object):
         for binding in self._bindings:
             if binding['queue'] == frame.method.queue:
                 for key in binding['routing_keys']:
+                    _log.info('Asserting %s is bound to %s with the %s key',
+                              binding['queue'], binding['exchange'], key)
                     self._channel.queue_bind(None, binding['queue'],
                                              binding['exchange'], key)
-        self._channel.basic_consume(self._on_message, frame.method.queue)
+                self._channel.basic_consume(self._on_message, frame.method.queue)
 
     def _on_cancel(self, cancel_frame):
         """
