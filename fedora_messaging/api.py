@@ -27,9 +27,8 @@ def consume(callback, bindings=None):
     Args:
         callback (callable): A callable object that accepts one positional argument,
             a :class:`Message`.
-        bindings (dict or list of dict): The queues and bindings to use when
-            consuming. This should be one or more dictionaries with the 'exchange',
-            'queue_name', and 'routing_key' keys.
+        bindings (dict or list of dict): The bindings to use when consuming. This
+            should be the same format as the :ref:`conf-bindings` configuration.
     """
     if isinstance(bindings, dict):
         bindings = [bindings]
