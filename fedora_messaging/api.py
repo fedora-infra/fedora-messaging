@@ -4,9 +4,11 @@ from ._session import ConsumerSession, PublisherSession
 
 _session = None
 from .signals import pre_publish_signal, publish_signal, publish_failed_signal
+from .message import Message
 
 
 __all__ = (
+    'Message',
     'consume',
     'publish',
     'pre_publish_signal',
