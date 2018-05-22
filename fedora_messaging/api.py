@@ -1,8 +1,6 @@
 """The API for publishing messages and consuming from message queues."""
 
-from ._session import ConsumerSession, PublisherSession
-
-_session = None
+from . import _session
 from .signals import pre_publish_signal, publish_signal, publish_failed_signal
 from .message import Message
 
@@ -15,6 +13,8 @@ __all__ = (
     'publish_signal',
     'publish_failed_signal',
 )
+
+_session_cache = None
 
 
 def consume(callback, bindings=None):
@@ -44,7 +44,7 @@ def consume(callback, bindings=None):
     """
     if isinstance(bindings, dict):
         bindings = [bindings]
-    session = ConsumerSession()
+    session = _session.ConsumerSession()
     session.consume(callback, bindings)
 
 
@@ -67,7 +67,7 @@ def publish(message):
     # TODO doc retry behavior, when messages could get double published, etc.
     """
     # TODO make thread-local registry, probably
-    global _session
-    if _session is None:
-        _session = PublisherSession()
-    _session.publish(message)
+    global _session_cache
+    if _session_cache is None:
+        _session_cache = _session.PublisherSession(exchange=exchange)
+    _session_cache.publish(message)
