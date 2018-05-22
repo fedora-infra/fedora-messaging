@@ -1,3 +1,6 @@
+
+.. _publishing:
+
 ==========
 Publishing
 ==========
@@ -73,10 +76,25 @@ prepared to see (and potentially handle) some errors.
 Validation
 ----------
 
-The message create may not be successfully validated against its schema. This
-is not an error you should catch, since it must be fixed by the developer and
-cannot be recovered from.
+The message you create may not be successfully validated against its schema.
+This is not an error you should catch, since it must be fixed by the developer
+and cannot be recovered from.
 
-TODO document other errors, timeouts, etc.
+
+Connection Errors
+-----------------
+
+The publish API will attempt to reconnect to the broker several times before an
+exception is raised. Once this occurs it is up to the application to decide what
+to do.
+
+
+Rejected Messages
+-----------------
+
+The broker may reject a message. This could occur because the message is too
+large, or because the publisher does not have permission to publish messages
+with a particular topic, or some other reason.
+
 
 .. _topics: https://www.rabbitmq.com/amqp-0-9-1-reference.html#queue.bind.routing-key

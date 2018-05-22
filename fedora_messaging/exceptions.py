@@ -9,6 +9,14 @@ class PublishException(BaseException):
     """Base class for exceptions related to publishing."""
 
 
+class PublishReturned(PublishException):
+    """Raised when the broker rejects and returns the message to the publisher."""
+
+
+class ConnectionError(BaseException):
+    """Raised if a general connection error occurred."""
+
+
 class ConsumeException(BaseException):
     """Base class for exceptions related to consuming."""
 
