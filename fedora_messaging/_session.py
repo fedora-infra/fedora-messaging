@@ -21,39 +21,15 @@ import logging
 import signal
 import uuid
 
-import blinker
 import pika
 import jsonschema
 
 from . import config
 from .message import _schema_name, get_class, Message
+from .signals import pre_publish_signal, publish_signal, publish_failed_signal
 from .exceptions import Nack, Drop, HaltConsumer, ValidationError
 
 _log = logging.getLogger(__name__)
-
-_pre_pub_docs = """
-A signal triggered before the message is published. The signal handler should
-accept a single keyword argument, ``message``, which is the instance of the
-:class:`Message` being sent. It is acceptable to mutate the message, but the
-``validate`` method will be called on it after this signal.
-"""
-
-_pub_docs = """
-A signal triggered after a message is published successfully. The signal
-handler should accept a single keyword argument, ``message``, which is the
-instance of the :class:`Message` that was sent.
-"""
-
-_pub_fail_docs = """
-A signal triggered after a message fails to publish for some reason. The signal
-handler should accept two keyword argument, ``message``, which is the
-instance of the :class:`Message` that failed to be sent, and ``error``, the
-exception that was raised.
-"""
-
-pre_publish_signal = blinker.signal('fedora_pre_publish', doc=_pre_pub_docs)
-publish_signal = blinker.signal('fedora_publish_success', doc=_pub_docs)
-publish_failed_signal = blinker.signal('fedora_publish_success', doc=_pub_fail_docs)
 
 
 class PublisherSession(object):

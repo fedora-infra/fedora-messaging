@@ -3,6 +3,16 @@
 from ._session import ConsumerSession, PublisherSession
 
 _session = None
+from .signals import pre_publish_signal, publish_signal, publish_failed_signal
+
+
+__all__ = (
+    'consume',
+    'publish',
+    'pre_publish_signal',
+    'publish_signal',
+    'publish_failed_signal',
+)
 
 
 def consume(callback, bindings=None):

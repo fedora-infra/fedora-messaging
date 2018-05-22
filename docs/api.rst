@@ -15,14 +15,25 @@ Publishing
 
 .. autofunction:: fedora_messaging.api.publish
 
-.. _sub-api:
 
+.. _sub-api:
 
 Subscribing
 ===========
 
 .. autofunction:: fedora_messaging.api.consume
 
+
+.. _signal-api:
+
+Signals
+=======
+
+.. automodule:: fedora_messaging.signals
+
+.. autodata:: fedora_messaging.api.pre_publish_signal
+.. autodata:: fedora_messaging.api.publish_signal
+.. autodata:: fedora_messaging.api.publish_failed_signal
 
 .. _message-api:
 

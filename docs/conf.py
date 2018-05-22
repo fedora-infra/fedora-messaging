@@ -180,4 +180,5 @@ intersphinx_mapping = {
     'pika': ('https://pika.readthedocs.io/en/latest/', None),
     'jsonschema':  ('https://python-jsonschema.readthedocs.io/en/latest/', None),
     'six': ('https://pythonhosted.org/six/', None),
+    'blinker': ('https://pythonhosted.org/blinker/', None),
 }
