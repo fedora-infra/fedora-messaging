@@ -47,7 +47,7 @@ class PublisherSession(object):
         if self._confirms:
             self._channel.confirm_delivery()
 
-    def publish(self, message):
+    def publish(self, message, exchange=None):
         """
         Publish a :class:`fedora_messaging.message.Message` to an `exchange`_ on
         the message broker.
@@ -61,6 +61,10 @@ class PublisherSession(object):
         >>> sess = session.BlockingSession()
         >>> sess.publish(msg)
 
+        Args:
+            message (message.Message): The message to publish.
+            exchange (str): The name of the AMQP exchange to publish to; defaults
+                to :ref:`conf-publish-exchange`
         Raises:
             exceptions.PublishError: If publishing failed.
 
@@ -79,7 +83,7 @@ class PublisherSession(object):
             content_type='application/json', content_encoding='utf-8', delivery_mode=2,
             headers=message.headers, message_id=str(uuid.uuid4()))
         try:
-            self._channel.publish(self._exchange, message.topic.encode('utf-8'),
+            self._channel.publish(exchange or self._exchange, message.topic.encode('utf-8'),
                                   json.dumps(message.body).encode('utf-8'), properties)
             publish_signal.send(self, message=message)
             # TODO actual error handling
@@ -98,7 +102,7 @@ class PublisherSession(object):
                 self._channel.confirm_delivery()
             _log.info('Successfully opened connection to %s', self._parameters.host)
             self._channel = self._connection.channel()
-            self._channel.publish(self._exchange, message.topic.encode('utf-8'),
+            self._channel.publish(exchange or self._exchange, message.topic.encode('utf-8'),
                                   json.dumps(message.body).encode('utf-8'), properties)
             publish_signal.send(self, message=message)
 

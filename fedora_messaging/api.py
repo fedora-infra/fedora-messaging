@@ -48,7 +48,7 @@ def consume(callback, bindings=None):
     session.consume(callback, bindings)
 
 
-def publish(message):
+def publish(message, exchange=None):
     """
     Publish a message to an exchange.
 
@@ -56,18 +56,30 @@ def publish(message):
     acknowledgment has been received from the message broker and you can be
     certain the message was published successfully.
 
+    There are some cases where an error occurs despite your message being
+    successfully published. For example, if a network partition occurs after
+    the message is received by the broker. Therefore, you may publish duplicate
+    messages. For complete details, see the :ref:`publishing` documentation.
+
+    >>> from fedora_messaging import api
+    >>> message = api.Message(body={'Hello': 'world'}, topic='Hi')
+    >>> api.publish(message)
+
     Args:
         message (message.Message): The message to publish.
+        exchange (str): The name of the AMQP exchange to publish to; defaults to
+            :ref:`conf-publish-exchange`
 
     Raises:
-        Exception: Some useful exceptions
+        fedora_messaging.exceptions.PublishReturned: Raised if the broker rejects the
+            message.
+        fedora_messaging.exceptions.ConnectionError: Raised if a connection error
+            occurred before the publish confirmation arrived.
 
-    # TODO should this accept a dict and wrap it in the default Message class?
-    # TODO should this API accept arguments to override the config?
     # TODO doc retry behavior, when messages could get double published, etc.
     """
     # TODO make thread-local registry, probably
     global _session_cache
     if _session_cache is None:
-        _session_cache = _session.PublisherSession(exchange=exchange)
-    _session_cache.publish(message)
+        _session_cache = _session.PublisherSession(exchange)
+    _session_cache.publish(message, exchange=exchange)
