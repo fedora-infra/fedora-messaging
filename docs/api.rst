@@ -33,4 +33,11 @@ Message Schemas
    :members: Message, get_class
 
 
+Exceptions
+==========
+
+.. automodule:: fedora_messaging.exceptions
+   :members:
+
+
 .. _semantic versioning 2.0.0: http://semver.org/
