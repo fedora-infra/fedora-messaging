@@ -43,7 +43,7 @@ def get_requirements(requirements_file='requirements.txt'):
 
 setup(
     name='fedora_messaging',
-    version='0.1.0a1',
+    version='0.1.0a2',
     description="A set of tools for using Fedora's messaging infrastructure",
     long_description=README,
     # Possible options are at https://pypi.python.org/pypi?%3Aaction=list_classifiers
