@@ -113,18 +113,13 @@ class PublisherSession(object):
 class ConsumerSession(object):
     """A session using the asynchronous APIs offered by Pika."""
 
-    def __init__(self, retries=-1, retry_max_interval=60):
+    def __init__(self):
         self._parameters = pika.URLParameters(config.conf['amqp_url'])
         if self._parameters.client_properties is None:
             self._parameters.client_properties = config.conf['client_properties']
         self._connection = None
         self._channel = None
         self._bindings = {}
-        self._retries = retries
-        self._max_retry_interval = retry_max_interval
-        self._retry_interval = 3
-        self._retries_left = self._retries
-        self._current_retry_interval = self._retry_interval
         self._running = False
 
         def _signal_handler(signum, frame):
@@ -214,8 +209,6 @@ class ConsumerSession(object):
                 connection.
         """
         _log.info('Successfully opened connection to %s', connection.params.host)
-        self._current_retries = self._retries
-        self._current_retry_interval = self._retry_interval
         self._channel = connection.channel(on_open_callback=self._on_channel_open)
 
     def _on_connection_close(self, connection, reply_code, reply_text):
@@ -235,7 +228,7 @@ class ConsumerSession(object):
         else:
             _log.warning('Connection to %s closed unexpectedly (%d): %s',
                          connection.params.host, reply_code, reply_text)
-            self._reconnect()
+            self._connection.add_timeout(0, self._connection.connect)
 
     def _on_connection_error(self, connection, error_message):
         """
@@ -248,23 +241,7 @@ class ConsumerSession(object):
         """
         self._channel = None
         _log.error(error_message)
-        self._reconnect()
-
-    def _reconnect(self):
-        """
-        Reconnect to the broker, a configurable number of times, with a backoff.
-
-        The connection object has a reconnect setting with an interval, but this
-        backs off up to a configurable limit.
-        """
-        if self._retries_left != 0:
-            _log.info('Reconnecting in %d seconds', self._current_retry_interval)
-            self._connection.add_timeout(
-                self._current_retry_interval, self._connection.connect)
-            self._retries_left -= 1
-            self._current_retry_interval *= 2
-            if self._current_retry_interval > self._max_retry_interval:
-                self._current_retry_interval = self._max_retry_interval
+        self._connection.add_timeout(0, self._connection.connect)
 
     def _on_exchange_declareok(self, declare_frame):
         """
