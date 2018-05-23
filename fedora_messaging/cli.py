@@ -97,4 +97,7 @@ def consume(amqp_url, exchange, queue_name, routing_key, callback, app_name):
         config.conf['client_properties']['app'] = app_name
 
     _log.info('Starting consumer with %s callback', callback_path)
-    return api.consume(callback, bindings)
+    try:
+        return api.consume(callback, bindings)
+    except ValueError as e:
+        raise click.exceptions.BadOptionUsage(str(e))

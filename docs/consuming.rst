@@ -110,6 +110,47 @@ Keep in mind that it's up to the callback to ensure the storage doesn't use up
 all the available memory. It's not a good idea, for example, to keep a reference
 to all the messages the consumer has ever received.
 
+For more complex consumers, a class can be used as the consumer. Its
+``__init__`` function should accept no arguments and rely on the configuration
+for initialization. It must also define the ``__call__`` method which accepts
+the message as its argument. This will be called when a message arrives::
+
+    from fedora_messaging import api, config
+
+    class PrintMessage(object):
+        """
+        A fedora-messaging consumer that prints the message to stdout.
+
+        A single configuration key is used from fedora-messaging's "consumer_config"
+        key, "summary", which should be a boolean. If true, just the message summary
+        is printed. Place the following in your fedora-messaging configuration file::
+
+            [consumer_config]
+            summary = true
+
+        The default is false.
+        """
+
+        def __init__(self):
+            try:
+                self.summary = config.conf['consumer_config']['summary']
+            except KeyError:
+                self.summary = False
+
+        def __call__(self, message):
+            """
+            Invoked when a message is received by the consumer.
+
+            Args:
+                message (fedora_messaging.api.Message): The message from AMQP.
+            """
+            if self.summary:
+                print(message.summary())
+            else:
+                print(message)
+
+    api.consume(PrintMessage)
+
 
 Consumer Configuration
 ======================

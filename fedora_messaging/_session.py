@@ -16,6 +16,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 from __future__ import absolute_import, unicode_literals
 
+import inspect
 import json
 import logging
 import signal
@@ -326,6 +327,8 @@ class ConsumerSession(object):
         Raises:
             HaltConsumer: Raised when the consumer halts.
             ValidationError: When a message fails schema validation.
+            ValueError: If the callback isn't a function or a class with __call__
+                defined.
         """
         self._connection = pika.SelectConnection(
             self._parameters,
@@ -337,7 +340,15 @@ class ConsumerSession(object):
         self._bindings = bindings or config.conf['bindings']
         self._queues = queues or config.conf['queues']
         self._exchanges = exchanges or config.conf['exchanges']
-        self._consumer_callback = callback
+
+        # If the callback is a class, create an instance of it first
+        if inspect.isclass(callback):
+            self._consumer_callback = callback()
+        elif inspect.isfunction(callback):
+            self._consumer_callback = callback
+        else:
+            raise ValueError('Callback must be a class that implements __call__'
+                             ' or a function.')
         self._running = True
         while self._running:
             self._connection.ioloop.start()
