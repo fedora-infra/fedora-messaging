@@ -33,7 +33,7 @@ amqp_url
 --------
 The AMQP broker to connect to. This URL should be in the format described by
 the :class:`pika.connection.URLParameters` documentation. This defaults to
-``amqp://``.
+``'amqp://?connection_attempts=3&retry_delay=5``.
 
 .. _conf-client-properties:
 
@@ -218,7 +218,7 @@ _default_queue_name = str(uuid.uuid4())
 
 #: A dictionary of application configuration defaults.
 DEFAULTS = dict(
-    amqp_url='amqp://',
+    amqp_url='amqp://?connection_attempts=3&retry_delay=5',
     #: The default client properties reported to the AMQP broker in the "start-ok"
     #: method of the connection negotiation. This allows the broker administrators
     #: to easily identify what a connection is being used for and the client's

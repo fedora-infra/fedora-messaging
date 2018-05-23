@@ -22,13 +22,14 @@ import logging
 import signal
 import uuid
 
+from pika import exceptions as pika_errs
 import pika
 import jsonschema
 
 from . import config
 from .message import _schema_name, get_class, Message
-from .signals import pre_publish_signal, publish_signal, publish_failed_signal
-from .exceptions import Nack, Drop, HaltConsumer, ValidationError
+from .exceptions import (
+    Nack, Drop, HaltConsumer, ValidationError, PublishReturned, ConnectionException)
 
 _log = logging.getLogger(__name__)
 
@@ -42,22 +43,15 @@ class PublisherSession(object):
         if self._parameters.client_properties is None:
             self._parameters.client_properties = config.conf['client_properties']
         self._confirms = confirms
-        # TODO break this out to handle automatically reconnecting and failing over, errors, etc.
-        self._connection = pika.BlockingConnection(self._parameters)
-        self._channel = self._connection.channel()
-        if self._confirms:
-            self._channel.confirm_delivery()
+        self._connection = None
+        self._channel = None
 
     def publish(self, message, exchange=None):
         """
         Publish a :class:`fedora_messaging.message.Message` to an `exchange`_ on
         the message broker.
 
-        This is a blocking API that will retry a configurable number of times to
-        publish the message.
-
-
-        >>> from fedora_messaging import session, message
+        >>> from fedora_messaging import _session, message
         >>> msg = message.Message(topic='test', body={'test':'message'})
         >>> sess = session.BlockingSession()
         >>> sess.publish(msg)
@@ -66,46 +60,54 @@ class PublisherSession(object):
             message (message.Message): The message to publish.
             exchange (str): The name of the AMQP exchange to publish to; defaults
                 to :ref:`conf-publish-exchange`
+
         Raises:
-            exceptions.PublishError: If publishing failed.
+            PublishReturned: If the published message is rejected by the broker.
+            ConnectionException: If a connection error occurs while publishing.
 
         .. _exchange: https://www.rabbitmq.com/tutorials/amqp-concepts.html#exchanges
         """
-        pre_publish_signal.send(self, message=message)
-
         # Consumers use this to determine what schema to use and if they're out of date
         message.headers['fedora_messaging_schema'] = _schema_name(message.__class__)
         message.headers['fedora_messaging_schema_version'] = message.schema_version
-
-        # Since the message can be mutated by signal listeners, validate just before sending
         message.validate()
 
         properties = pika.BasicProperties(
             content_type='application/json', content_encoding='utf-8', delivery_mode=2,
             headers=message.headers, message_id=str(uuid.uuid4()))
         try:
-            self._channel.publish(exchange or self._exchange, message.topic.encode('utf-8'),
+            if not self._connection or not self._channel:
+                self._connection = pika.BlockingConnection(self._parameters)
+                self._channel = self._connection.channel()
+                if self._confirms:
+                    self._channel.confirm_delivery()
+
+            self._channel.publish(exchange, message.topic.encode('utf-8'),
                                   json.dumps(message.body).encode('utf-8'), properties)
-            publish_signal.send(self, message=message)
-            # TODO actual error handling
-        except pika.exceptions.NackError as e:
-            _log.error('Message got nacked!')
-            publish_failed_signal.send(self, message=message, error=e)
-        except pika.exceptions.UnroutableError as e:
-            _log.error('Message is unroutable!')
-            publish_failed_signal.send(self, message=e, error=e)
-        except pika.exceptions.ConnectionClosed as e:
-            _log.warning('Connection closed to %s; attempting to reconnect...',
-                         self._parameters.host)
-            self._connection = pika.BlockingConnection(self._parameters)
-            self._channel = self._connection.channel()
-            if self._confirms:
-                self._channel.confirm_delivery()
-            _log.info('Successfully opened connection to %s', self._parameters.host)
-            self._channel = self._connection.channel()
-            self._channel.publish(exchange or self._exchange, message.topic.encode('utf-8'),
-                                  json.dumps(message.body).encode('utf-8'), properties)
-            publish_signal.send(self, message=message)
+        except (pika_errs.ConnectionClosed, pika_errs.ChannelClosed) as e:
+            # Because this is a blocking connection (and thus can't heartbeat)
+            # we might need to restart the connection.
+            _log.info('Resetting connection to %s', self._parameters.host)
+            try:
+                self._connection = pika.BlockingConnection(self._parameters)
+                self._channel = self._connection.channel()
+                if self._confirms:
+                    _log.info('Enabling delivery confirmations on publishing channel')
+                    self._channel.confirm_delivery()
+                self._channel.publish(exchange, message.topic.encode('utf-8'),
+                                      json.dumps(message.body).encode('utf-8'), properties)
+            except pika_errs.AMQPConnectionError as e:
+                _log.error(str(e))
+                if self._connection.is_open:
+                    self._connection.close()
+                raise ConnectionException(reason=e)
+        except (pika_errs.NackError, pika_errs.UnroutableError) as e:
+            _log.warning('Message was rejected by the broker (%s)', str(e))
+            raise PublishReturned(reason=e)
+        except pika_errs.AMQPError as e:
+            if self._connection.is_open:
+                self._connection.close()
+            raise ConnectionException(reason=e)
 
 
 class ConsumerSession(object):

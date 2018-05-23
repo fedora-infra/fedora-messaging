@@ -1,6 +1,8 @@
 """The API for publishing messages and consuming from message queues."""
 
-from . import _session
+import threading
+
+from . import _session, exceptions, config
 from .signals import pre_publish_signal, publish_signal, publish_failed_signal
 from .message import Message
 
@@ -14,7 +16,8 @@ __all__ = (
     'publish_failed_signal',
 )
 
-_session_cache = None
+# Sessions aren't thread-safe, so each thread gets its own
+_session_cache = threading.local()
 
 
 def consume(callback, bindings=None):
@@ -65,6 +68,11 @@ def publish(message, exchange=None):
     >>> message = api.Message(body={'Hello': 'world'}, topic='Hi')
     >>> api.publish(message)
 
+    If an attempt to publish fails because the broker rejects the message, it
+    is not retried. Connection attempts to the broker can be configured using
+    the "connection_attempts" and "retry_delay" options in the broker URL. See
+    :class:`pika.connection.URLParameters` for details.
+
     Args:
         message (message.Message): The message to publish.
         exchange (str): The name of the AMQP exchange to publish to; defaults to
@@ -73,13 +81,21 @@ def publish(message, exchange=None):
     Raises:
         fedora_messaging.exceptions.PublishReturned: Raised if the broker rejects the
             message.
-        fedora_messaging.exceptions.ConnectionError: Raised if a connection error
+        fedora_messaging.exceptions.ConnectionException: Raised if a connection error
             occurred before the publish confirmation arrived.
-
-    # TODO doc retry behavior, when messages could get double published, etc.
     """
-    # TODO make thread-local registry, probably
+    pre_publish_signal.send(publish, message=message)
+
+    if exchange is None:
+        exchange = config.conf['publish_exchange']
+
     global _session_cache
-    if _session_cache is None:
-        _session_cache = _session.PublisherSession(exchange)
-    _session_cache.publish(message, exchange=exchange)
+    if not hasattr(_session_cache, 'session'):
+        _session_cache.session = _session.PublisherSession()
+
+    try:
+        _session_cache.session.publish(message, exchange=exchange)
+        publish_signal.send(publish, message=message)
+    except exceptions.PublishException as e:
+        publish_failed_signal.send(publish, message=message, reason=e)
+        raise

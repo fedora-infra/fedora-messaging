@@ -13,8 +13,12 @@ class PublishReturned(PublishException):
     """Raised when the broker rejects and returns the message to the publisher."""
 
 
-class ConnectionError(BaseException):
+class ConnectionException(BaseException):
     """Raised if a general connection error occurred."""
+
+    def __init__(self, reason=None, **kwargs):
+        super(ConnectionException, self).__init__(**kwargs)
+        self.reason = reason
 
 
 class ConsumeException(BaseException):
