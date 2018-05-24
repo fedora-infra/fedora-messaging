@@ -24,10 +24,11 @@ from __future__ import absolute_import
 import importlib
 import logging
 import logging.config
+import sys
 
 import click
 
-from . import config, api
+from . import config, api, exceptions
 
 _log = logging.getLogger(__name__)
 
@@ -101,3 +102,8 @@ def consume(amqp_url, exchange, queue_name, routing_key, callback, app_name):
         return api.consume(callback, bindings)
     except ValueError as e:
         raise click.exceptions.BadOptionUsage(str(e))
+    except exceptions.HaltConsumer as e:
+        if e.exit_code:
+            _log.error('Consumer halted with non-zero exit code (%d): %s',
+                       e.exit_code, str(e.reason))
+            sys.exit(e.exit_code)

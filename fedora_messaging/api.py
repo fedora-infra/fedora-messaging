@@ -44,6 +44,10 @@ def consume(callback, bindings=None):
             a :class:`Message`.
         bindings (dict or list of dict): The bindings to use when consuming. This
             should be the same format as the :ref:`conf-bindings` configuration.
+
+    Raises:
+        fedora_messaging.exceptions.HaltConsumer: If the consumer requests that
+            it be stopped.
     """
     if isinstance(bindings, dict):
         bindings = [bindings]
