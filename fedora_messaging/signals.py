@@ -33,13 +33,13 @@ signal.
 """
 
 publish_signal = _signals.signal('publish_success')
-publish_signal.__doc__ = _pub_docs = """
+publish_signal.__doc__ = """
 A signal triggered after a message is published successfully. The signal
 handler should accept a single keyword argument, ``message``, which is the
 instance of the :class:`fedora_messaging.message.Message` that was sent.
 """
 
-publish_failed_signal = _signals.signal('publish_success')
+publish_failed_signal = _signals.signal('publish_failed_signal')
 publish_failed_signal.__doc__ = """
 A signal triggered after a message fails to publish for some reason. The signal
 handler should accept two keyword argument, ``message``, which is the instance
