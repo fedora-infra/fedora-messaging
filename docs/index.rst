@@ -26,6 +26,15 @@ User Guide
    changelog
 
 
+Command Line Interface Manuals
+------------------------------
+
+.. toctree::
+   :maxdepth: 2
+
+   fedora-messaging
+
+
 API Documentation
 =================
 

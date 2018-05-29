@@ -32,9 +32,43 @@ from . import config, api, exceptions
 
 _log = logging.getLogger(__name__)
 
+_conf_help = ('Path to a valid configuration file to use in place of the '
+              'configuration in /etc/fedora-messaging/config.toml.')
+_app_name_help = (
+    'The name of the application, used by the AMQP client to identify itself to '
+    'the broker. This is purely for administrator convenience to determine what '
+    'applications are connected and own particular resources.'
+)
+_callback_help = (
+    'The Python path to the callable object to execute when a message arrives. '
+    'The Python path should be in the format ``module.path:object_in_module`` '
+    'and should point to either a function or a class. Consult the API '
+    'documentation for the interface required for these objects.'
+)
+_routing_key_help = (
+    'The AMQP routing key to use with the queue. This controls what messages are '
+    'delivered to the consumer. Can be specified multiple times; any message '
+    'that matches at least one will be placed in the message queue. '
+)
+_queue_name_help = (
+    'The name of the message queue in AMQP. Can contain ASCII letters, digits, '
+    'hyphen, underscore, period, or colon. If one is not specified, a unique '
+    'name will be created for you.'
+)
+_exchange_help = (
+    'The name of the exchange to bind the queue to. Can contain ASCII letters, '
+    'digits, hyphen, underscore, period, or colon. If one is not specified, the '
+    'default is the ``amq.topic`` exchange.'
+)
+_amqp_url_help = (
+    'The AMQP URL to connect to, in the format '
+    'scheme://user:pass@host:port/virtual_host?key=value&key=value. Consult '
+    'the pika documentation for the supported query string parameters.'
+)
+
 
 @click.group()
-@click.option('--conf', envvar='FEDORA_MESSAGING_CONF')
+@click.option('--conf', envvar='FEDORA_MESSAGING_CONF', help=_conf_help)
 def cli(conf):
     """The fedora-messaging command line interface."""
     if conf:
@@ -45,12 +79,12 @@ def cli(conf):
 
 
 @cli.command()
-@click.option('--app-name')
-@click.option('--callback')
-@click.option('--routing-key')
-@click.option('--queue-name')
-@click.option('--exchange')
-@click.option('--amqp-url')
+@click.option('--app-name', help=_app_name_help)
+@click.option('--callback', help=_callback_help)
+@click.option('--routing-key', help=_routing_key_help)
+@click.option('--queue-name', help=_queue_name_help)
+@click.option('--exchange', help=_exchange_help)
+@click.option('--amqp-url', help=_amqp_url_help)
 def consume(amqp_url, exchange, queue_name, routing_key, callback, app_name):
 
     amqp_url = amqp_url or config.conf['amqp_url']

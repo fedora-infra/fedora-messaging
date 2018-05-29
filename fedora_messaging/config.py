@@ -174,6 +174,8 @@ would be defined as ``my_package.my_module:my_callback``. The default is None.
 Consult the :ref:`consumers` documentation for details on implementing a
 callback.
 
+.. _conf-consumer-config:
+
 consumer_config
 ---------------
 A dictionary for the consumer to use as configuration. The consumer should
