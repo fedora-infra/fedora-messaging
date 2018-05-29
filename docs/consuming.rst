@@ -10,20 +10,20 @@ possible by implementing common boilerplate code and offering a command line
 interface to easily start a consumer as a service under init systems like
 systemd.
 
-Overview
-========
-
-TODO give a brief overview of the players (queues, bindings, point to the
-message class)
-
-.. note:: If you're not familiar with AMQP, the `AMQP overview`_  from RabbitMQ is an
-          excellent place to start.
 
 Introduction
 ============
 
-The first step is to implement some code to run when a message is received. The
-API expects a callable object that accepts a single positional argument::
+`AMQP consumers`_ configure a `queue`_ for their use in the message broker.
+When a message is published to an `exchange`_ and matches the `bindings`_ the
+consumer has declared, the message is placed in the queue and eventually
+delivered to the consumer. Fedora uses a `topic exchange`_ for general-purpose
+messages.
+
+Fortunately, you don't need to manage the connection to the broker or configure
+the queue. All you need to do is to implement some code to run when a message
+is received. The API expects a callable object that accepts a single positional
+argument::
 
     from fedora_messaging import api
 
@@ -90,30 +90,25 @@ timeouts on any blocking calls (less than 30 seconds). If timeouts occur,
 simply raise the :class:`fedora_messaging.exceptions.Nack` and try again later.
 
 
+Consumer Configuration
+======================
+
+A special section of the configuration will be available for consumers to use
+if they need configuration options. Refer to the :ref:`sub-config` in the
+Configuration documentation for details.
+
+
 State Across Messages
 =====================
 
-Some consumers need to store state across messages. To do this, simply add a
-keyword argument with a mutable default to your callback.  This will be
-initialized once when the function is defined and then provided with every
-call. As a concrete example, suppose you wish to track how many messages you've
-received with a certain topic::
-
-    from collections import defaultdict
-
-    def callback_with_storage(message, counter=defaultdict(int)):
-        counter[message.topic] += 1
-        print("We've seen {} messages on the {} topic!".format(
-            counter[message.topic], message.topic))
-
-Keep in mind that it's up to the callback to ensure the storage doesn't use up
-all the available memory. It's not a good idea, for example, to keep a reference
-to all the messages the consumer has ever received.
-
-For more complex consumers, a class can be used as the consumer. Its
-``__init__`` function should accept no arguments and rely on the configuration
-for initialization. It must also define the ``__call__`` method which accepts
-the message as its argument. This will be called when a message arrives::
+Some consumers need to store state across messages. To do this, you can
+implement your consumer callback as a class. The
+:class:`fedora_messaging.api.consume` API will create an instance of the class
+and use that as the callable. The ``__init__`` function of the class should
+accept no arguments and rely on the configuration in
+:ref:`conf-consumer-config` for initialization. It must also define the
+``__call__`` method which accepts the message as its argument. This will be
+called when a message arrives::
 
     from fedora_messaging import api, config
 
@@ -152,20 +147,11 @@ the message as its argument. This will be called when a message arrives::
     api.consume(PrintMessage)
 
 
-Consumer Configuration
-======================
-
-A special section of the configuration will be available for consumers to use
-if they need configuration options. Refer to the :ref:`sub-config` in the
-Configuration documentation for details.
-
-
-Using the Command Line
-======================
-
-TODO: finalize CLI flags and write a man page with sphinx
-
-
 .. _AMQP overview: https://www.rabbitmq.com/tutorials/amqp-concepts.html
 .. _RabbitMQ tutorials: https://www.rabbitmq.com/getstarted.html
 .. _pika: https://pika.readthedocs.io/
+.. _bindings: https://www.rabbitmq.com/tutorials/amqp-concepts.html#bindings
+.. _queue: https://www.rabbitmq.com/tutorials/amqp-concepts.html#queues
+.. _AMQP consumers: https://www.rabbitmq.com/tutorials/amqp-concepts.html#consumers
+.. _exchange: https://www.rabbitmq.com/tutorials/amqp-concepts.html#exchanges
+.. _topic exchange: https://www.rabbitmq.com/tutorials/amqp-concepts.html#exchange-topic
