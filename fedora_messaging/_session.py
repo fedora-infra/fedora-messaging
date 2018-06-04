@@ -39,7 +39,7 @@ class PublisherSession(object):
 
     def __init__(self, amqp_url=None, exchange=None, confirms=True):
         self._exchange = exchange or config.conf['publish_exchange']
-        self._parameters = pika.URLParameters(config.conf['amqp_url'])
+        self._parameters = pika.URLParameters(amqp_url or config.conf['amqp_url'])
         if self._parameters.client_properties is None:
             self._parameters.client_properties = config.conf['client_properties']
         self._confirms = confirms
@@ -98,14 +98,14 @@ class PublisherSession(object):
                                       json.dumps(message.body).encode('utf-8'), properties)
             except pika_errs.AMQPConnectionError as e:
                 _log.error(str(e))
-                if self._connection.is_open:
+                if self._connection and self._connection.is_open:
                     self._connection.close()
                 raise ConnectionException(reason=e)
         except (pika_errs.NackError, pika_errs.UnroutableError) as e:
             _log.warning('Message was rejected by the broker (%s)', str(e))
             raise PublishReturned(reason=e)
         except pika_errs.AMQPError as e:
-            if self._connection.is_open:
+            if self._connection and self._connection.is_open:
                 self._connection.close()
             raise ConnectionException(reason=e)
 
