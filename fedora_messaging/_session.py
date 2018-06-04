@@ -76,26 +76,14 @@ class PublisherSession(object):
             content_type='application/json', content_encoding='utf-8', delivery_mode=2,
             headers=message.headers, message_id=str(uuid.uuid4()))
         try:
-            if not self._connection or not self._channel:
-                self._connection = pika.BlockingConnection(self._parameters)
-                self._channel = self._connection.channel()
-                if self._confirms:
-                    self._channel.confirm_delivery()
-
-            self._channel.publish(exchange, message.topic.encode('utf-8'),
-                                  json.dumps(message.body).encode('utf-8'), properties)
+            self._connect_and_publish(exchange, message, properties)
         except (pika_errs.ConnectionClosed, pika_errs.ChannelClosed) as e:
             # Because this is a blocking connection (and thus can't heartbeat)
             # we might need to restart the connection.
             _log.info('Resetting connection to %s', self._parameters.host)
+            self._connection = self._channel = None
             try:
-                self._connection = pika.BlockingConnection(self._parameters)
-                self._channel = self._connection.channel()
-                if self._confirms:
-                    _log.info('Enabling delivery confirmations on publishing channel')
-                    self._channel.confirm_delivery()
-                self._channel.publish(exchange, message.topic.encode('utf-8'),
-                                      json.dumps(message.body).encode('utf-8'), properties)
+                self._connect_and_publish(exchange, message, properties)
             except pika_errs.AMQPConnectionError as e:
                 _log.error(str(e))
                 if self._connection and self._connection.is_open:
@@ -108,6 +96,16 @@ class PublisherSession(object):
             if self._connection and self._connection.is_open:
                 self._connection.close()
             raise ConnectionException(reason=e)
+
+    def _connect_and_publish(self, exchange, message, properties):
+        if not self._connection or not self._channel:
+            self._connection = pika.BlockingConnection(self._parameters)
+            self._channel = self._connection.channel()
+            if self._confirms:
+                self._channel.confirm_delivery()
+
+        self._channel.publish(exchange, message.topic.encode('utf-8'),
+                              json.dumps(message.body).encode('utf-8'), properties)
 
 
 class ConsumerSession(object):
