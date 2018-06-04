@@ -8,6 +8,10 @@ class BaseException(Exception):
 class PublishException(BaseException):
     """Base class for exceptions related to publishing."""
 
+    def __init__(self, reason=None, **kwargs):
+        super(PublishException, self).__init__(**kwargs)
+        self.reason = reason
+
 
 class PublishReturned(PublishException):
     """Raised when the broker rejects and returns the message to the publisher."""
