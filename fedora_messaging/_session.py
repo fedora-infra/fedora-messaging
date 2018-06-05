@@ -139,7 +139,11 @@ class ConsumerSession(object):
         if self._channel:
             _log.info('Halting %r consumer sessions', self._channel.consumer_tags)
         self._running = False
-        self._connection.close()
+        if self._connection:
+            self._connection.close()
+        # Reset the signal handler
+        for signum in (signal.SIGTERM, signal.SIGINT):
+            signal.signal(signum, signal.SIG_DFL)
 
     def _on_cancelok(self, cancel_frame):
         """
@@ -370,9 +374,10 @@ class ConsumerSession(object):
             properties.content_encoding = 'utf-8'
         try:
             body = body.decode(properties.content_encoding)
-        except UnicodeDecodeError:
+        except UnicodeDecodeError as e:
             _log.error('Unable to decode message body %r with %s content encoding',
-                       body, delivery_frame.content_encoding)
+                       body, properties.content_encoding)
+            raise ValidationError(e)
 
         try:
             body = json.loads(body)
