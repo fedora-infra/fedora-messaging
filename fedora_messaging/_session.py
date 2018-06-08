@@ -392,6 +392,11 @@ class ConsumerSession(object):
 
 
 def get_message(routing_key, properties, body):
+    if properties.headers is None:
+        _log.error('Message (body=%r) arrived without headers. '
+                   'A publisher is misbehaving!', body)
+        properties.headers = {}
+
     try:
         MessageClass = get_class(properties.headers['fedora_messaging_schema'])
     except KeyError:
