@@ -26,7 +26,7 @@ from jsonschema.exceptions import ValidationError as JSONValidationError
 
 from fedora_messaging import _session, config, message
 from fedora_messaging.exceptions import (
-    PublishReturned, ConnectionException, ValidationError, Nack, Drop,
+    PublishReturned, ConnectionException, Nack, Drop,
     HaltConsumer)
 
 
@@ -305,30 +305,27 @@ class ConsumerSessionMessageTests(unittest.TestCase):
     def test_message_wrong_encoding(self):
         body = '"test body unicode é à ç"'.encode("utf-8")
         self.properties.content_encoding = "ascii"
-        self.assertRaises(
-            ValidationError,
-            self.consumer._on_message,
-            self.channel, self.frame, self.properties, body,
-        )
+        self.consumer._on_message(
+            self.channel, self.frame, self.properties, body)
+        self.channel.basic_nack.assert_called_with(
+            delivery_tag="testtag", requeue=False)
         self.consumer._consumer_callback.assert_not_called()
 
     def test_message_not_json(self):
         body = b"plain string"
-        self.assertRaises(
-            ValidationError,
-            self.consumer._on_message,
-            self.channel, self.frame, self.properties, body,
-        )
+        self.consumer._on_message(
+            self.channel, self.frame, self.properties, body)
+        self.channel.basic_nack.assert_called_with(
+            delivery_tag="testtag", requeue=False)
         self.consumer._consumer_callback.assert_not_called()
 
     def test_message_validation_failed(self):
         body = b'"test body"'
         with mock.patch(__name__ + ".FakeMessageClass.VALIDATE_OK", False):
-            self.assertRaises(
-                ValidationError,
-                self.consumer._on_message,
-                self.channel, self.frame, self.properties, body,
-            )
+            self.consumer._on_message(
+                self.channel, self.frame, self.properties, body)
+        self.channel.basic_nack.assert_called_with(
+            delivery_tag="testtag", requeue=False)
         self.consumer._consumer_callback.assert_not_called()
 
     def test_message_nack(self):
