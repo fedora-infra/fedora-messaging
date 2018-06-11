@@ -1,3 +1,5 @@
+# coding: utf-8
+
 # This file is part of fedora_messaging.
 # Copyright (C) 2018 Red Hat, Inc.
 #
@@ -20,9 +22,12 @@ import unittest
 
 import mock
 from pika import exceptions as pika_errs
+from jsonschema.exceptions import ValidationError as JSONValidationError
 
-from fedora_messaging import _session
-from fedora_messaging.exceptions import PublishReturned, ConnectionException
+from fedora_messaging import _session, config, message
+from fedora_messaging.exceptions import (
+    PublishReturned, ConnectionException, Nack, Drop,
+    HaltConsumer)
 
 
 class PublisherSessionTests(unittest.TestCase):
@@ -154,3 +159,219 @@ class PublisherSessionTests(unittest.TestCase):
         connection_class_mock.assert_called_with(self.publisher._parameters)
         self.assertEqual(self.publisher._connection, connection_mock)
         connection_mock.close.assert_called_once()
+
+
+class ConsumerSessionTests(unittest.TestCase):
+
+    def setUp(self):
+        self.consumer = _session.ConsumerSession()
+
+    def tearDown(self):
+        self.consumer._shutdown()
+
+    def test_consume(self):
+        # Test the consume function.
+        def stop_consumer():
+            # Necessary to exit the while loop
+            self.consumer._running = False
+        connection = mock.Mock()
+        connection.ioloop.start.side_effect = stop_consumer
+        with mock.patch(
+                "fedora_messaging._session.pika.SelectConnection",
+                lambda *a, **kw: connection):
+            # Callback is a callable
+            def callback(m):
+                return
+            self.consumer.consume(callback)
+            self.assertEqual(self.consumer._consumer_callback, callback)
+            connection.ioloop.start.assert_called_once()
+            # Callback is a class
+            self.consumer.consume(mock.Mock)
+            self.assertTrue(isinstance(
+                self.consumer._consumer_callback, mock.Mock))
+            # Configuration defaults
+            self.consumer.consume(callback)
+            self.assertEqual(
+                self.consumer._bindings, config.DEFAULTS["bindings"])
+            self.assertEqual(
+                self.consumer._queues, config.DEFAULTS["queues"])
+            self.assertEqual(
+                self.consumer._exchanges, config.DEFAULTS["exchanges"])
+            # Configuration overrides
+            test_value = [{"test": "test"}]
+            self.consumer.consume(
+                callback,
+                bindings=test_value,
+                queues=test_value,
+                exchanges=test_value,
+            )
+            self.assertEqual(self.consumer._bindings, test_value)
+            self.assertEqual(self.consumer._queues, test_value)
+            self.assertEqual(self.consumer._exchanges, test_value)
+
+    def test_declare(self):
+        # Test that the exchanges, queues and bindings are properly
+        # declared.
+        self.consumer._channel = mock.Mock()
+        self.consumer._exchanges = {
+            "testexchange": {
+                "type": "type",
+                "durable": "durable",
+                "auto_delete": "auto_delete",
+                "arguments": "arguments",
+            }
+        }
+        self.consumer._queues = {
+            "testqueue": {
+                "durable": "durable",
+                "auto_delete": "auto_delete",
+                "exclusive": "exclusive",
+                "arguments": "arguments",
+            },
+        }
+        self.consumer._bindings = [{
+            "queue": "testqueue",
+            "exchange": "testexchange",
+            "routing_keys": ["testrk"],
+        }]
+        # Declare exchanges and queues
+        self.consumer._on_qosok(None)
+        self.consumer._channel.exchange_declare.assert_called_with(
+            self.consumer._on_exchange_declareok,
+            "testexchange",
+            exchange_type="type",
+            durable="durable",
+            auto_delete="auto_delete",
+            arguments="arguments",
+        )
+        self.consumer._channel.queue_declare.assert_called_with(
+            self.consumer._on_queue_declareok,
+            queue="testqueue",
+            durable="durable",
+            auto_delete="auto_delete",
+            exclusive="exclusive",
+            arguments="arguments",
+        )
+        # Declare bindings
+        frame = mock.Mock()
+        frame.method.queue = "testqueue"
+        self.consumer._on_queue_declareok(frame)
+        self.consumer._channel.queue_bind.assert_called_with(
+            None, "testqueue", "testexchange", "testrk",
+        )
+        self.consumer._channel.basic_consume.assert_called_with(
+            self.consumer._on_message, "testqueue",
+        )
+
+
+class ConsumerSessionMessageTests(unittest.TestCase):
+
+    def setUp(self):
+        message._class_registry["FakeMessageClass"] = FakeMessageClass
+        self.consumer = _session.ConsumerSession()
+        self.callback = self.consumer._consumer_callback = mock.Mock()
+        self.channel = mock.Mock()
+        self.consumer._connection = mock.Mock()
+        self.consumer._running = True
+        self.frame = mock.Mock()
+        self.frame.delivery_tag = "testtag"
+        self.frame.routing_key = "test.topic"
+        self.properties = mock.Mock()
+        self.properties.headers = {
+            "fedora_messaging_schema": "FakeMessageClass"
+        }
+        self.properties.content_encoding = "utf-8"
+
+    def tearDown(self):
+        self.consumer._shutdown()
+
+    def test_message(self):
+        body = b'"test body"'
+        self.consumer._on_message(self.channel, self.frame, self.properties, body)
+        self.consumer._consumer_callback.assert_called_once()
+        msg = self.consumer._consumer_callback.call_args_list[0][0][0]
+        msg.validate.assert_called_once()
+        self.channel.basic_ack.assert_called_with(delivery_tag="testtag")
+        self.assertEqual(msg.body, "test body")
+
+    def test_message_encoding(self):
+        body = '"test body unicode é à ç"'.encode("utf-8")
+        self.properties.content_encoding = None
+        self.consumer._on_message(self.channel, self.frame, self.properties, body)
+        self.consumer._consumer_callback.assert_called_once()
+        msg = self.consumer._consumer_callback.call_args_list[0][0][0]
+        self.assertEqual(msg.body, "test body unicode é à ç")
+
+    def test_message_wrong_encoding(self):
+        body = '"test body unicode é à ç"'.encode("utf-8")
+        self.properties.content_encoding = "ascii"
+        self.consumer._on_message(
+            self.channel, self.frame, self.properties, body)
+        self.channel.basic_nack.assert_called_with(
+            delivery_tag="testtag", requeue=False)
+        self.consumer._consumer_callback.assert_not_called()
+
+    def test_message_not_json(self):
+        body = b"plain string"
+        self.consumer._on_message(
+            self.channel, self.frame, self.properties, body)
+        self.channel.basic_nack.assert_called_with(
+            delivery_tag="testtag", requeue=False)
+        self.consumer._consumer_callback.assert_not_called()
+
+    def test_message_validation_failed(self):
+        body = b'"test body"'
+        with mock.patch(__name__ + ".FakeMessageClass.VALIDATE_OK", False):
+            self.consumer._on_message(
+                self.channel, self.frame, self.properties, body)
+        self.channel.basic_nack.assert_called_with(
+            delivery_tag="testtag", requeue=False)
+        self.consumer._consumer_callback.assert_not_called()
+
+    def test_message_nack(self):
+        self.consumer._consumer_callback.side_effect = Nack()
+        self.consumer._on_message(
+            self.channel, self.frame, self.properties, b'"body"')
+        self.channel.basic_nack.assert_called_with(
+            delivery_tag="testtag", requeue=True)
+
+    def test_message_drop(self):
+        self.consumer._consumer_callback.side_effect = Drop()
+        self.consumer._on_message(
+            self.channel, self.frame, self.properties, b'"body"')
+        self.channel.basic_nack.assert_called_with(
+            delivery_tag="testtag", requeue=False)
+
+    def test_message_halt(self):
+        self.consumer._consumer_callback.side_effect = HaltConsumer()
+        self.consumer._on_message(
+            self.channel, self.frame, self.properties, b'"body"')
+        self.channel.basic_nack.assert_called_with(
+            delivery_tag="testtag", requeue=True)
+        self.assertFalse(self.consumer._running)
+        self.consumer._connection.close.assert_called_once()
+
+    def test_message_exception(self):
+        error = ValueError()
+        self.consumer._consumer_callback.side_effect = error
+        with self.assertRaises(HaltConsumer) as cm:
+            self.consumer._on_message(
+                self.channel, self.frame, self.properties, b'"body"',
+            )
+        self.assertEqual(cm.exception.exit_code, 1)
+        self.assertEqual(cm.exception.reason, error)
+        self.channel.basic_nack.assert_called_with(
+            delivery_tag=0, multiple=True, requeue=True)
+        self.assertFalse(self.consumer._running)
+        self.consumer._connection.close.assert_called_once()
+
+
+class FakeMessageClass(message.Message):
+
+    VALIDATE_OK = True
+
+    def __init__(self, *args, **kwargs):
+        super(FakeMessageClass, self).__init__(*args, **kwargs)
+        self.validate = mock.Mock()
+        if not self.VALIDATE_OK:
+            self.validate.side_effect = JSONValidationError(None)

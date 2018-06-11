@@ -16,9 +16,6 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 from __future__ import absolute_import, unicode_literals
 
-import json
-
-import jsonschema
 import pika
 from pika.adapters import twisted_connection
 from twisted.internet import interfaces, reactor, defer, protocol
@@ -26,8 +23,8 @@ from twisted.logger import Logger
 from zope.interface import implementer
 
 from .. import config
-from ..message import get_class, Message
-from ..exceptions import Nack, Drop, HaltConsumer
+from .._session import get_message
+from ..exceptions import Nack, Drop, HaltConsumer, ValidationError
 
 
 log = Logger()
@@ -214,45 +211,12 @@ class MessageProducer:
         """
         log.debug('Message arrived with delivery tag {tag}',
                   tag=delivery_frame.delivery_tag)
-        if properties.content_encoding is None:
-            log.error('Message arrived without a content encoding')
-            properties.content_encoding = 'utf-8'
         try:
-            body = body.decode(properties.content_encoding)
-        except UnicodeDecodeError:
-            log.error(
-                'Unable to decode message body {body!r} with {encoding!r} '
-                'content encoding',
-                body=body,
-                encoding=delivery_frame.content_encoding
-            )
-        try:
-            body = json.loads(body)
-        except ValueError:
-            log.failure('Failed to load message body {body!r}', body)
-        try:
-            MessageClass = get_class(properties.headers['fedora_messaging_schema'])
-        except TypeError:
-            log.warn(
-                'Message (body={body!r}) arrived without headers. '
-                'A publisher is misbehaving!', body=body
-            )
-            MessageClass = Message
-        except KeyError:
-            log.warn(
-                'Message (headers={headers!r}, body={body!r}) arrived without '
-                'a schema header. A publisher is misbehaving!',
-                headers=properties.headers, body=body
-            )
-            MessageClass = Message
+            message = get_message(delivery_frame.routing_key, properties, body)
+        except ValidationError:
+            yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=False)
+            return
 
-        message = MessageClass(
-            body=body, headers=properties.headers, topic=delivery_frame.routing_key)
-        try:
-            message.validate()
-            log.debug('Successfully validated message {msg!r}', msg=message)
-        except jsonschema.exceptions.ValidationError:
-            log.failure('Message validation of {msg!r} failed', message)
         try:
             log.info('Consuming message from topic {topic!r} (id {msgid})',
                      topic=message.topic,

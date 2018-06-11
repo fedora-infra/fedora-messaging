@@ -139,7 +139,11 @@ class ConsumerSession(object):
         if self._channel:
             _log.info('Halting %r consumer sessions', self._channel.consumer_tags)
         self._running = False
-        self._connection.close()
+        if self._connection:
+            self._connection.close()
+        # Reset the signal handler
+        for signum in (signal.SIGTERM, signal.SIGINT):
+            signal.signal(signum, signal.SIG_DFL)
 
     def _on_cancelok(self, cancel_frame):
         """
@@ -303,7 +307,6 @@ class ConsumerSession(object):
 
         Raises:
             HaltConsumer: Raised when the consumer halts.
-            ValidationError: When a message fails schema validation.
             ValueError: If the callback isn't a function or a class with __call__
                 defined.
         """
@@ -355,39 +358,14 @@ class ConsumerSession(object):
 
         Raises:
             HaltConsumer: Raised when the consumer halts.
-            ValidationError: When a message fails schema validation.
         """
         _log.debug('Message arrived with delivery tag %s', delivery_frame.delivery_tag)
-        try:
-            MessageClass = get_class(properties.headers['fedora_messaging_schema'])
-        except KeyError:
-            _log.error('Message (headers=%r, body=%r) arrived without a schema header.'
-                       ' A publisher is misbehaving!', properties.headers, body)
-            MessageClass = Message
-
-        if properties.content_encoding is None:
-            _log.error('Message arrived without a content encoding')
-            properties.content_encoding = 'utf-8'
-        try:
-            body = body.decode(properties.content_encoding)
-        except UnicodeDecodeError:
-            _log.error('Unable to decode message body %r with %s content encoding',
-                       body, delivery_frame.content_encoding)
 
         try:
-            body = json.loads(body)
-        except ValueError as e:
-            _log.error('Failed to load message body %r, %r', body, e)
-            raise ValidationError(e)
-
-        message = MessageClass(
-            body=body, headers=properties.headers, topic=delivery_frame.routing_key)
-        try:
-            message.validate()
-            _log.debug('Successfully validated message %r', message)
-        except jsonschema.exceptions.ValidationError as e:
-            _log.error('Message validation of %r failed: %r', message, e)
-            raise ValidationError(e)
+            message = get_message(delivery_frame.routing_key, properties, body)
+        except ValidationError:
+            channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=False)
+            return
 
         try:
             _log.info('Consuming message from topic "%s" (id %s)', message.topic,
@@ -411,3 +389,43 @@ class ConsumerSession(object):
             channel.basic_nack(delivery_tag=0, multiple=True, requeue=True)
             self._shutdown()
             raise HaltConsumer(exit_code=1, reason=e)
+
+
+def get_message(routing_key, properties, body):
+    if properties.headers is None:
+        _log.error('Message (body=%r) arrived without headers. '
+                   'A publisher is misbehaving!', body)
+        properties.headers = {}
+
+    try:
+        MessageClass = get_class(properties.headers['fedora_messaging_schema'])
+    except KeyError:
+        _log.error('Message (headers=%r, body=%r) arrived without a schema header.'
+                   ' A publisher is misbehaving!', properties.headers, body)
+        MessageClass = Message
+
+    if properties.content_encoding is None:
+        _log.error('Message arrived without a content encoding')
+        properties.content_encoding = 'utf-8'
+    try:
+        body = body.decode(properties.content_encoding)
+    except UnicodeDecodeError as e:
+        _log.error('Unable to decode message body %r with %s content encoding',
+                   body, properties.content_encoding)
+        raise ValidationError(e)
+
+    try:
+        body = json.loads(body)
+    except ValueError as e:
+        _log.error('Failed to load message body %r, %r', body, e)
+        raise ValidationError(e)
+
+    message = MessageClass(
+        body=body, headers=properties.headers, topic=routing_key)
+    try:
+        message.validate()
+        _log.debug('Successfully validated message %r', message)
+    except jsonschema.exceptions.ValidationError as e:
+        _log.error('Message validation of %r failed: %r', message, e)
+        raise ValidationError(e)
+    return message
