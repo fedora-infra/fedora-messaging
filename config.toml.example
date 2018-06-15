@@ -11,6 +11,11 @@ bindings = [
     {"queue" = "my_queue", "exchange" = "amq.topic", "routing_keys" = ["#"]},
 ]
 
+[tls]
+ca_cert = "/etc/pki/tls/certs/ca-bundle.crt"
+keyfile = "/my/client/key.pem"
+certfile = "/my/client/cert.pem"
+
 [client_properties]
 app = "Example App"
 

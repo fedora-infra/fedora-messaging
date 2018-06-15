@@ -21,17 +21,76 @@ import json
 import logging
 import signal
 import uuid
+import ssl
 
 from pika import exceptions as pika_errs
 import pika
 import jsonschema
+try:
+    # Versions of pika greater than the 0.11 series uses SSLOptions to configure
+    # a TLS connection.
+    from pika import SSLOptions
+except ImportError:
+    SSLOptions = None
 
 from . import config
 from .message import _schema_name, get_class, Message
 from .exceptions import (
-    Nack, Drop, HaltConsumer, ValidationError, PublishReturned, ConnectionException)
+    Nack, Drop, HaltConsumer, ValidationError, PublishReturned, ConnectionException,
+    ConfigurationException)
 
 _log = logging.getLogger(__name__)
+
+
+def _configure_tls_parameters(parameters):
+    """
+    Configure the pika connection parameters for TLS based on the configuration.
+
+    This modifies the object provided to it. This accounts for whether or not
+    the new API based on the standard library's SSLContext is available for
+    pika.
+
+    Args:
+        parameters (pika.ConnectionParameters): The connection parameters to apply
+            TLS connection settings to.
+    """
+    cert = config.conf['tls']['certfile']
+    key = config.conf['tls']['keyfile']
+    if cert and key:
+        _log.info('Authenticating with server using x509 (certfile: %s, keyfile: %s)',
+                  cert, key)
+    else:
+        cert, key = None, None
+
+    if SSLOptions is None:
+        parameters.ssl = True
+        parameters.ssl_options = {
+            'keyfile': key,
+            'certfile': cert,
+            'ca_certs': config.conf['tls']['ca_cert'],
+            'cert_reqs': ssl.CERT_REQUIRED,
+            'ssl_version': ssl.PROTOCOL_TLSv1_2,
+        }
+    else:
+        ssl_context = ssl.create_default_context()
+        try:
+            ssl_context.load_verify_locations(cafile=config.conf['tls']['ca_cert'])
+        except ssl.SSLError as e:
+            raise ConfigurationException(
+                'The "ca_cert" setting in the "tls" section is invalid ({})'.format(e))
+        ssl_context.options |= ssl.OP_NO_SSLv2
+        ssl_context.options |= ssl.OP_NO_SSLv3
+        ssl_context.options |= ssl.OP_NO_TLSv1
+        ssl_context.options |= ssl.OP_NO_TLSv1_1
+        ssl_context.verify_mode = ssl.CERT_REQUIRED
+        ssl_context.check_hostname = True
+        if cert and key:
+            try:
+                ssl_context.load_cert_chain(cert, key)
+            except ssl.SSLError as e:
+                raise ConfigurationException(
+                    'The "keyfile" setting in the "tls" section is invalid ({})'.format(e))
+        parameters.ssl_options = SSLOptions(ssl_context, server_hostname=parameters.host)
 
 
 class PublisherSession(object):
@@ -39,7 +98,10 @@ class PublisherSession(object):
 
     def __init__(self, amqp_url=None, exchange=None, confirms=True):
         self._exchange = exchange or config.conf['publish_exchange']
-        self._parameters = pika.URLParameters(amqp_url or config.conf['amqp_url'])
+        amqp_url = amqp_url or config.conf['amqp_url']
+        self._parameters = pika.URLParameters(amqp_url)
+        if amqp_url.startswith('amqps'):
+            _configure_tls_parameters(self._parameters)
         if self._parameters.client_properties is None:
             self._parameters.client_properties = config.conf['client_properties']
         self._confirms = confirms
@@ -113,6 +175,8 @@ class ConsumerSession(object):
 
     def __init__(self):
         self._parameters = pika.URLParameters(config.conf['amqp_url'])
+        if config.conf['amqp_url'].startswith('amqps'):
+            _configure_tls_parameters(self._parameters)
         if self._parameters.client_properties is None:
             self._parameters.client_properties = config.conf['client_properties']
         self._connection = None

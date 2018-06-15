@@ -5,6 +5,10 @@ class BaseException(Exception):
     """The base class for all exceptions raised by fedora_messaging."""
 
 
+class ConfigurationException(BaseException):
+    """Raised when there's an invalid configuration setting"""
+
+
 class PublishException(BaseException):
     """Base class for exceptions related to publishing."""
 
