@@ -44,22 +44,31 @@ class PublisherSessionTests(unittest.TestCase):
         self.message.topic = "test.topic"
         self.message.body = "test body"
         self.message.schema_version = 1
+        self.tls_conf = {
+            'keyfile': None,
+            'certfile': None,
+            'ca_cert': os.path.join(FIXTURES_DIR, 'ca_bundle.pem'),
+        }
 
     def test_publisher_init(self):
-        publisher = _session.PublisherSession()
+        with mock.patch.dict(config.conf, {'tls': self.tls_conf}):
+            publisher = _session.PublisherSession()
         self.assertEqual(publisher._parameters.host, "localhost")
         self.assertEqual(publisher._parameters.port, 5672)
         self.assertEqual(publisher._parameters.virtual_host, "/")
-        self.assertEqual(publisher._parameters.ssl, False)
-        # Now test with a custom URL
-        publisher = _session.PublisherSession(
-            "amqps://username:password@rabbit.example.com/vhost",
-            "test_exchange",
-        )
+        self.assertIsNone(publisher._parameters.ssl_options)
+
+    def test_publish_init_custom_url(self):
+        """Assert a custom URL can be provided to the publisher session."""
+        with mock.patch.dict(config.conf, {'tls': self.tls_conf}):
+            publisher = _session.PublisherSession(
+                "amqps://username:password@rabbit.example.com/vhost",
+                "test_exchange",
+            )
         self.assertEqual(publisher._parameters.host, "rabbit.example.com")
         self.assertEqual(publisher._parameters.port, 5671)
         self.assertEqual(publisher._parameters.virtual_host, "vhost")
-        self.assertEqual(publisher._parameters.ssl, True)
+        self.assertIsNotNone(publisher._parameters.ssl_options is not None)
         self.assertEqual(publisher._exchange, "test_exchange")
 
     def test_publish(self):
@@ -127,7 +136,7 @@ class PublisherSessionTests(unittest.TestCase):
     def test_publish_disconnected(self):
         # The publisher must try to re-establish a connection on publish.
         self.publisher._channel.publish.side_effect = \
-            pika_errs.ConnectionClosed()
+            pika_errs.ConnectionClosed(200, 'I wanted to')
         connection_class_mock = mock.Mock()
         connection_mock = mock.Mock()
         channel_mock = mock.Mock()
@@ -148,7 +157,7 @@ class PublisherSessionTests(unittest.TestCase):
         # The publisher must try to re-establish a connection on publish, and
         # close the connection if it can't be established.
         self.publisher._channel.publish.side_effect = \
-            pika_errs.ChannelClosed()
+            pika_errs.ConnectionClosed(200, 'I wanted to')
         connection_class_mock = mock.Mock()
         connection_mock = mock.Mock()
         connection_class_mock.return_value = connection_mock
