@@ -16,18 +16,18 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 from __future__ import absolute_import, unicode_literals
 
+import logging
+
 import pika
 from pika.adapters import twisted_connection
 from twisted.internet import interfaces, reactor, defer, protocol
-from twisted.logger import Logger
+# twisted.logger is available with Twisted 15+
+from twisted.python import log
 from zope.interface import implementer
 
 from .. import config
 from .._session import get_message
 from ..exceptions import Nack, Drop, HaltConsumer, ValidationError
-
-
-log = Logger()
 
 
 @implementer(interfaces.IPushProducer)
@@ -92,11 +92,11 @@ class MessageProducer:
                 connectMethod = cc.connectTCP
             self._connection = yield connectMethod(self._parameters.host, self._parameters.port)
             yield self._connection.ready
-            log.debug("Connected to AMQP server")
+            log.msg("Connected to AMQP server", logLevel=logging.DEBUG)
         # Create channel
         if self._channel is None:
             self._channel = yield self._connection.channel()
-            log.debug("AMQP channel created")
+            log.msg("AMQP channel created", logLevel=logging.DEBUG)
             yield self._channel.basic_qos(prefetch_count=0, prefetch_size=0)
         # Declare exchanges and queues
         queues = set()
@@ -117,7 +117,7 @@ class MessageProducer:
                 routing_key=binding['routing_key'],
             )
             queues.add(queue_name)
-        log.debug("AMQP bindings declared")
+        log.msg("AMQP bindings declared", logLevel=logging.DEBUG)
         # Start consuming
         queue_objects = []
         for queue_name in queues:
@@ -128,7 +128,7 @@ class MessageProducer:
         self.producing = defer.DeferredList([
             self._read(qo) for qo in queue_objects
         ])
-        log.info('AMQP consumer is ready')
+        log.msg("AMQP consumer is ready")
 
     @defer.inlineCallbacks
     def pauseProducing(self):
@@ -145,7 +145,7 @@ class MessageProducer:
         for tag in self._channel.consumer_tags:
             yield self._channel.basic_cancel(tag)
         self._running = True
-        log.debug("Producing paused.")
+        log.msg("Producing paused", logLevel=logging.DEBUG)
 
     @defer.inlineCallbacks
     def stopProducing(self):
@@ -158,7 +158,9 @@ class MessageProducer:
         if not self._running:
             return
         if self._channel:
-            log.info('Halting {tag} consumer sessions', tag=self._channel.consumer_tags)
+            log.msg('Halting {tag} consumer sessions'.format(
+                tag=self._channel.consumer_tags
+            ))
         self._running = False
         yield self._connection.close()
         self._channel = None
@@ -171,10 +173,12 @@ class MessageProducer:
             try:
                 channel, delivery_frame, properties, body = yield queue_object.get()
             except pika.exceptions.ChannelClosed as e:
-                log.error(repr(e))
+                log.err(e)
                 break
-            except Exception:
-                log.failure("Failed getting the next message in the queue. Stopping.")
+            except Exception as e:
+                log.err("Failed getting the next message in the queue, "
+                        "stopping.")
+                log.err(e)
                 break
             if body:
                 yield self._on_message(channel, delivery_frame, properties, body)
@@ -209,8 +213,9 @@ class MessageProducer:
         Returns:
             Deferred: fired when the message has been handled.
         """
-        log.debug('Message arrived with delivery tag {tag}',
-                  tag=delivery_frame.delivery_tag)
+        log.msg('Message arrived with delivery tag {tag}'.format(
+            tag=delivery_frame.delivery_tag
+            ), logLevel=logging.DEBUG)
         try:
             message = get_message(delivery_frame.routing_key, properties, body)
         except ValidationError:
@@ -218,22 +223,27 @@ class MessageProducer:
             return
 
         try:
-            log.info('Consuming message from topic {topic!r} (id {msgid})',
-                     topic=message.topic,
-                     msgid=properties.message_id)
+            log.msg(
+                'Consuming message from topic {topic!r} (id {msgid})'.format(
+                    topic=message.topic, msgid=properties.message_id,
+                ))
             yield defer.maybeDeferred(self._consumer_callback, message)
             yield channel.basic_ack(delivery_tag=delivery_frame.delivery_tag)
         except Nack:
-            log.info('Returning message id {msgid} to the queue',
-                     msgid=properties.message_id)
+            log.msg('Returning message id {msgid} to the queue'.format(
+                msgid=properties.message_id,
+            ))
             yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=True)
         except Drop:
-            log.info('Dropping message id {msgid}', msgid=properties.message_id)
+            log.msg('Dropping message id {msgid}'.format(msgid=properties.message_id))
             yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=False)
         except HaltConsumer:
-            log.warn('Consumer indicated it wishes consumption to halt, shutting down')
+            log.msg(
+                'Consumer indicated it wishes consumption to halt, shutting down',
+                logLevel=logging.WARNING)
             yield self.stopProducing()
         except Exception:
-            log.failure("Received unexpected exception from consumer callback")
+            log.err("Received unexpected exception from consumer callback")
+            log.err()
             yield channel.basic_nack(delivery_tag=0, multiple=True, requeue=True)
             yield self.stopProducing()
