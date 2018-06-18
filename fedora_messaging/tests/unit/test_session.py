@@ -18,16 +18,19 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 from __future__ import absolute_import, unicode_literals
 
+import os
+import ssl
 import unittest
 
 import mock
-from pika import exceptions as pika_errs
+from pika import exceptions as pika_errs, URLParameters
 from jsonschema.exceptions import ValidationError as JSONValidationError
 
 from fedora_messaging import _session, config, message
 from fedora_messaging.exceptions import (
     PublishReturned, ConnectionException, Nack, Drop,
-    HaltConsumer)
+    HaltConsumer, ConfigurationException)
+from fedora_messaging.tests import FIXTURES_DIR
 
 
 class PublisherSessionTests(unittest.TestCase):
@@ -41,22 +44,31 @@ class PublisherSessionTests(unittest.TestCase):
         self.message.topic = "test.topic"
         self.message.body = "test body"
         self.message.schema_version = 1
+        self.tls_conf = {
+            'keyfile': None,
+            'certfile': None,
+            'ca_cert': os.path.join(FIXTURES_DIR, 'ca_bundle.pem'),
+        }
 
     def test_publisher_init(self):
-        publisher = _session.PublisherSession()
+        with mock.patch.dict(config.conf, {'tls': self.tls_conf}):
+            publisher = _session.PublisherSession()
         self.assertEqual(publisher._parameters.host, "localhost")
         self.assertEqual(publisher._parameters.port, 5672)
         self.assertEqual(publisher._parameters.virtual_host, "/")
-        self.assertEqual(publisher._parameters.ssl, False)
-        # Now test with a custom URL
-        publisher = _session.PublisherSession(
-            "amqps://username:password@rabbit.example.com/vhost",
-            "test_exchange",
-        )
+        self.assertIsNone(publisher._parameters.ssl_options)
+
+    def test_publish_init_custom_url(self):
+        """Assert a custom URL can be provided to the publisher session."""
+        with mock.patch.dict(config.conf, {'tls': self.tls_conf}):
+            publisher = _session.PublisherSession(
+                "amqps://username:password@rabbit.example.com/vhost",
+                "test_exchange",
+            )
         self.assertEqual(publisher._parameters.host, "rabbit.example.com")
         self.assertEqual(publisher._parameters.port, 5671)
         self.assertEqual(publisher._parameters.virtual_host, "vhost")
-        self.assertEqual(publisher._parameters.ssl, True)
+        self.assertIsNotNone(publisher._parameters.ssl_options is not None)
         self.assertEqual(publisher._exchange, "test_exchange")
 
     def test_publish(self):
@@ -124,7 +136,7 @@ class PublisherSessionTests(unittest.TestCase):
     def test_publish_disconnected(self):
         # The publisher must try to re-establish a connection on publish.
         self.publisher._channel.publish.side_effect = \
-            pika_errs.ConnectionClosed()
+            pika_errs.ConnectionClosed(200, 'I wanted to')
         connection_class_mock = mock.Mock()
         connection_mock = mock.Mock()
         channel_mock = mock.Mock()
@@ -145,7 +157,7 @@ class PublisherSessionTests(unittest.TestCase):
         # The publisher must try to re-establish a connection on publish, and
         # close the connection if it can't be established.
         self.publisher._channel.publish.side_effect = \
-            pika_errs.ChannelClosed()
+            pika_errs.ConnectionClosed(200, 'I wanted to')
         connection_class_mock = mock.Mock()
         connection_mock = mock.Mock()
         connection_class_mock.return_value = connection_mock
@@ -168,6 +180,22 @@ class ConsumerSessionTests(unittest.TestCase):
 
     def tearDown(self):
         self.consumer._shutdown()
+
+    def test_tls_parameters(self):
+        """Assert TLS settings translate to a TLS connection for consumers."""
+        tls_conf = {
+            'amqp_url': 'amqps://',
+            'tls': {
+                'keyfile': os.path.join(FIXTURES_DIR, 'key.pem'),
+                'certfile': os.path.join(FIXTURES_DIR, 'cert.pem'),
+                'ca_cert': os.path.join(FIXTURES_DIR, 'ca_bundle.pem'),
+            }
+        }
+
+        with mock.patch.dict(config.conf, tls_conf):
+            consumer = _session.ConsumerSession()
+
+        self.assertTrue(consumer._parameters.ssl_options is not None)
 
     def test_consume(self):
         # Test the consume function.
@@ -375,3 +403,121 @@ class FakeMessageClass(message.Message):
         self.validate = mock.Mock()
         if not self.VALIDATE_OK:
             self.validate.side_effect = JSONValidationError(None)
+
+
+class ConfigureTlsParameters(unittest.TestCase):
+    """Tests for :func:`fedora_messaging._session._configure_tls_parameters`"""
+
+    @unittest.skipIf(_session.SSLOptions is not None, 'Pika supports SSLContext')
+    def test_old_pika_approach(self):
+        """Assert if pika is pre-1.0.0, the TLS settings are applied."""
+        params = URLParameters('amqps://')
+        tls_conf = {
+            'keyfile': 'key.pem',
+            'certfile': 'cert.pem',
+            'ca_cert': 'custom_ca_bundle.pem',
+        }
+        expected_options = {
+            'keyfile': 'key.pem',
+            'certfile': 'cert.pem',
+            'ca_certs': 'custom_ca_bundle.pem',
+            'cert_reqs': ssl.CERT_REQUIRED,
+            'ssl_version': ssl.PROTOCOL_TLSv1_2,
+        }
+
+        with mock.patch.dict(config.conf, {'tls': tls_conf}):
+            _session._configure_tls_parameters(params)
+
+        self.assertTrue(params.ssl)
+        self.assertEqual(params.ssl_options, expected_options)
+
+    @unittest.skipIf(_session.SSLOptions is not None, 'Pika supports SSLContext')
+    def test_old_pika_approach_no_key(self):
+        """Assert if no key is provided, no cert is passed to pika either."""
+        params = URLParameters('amqps://')
+        tls_conf = {
+            'keyfile': None,
+            'certfile': 'cert.pem',
+            'ca_cert': 'custom_ca_bundle.pem',
+        }
+        expected_options = {
+            'keyfile': None,
+            'certfile': None,
+            'ca_certs': 'custom_ca_bundle.pem',
+            'cert_reqs': ssl.CERT_REQUIRED,
+            'ssl_version': ssl.PROTOCOL_TLSv1_2,
+        }
+
+        with mock.patch.dict(config.conf, {'tls': tls_conf}):
+            _session._configure_tls_parameters(params)
+
+        self.assertTrue(params.ssl)
+        self.assertEqual(params.ssl_options, expected_options)
+
+    @unittest.skipIf(_session.SSLOptions is not None, 'Pika supports SSLContext')
+    def test_old_pika_approach_no_cert(self):
+        """Assert if no cert is provided, no key is passed to pika either."""
+        params = URLParameters('amqps://')
+        tls_conf = {
+            'keyfile': 'key.pem',
+            'certfile': None,
+            'ca_cert': 'ca_bundle.pem',
+        }
+        expected_options = {
+            'keyfile': None,
+            'certfile': None,
+            'ca_certs': 'ca_bundle.pem',
+            'cert_reqs': ssl.CERT_REQUIRED,
+            'ssl_version': ssl.PROTOCOL_TLSv1_2,
+        }
+
+        with mock.patch.dict(config.conf, {'tls': tls_conf}):
+            _session._configure_tls_parameters(params)
+
+        self.assertTrue(params.ssl)
+        self.assertEqual(params.ssl_options, expected_options)
+
+    @unittest.skipIf(_session.SSLOptions is None, 'Pika version does not support SSLContext')
+    def test_new_pika(self):
+        """Assert configuring a cert and key results in a TLS connection with new pika versions."""
+        params = URLParameters('amqps://myhost')
+        tls_conf = {
+            'keyfile': os.path.join(FIXTURES_DIR, 'key.pem'),
+            'certfile': os.path.join(FIXTURES_DIR, 'cert.pem'),
+            'ca_cert': os.path.join(FIXTURES_DIR, 'ca_bundle.pem'),
+        }
+
+        with mock.patch.dict(config.conf, {'tls': tls_conf}):
+            _session._configure_tls_parameters(params)
+
+        self.assertTrue(isinstance(params.ssl_options, _session.SSLOptions))
+
+    @unittest.skipIf(_session.SSLOptions is None, 'Pika version does not support SSLContext')
+    def test_new_pika_invalid_key(self):
+        """Assert a ConfigurationException is raised when the key can't be opened."""
+        params = URLParameters('amqps://myhost')
+        tls_conf = {
+            'keyfile': os.path.join(FIXTURES_DIR, 'invalid_key.pem'),
+            'certfile': os.path.join(FIXTURES_DIR, 'cert.pem'),
+            'ca_cert': os.path.join(FIXTURES_DIR, 'ca_bundle.pem'),
+        }
+
+        with mock.patch.dict(config.conf, {'tls': tls_conf}):
+            self.assertRaises(ConfigurationException, _session._configure_tls_parameters, params)
+
+        self.assertTrue(isinstance(params.ssl_options, _session.SSLOptions))
+
+    @unittest.skipIf(_session.SSLOptions is None, 'Pika version does not support SSLContext')
+    def test_new_pika_invalid_ca_cert(self):
+        """Assert a ConfigurationException is raised when the CA can't be opened."""
+        params = URLParameters('amqps://myhost')
+        tls_conf = {
+            'keyfile': os.path.join(FIXTURES_DIR, 'key.pem'),
+            'certfile': os.path.join(FIXTURES_DIR, 'cert.pem'),
+            'ca_cert': os.path.join(FIXTURES_DIR, 'invalid_ca.pem'),
+        }
+
+        with mock.patch.dict(config.conf, {'tls': tls_conf}):
+            self.assertRaises(ConfigurationException, _session._configure_tls_parameters, params)
+
+        self.assertTrue(isinstance(params.ssl_options, _session.SSLOptions))

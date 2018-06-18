@@ -37,6 +37,29 @@ the :class:`pika.connection.URLParameters` documentation. This defaults to
 
 .. _conf-client-properties:
 
+
+.. _conf-tls:
+
+tls
+---
+A dictionary of the TLS settings to use when connecting to the AMQP broker. The
+default is::
+
+    {
+        'ca_cert': '/etc/pki/tls/certs/ca-bundle.crt',
+        'keyfile': None,
+        'certfile': None,
+    }
+
+The value of ``ca_cert`` should be the path to a bundle of CA certificates used
+to validate the certificate presented by the server. The 'keyfile' and
+'certfile' values should be to the client key and client certificate to use
+when authenticating with the broker.
+
+.. note:: The broker URL must use the ``amqps`` scheme. It is also possible to
+          provide these setting via the ``amqp_url`` setting using a URL-encoded
+          JSON object. This setting is provided as a convenient way to avoid that.
+
 client_properties
 -----------------
 A dictionary that describes the client to the AMQP broker. This makes it easy
@@ -261,6 +284,11 @@ DEFAULTS = dict(
     },
     callback=None,
     consumer_config={},
+    tls={
+        'ca_cert': '/etc/pki/tls/certs/ca-bundle.crt',
+        'certfile': None,
+        'keyfile': None,
+    },
     log_config={
         'version': 1,
         'disable_existing_loggers': False,
