@@ -59,7 +59,8 @@ class MessageProducer:
         self._bindings = bindings or config.conf["bindings"]
         self._parameters = pika.URLParameters(config.conf['amqp_url'])
         if self._parameters.client_properties is None:
-            self._parameters.client_properties = config.conf['client_properties']
+            self._parameters.client_properties = \
+                config.conf['client_properties']
         self._connection = None
         self._channel = None
         self._running = False
@@ -172,7 +173,8 @@ class MessageProducer:
     def _read(self, queue_object):
         while self._running:
             try:
-                channel, delivery_frame, properties, body = yield queue_object.get()
+                channel, delivery_frame, properties, body = \
+                    yield queue_object.get()
             except error.ConnectionDone:
                 # This is deliberate.
                 log.msg("Closing the read loop on the producer.",
@@ -187,7 +189,8 @@ class MessageProducer:
                 log.err(e)
                 break
             if body:
-                yield self._on_message(channel, delivery_frame, properties, body)
+                yield self._on_message(
+                    channel, delivery_frame, properties, body)
         if self._running:
             # We broke the loop, something went wrong
             self.stopProducing()
@@ -225,7 +228,8 @@ class MessageProducer:
         try:
             message = get_message(delivery_frame.routing_key, properties, body)
         except ValidationError:
-            yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=False)
+            yield channel.basic_nack(
+                delivery_tag=delivery_frame.delivery_tag, requeue=False)
             return
 
         try:
@@ -239,17 +243,22 @@ class MessageProducer:
             log.msg('Returning message id {msgid} to the queue'.format(
                 msgid=properties.message_id,
             ))
-            yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=True)
+            yield channel.basic_nack(
+                delivery_tag=delivery_frame.delivery_tag, requeue=True)
         except Drop:
-            log.msg('Dropping message id {msgid}'.format(msgid=properties.message_id))
-            yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=False)
+            log.msg('Dropping message id {msgid}'.format(
+                msgid=properties.message_id,
+            ))
+            yield channel.basic_nack(
+                delivery_tag=delivery_frame.delivery_tag, requeue=False)
         except HaltConsumer:
             log.msg(
-                'Consumer indicated it wishes consumption to halt, shutting down',
-                logLevel=logging.WARNING)
+                'Consumer indicated it wishes consumption to halt, '
+                'shutting down', logLevel=logging.WARNING)
             yield self.stopProducing()
         except Exception:
             log.err("Received unexpected exception from consumer callback")
             log.err()
-            yield channel.basic_nack(delivery_tag=0, multiple=True, requeue=True)
+            yield channel.basic_nack(
+                delivery_tag=0, multiple=True, requeue=True)
             yield self.stopProducing()
