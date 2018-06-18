@@ -20,7 +20,8 @@ import logging
 
 import pika
 from pika.adapters import twisted_connection
-from twisted.internet import interfaces, reactor, defer, protocol
+from twisted.internet import (
+    interfaces, reactor, defer, protocol, endpoints, error)
 # twisted.logger is available with Twisted 15+
 from twisted.python import log
 from zope.interface import implementer
@@ -80,17 +81,17 @@ class MessageProducer:
         """
         # Connect to server
         if self._connection is None:
-            cc = protocol.ClientCreator(
-                reactor,
-                twisted_connection.TwistedProtocolConnection,
-                self._parameters
-            )
-            if self._parameters.ssl:
-                # TODO: SSL certs?
-                connectMethod = cc.connectSSL
+            if self._parameters.ssl_options is not None:
+
+                endpoint_class = endpoints.SSL4ClientEndpoint
             else:
-                connectMethod = cc.connectTCP
-            self._connection = yield connectMethod(self._parameters.host, self._parameters.port)
+                endpoint_class = endpoints.TCP4ClientEndpoint
+            endpoint = endpoint_class(
+                reactor, self._parameters.host, self._parameters.port)
+            self._connection = yield endpoints.connectProtocol(
+                endpoint,
+                twisted_connection.TwistedProtocolConnection(self._parameters),
+            )
             yield self._connection.ready
             log.msg("Connected to AMQP server", logLevel=logging.DEBUG)
         # Create channel
