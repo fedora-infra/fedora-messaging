@@ -148,7 +148,6 @@ class MessageProducer:
         self._running = True
         log.msg("Producing paused", logLevel=logging.DEBUG)
 
-    @defer.inlineCallbacks
     def stopProducing(self):
         """
         Stop producing messages and disconnect from the server.
@@ -163,7 +162,8 @@ class MessageProducer:
                 tag=self._channel.consumer_tags
             ))
         self._running = False
-        yield self._connection.close()
+        log.msg("Disconnecting from the server", logLevel=logging.DEBUG)
+        self._connection.transport.loseConnection()
         self._channel = None
         self._connection = None
         self.producing = None
@@ -173,6 +173,11 @@ class MessageProducer:
         while self._running:
             try:
                 channel, delivery_frame, properties, body = yield queue_object.get()
+            except error.ConnectionDone:
+                # This is deliberate.
+                log.msg("Closing the read loop on the producer.",
+                        logLevel=logging.DEBUG)
+                break
             except pika.exceptions.ChannelClosed as e:
                 log.err(e)
                 break
