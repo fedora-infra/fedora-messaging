@@ -493,3 +493,20 @@ def get_message(routing_key, properties, body):
         _log.error('Message validation of %r failed: %r', message, e)
         raise ValidationError(e)
     return message
+
+
+def get_serialized_message(message):
+    # Consumers use this to determine what schema to use and if they're out of date
+    message.headers['fedora_messaging_schema'] = _schema_name(message.__class__)
+    message.headers['fedora_messaging_schema_version'] = message.schema_version
+    message.validate()
+
+    properties = pika.BasicProperties(
+        content_type='application/json', content_encoding='utf-8', delivery_mode=2,
+        headers=message.headers, message_id=str(uuid.uuid4()))
+
+    return (
+        json.dumps(message.body).encode('utf-8'),
+        message.topic.encode('utf-8'),
+        properties,
+    )
