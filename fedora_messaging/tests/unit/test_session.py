@@ -68,7 +68,7 @@ class PublisherSessionTests(unittest.TestCase):
         self.assertEqual(publisher._parameters.host, "rabbit.example.com")
         self.assertEqual(publisher._parameters.port, 5671)
         self.assertEqual(publisher._parameters.virtual_host, "vhost")
-        self.assertIsNotNone(publisher._parameters.ssl_options is not None)
+        self.assertIsNotNone(publisher._parameters.ssl_options)
         self.assertEqual(publisher._exchange, "test_exchange")
 
     def test_publish(self):
