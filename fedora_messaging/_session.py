@@ -25,6 +25,7 @@ import ssl
 
 from pika import exceptions as pika_errs
 import pika
+import pkg_resources
 import jsonschema
 try:
     # Versions of pika greater than the 0.11 series uses SSLOptions to configure
@@ -40,6 +41,12 @@ from .exceptions import (
     ConfigurationException)
 
 _log = logging.getLogger(__name__)
+
+# pika 0.12 introduces the SSLOptions object in 0.12, but it doesn't have the
+# same API that 1.0.0 has. Additionally, the connection parameters still expect
+# the old dictionary, so mark SSLOptions as None if this is 0.12
+if pkg_resources.get_distribution('pika').version.startswith('0.12.'):
+    SSLOptions = None
 
 
 def _configure_tls_parameters(parameters):
