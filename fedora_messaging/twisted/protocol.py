@@ -128,11 +128,10 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
                 log.err(e, system=self.name)
                 break
             if body:
-                yield self._on_message(
-                    channel, delivery_frame, properties, body)
+                yield self._on_message(delivery_frame, properties, body)
 
     @defer.inlineCallbacks
-    def _on_message(self, channel, delivery_frame, properties, body):
+    def _on_message(self, delivery_frame, properties, body):
         """
         Callback when a message is received from the server.
 
@@ -146,8 +145,6 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         on the user-provided callback, see the user guide on consuming.
 
         Args:
-            channel (pika.channel.Channel): The channel from which the message
-                was received.
             delivery_frame (pika.spec.Deliver): The delivery frame which
                 includes details about the message like content encoding and
                 its delivery tag.
@@ -169,7 +166,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
             log.msg('Message id {msgid} did not pass validation.'.format(
                 msgid=properties.message_id,
             ), system=self.name, logLevel=logging.WARNING)
-            yield channel.basic_nack(
+            yield self._channel.basic_nack(
                 delivery_tag=delivery_frame.delivery_tag, requeue=False)
             return
 
@@ -183,13 +180,13 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
             log.msg('Returning message id {msgid} to the queue'.format(
                 msgid=properties.message_id,
             ), system=self.name, logLevel=logging.WARNING)
-            yield channel.basic_nack(
+            yield self._channel.basic_nack(
                 delivery_tag=delivery_frame.delivery_tag, requeue=True)
         except Drop:
             log.msg('Dropping message id {msgid}'.format(
                 msgid=properties.message_id,
             ), system=self.name, logLevel=logging.WARNING)
-            yield channel.basic_nack(
+            yield self._channel.basic_nack(
                 delivery_tag=delivery_frame.delivery_tag, requeue=False)
         except HaltConsumer:
             log.msg(
@@ -200,11 +197,11 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
             log.err("Received unexpected exception from consumer callback",
                     system=self.name)
             log.err(system=self.name)
-            yield channel.basic_nack(
+            yield self._channel.basic_nack(
                 delivery_tag=0, multiple=True, requeue=True)
             yield self.stopProducing()
         else:
-            yield channel.basic_ack(delivery_tag=delivery_frame.delivery_tag)
+            yield self._channel.basic_ack(delivery_tag=delivery_frame.delivery_tag)
 
     @defer.inlineCallbacks
     def publish(self, message, exchange):
