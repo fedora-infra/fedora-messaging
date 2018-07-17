@@ -76,6 +76,7 @@ def cli(conf):
             config.conf.load_config(filename=conf)
         except ValueError as e:
             raise click.exceptions.BadParameter(e)
+        config.conf.setup_logging()
 
 
 @cli.command()
