@@ -1,2 +1,3 @@
 include LICENSE README.rst config.toml.example dev-requirements.txt requirements.txt tox.ini
+graft docs
 graft fedora_messaging/tests/fixtures
