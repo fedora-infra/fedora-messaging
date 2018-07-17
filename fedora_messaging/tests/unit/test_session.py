@@ -220,11 +220,11 @@ class ConsumerSessionTests(unittest.TestCase):
             # Configuration defaults
             self.consumer.consume(callback)
             self.assertEqual(
-                self.consumer._bindings, config.DEFAULTS["bindings"])
+                self.consumer._bindings, config.conf["bindings"])
             self.assertEqual(
-                self.consumer._queues, config.DEFAULTS["queues"])
+                self.consumer._queues, config.conf["queues"])
             self.assertEqual(
-                self.consumer._exchanges, config.DEFAULTS["exchanges"])
+                self.consumer._exchanges, config.conf["exchanges"])
             # Configuration overrides
             test_value = [{"test": "test"}]
             self.consumer.consume(
