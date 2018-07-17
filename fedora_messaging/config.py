@@ -388,10 +388,14 @@ class LazyConfig(dict):
             self.load_config()
         return super(LazyConfig, self).update(*args, **kw)
 
+    def setup_logging(self):
+        if not self.loaded:
+            self.load_config()
+        logging.config.dictConfig(self['log_config'])
+
     def load_config(self, filename=None):
         self.loaded = True
         self.update(load(filename=filename))
-        logging.config.dictConfig(self['log_config'])
         return self
 
 
