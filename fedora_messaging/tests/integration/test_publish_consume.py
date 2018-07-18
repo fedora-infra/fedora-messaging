@@ -35,7 +35,11 @@ class PubSubTests(unittest.TestCase):
         time.sleep(5)
 
         for _ in range(0, 3):
-            api.publish(msg)
+            try:
+                api.publish(msg)
+            except exceptions.ConnectionException:
+                consumer_process.terminate()
+                self.fail('Failed to publish message, is the broker running?')
 
         consumer_process.join(timeout=30)
         self.assertEqual(0, consumer_process.exitcode)
