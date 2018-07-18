@@ -570,6 +570,18 @@ def get_message(routing_key, properties, body):
 
 
 def get_serialized_message(message):
+    """
+    Serialize a :class:`Message` to JSON and create a pika configuration object.
+
+    Args:
+        message (fedora_messaging.message.Message): A message ready for serialization.
+
+    Returns:
+        tuple: A three-tuple of (str, str, pika.BasicProperties) where the
+        first str is JSON-serialized, UTF-8 encoded message body, the second
+        str is the UTF-8 encoded topic, and the third object contains the AMQP
+        properties for the message.
+    """
     # Consumers use this to determine what schema to use and if they're out of date
     message.headers['fedora_messaging_schema'] = _schema_name(message.__class__)
     message.validate()

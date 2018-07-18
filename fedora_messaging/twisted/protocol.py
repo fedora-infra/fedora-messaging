@@ -27,6 +27,7 @@ from twisted.internet import defer, error
 # twisted.logger is available with Twisted 15+
 from twisted.python import log
 
+from .. import config
 from .._session import get_message, get_serialized_message
 from ..exceptions import Nack, Drop, HaltConsumer, ValidationError
 
@@ -79,7 +80,10 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         self._channel = yield self.channel()
         log.msg("AMQP channel created", system=self.name,
                 logLevel=logging.DEBUG)
-        yield self._channel.basic_qos(prefetch_count=0, prefetch_size=0)
+        yield self._channel.basic_qos(
+            prefetch_count=config.conf["qos"]["prefetch_count"],
+            prefetch_size=config.conf["qos"]["prefetch_size"],
+        )
         if self._confirms:
             yield self._channel.confirm_delivery()
         if _pika_version < pkg_resources.parse_version("1.0.0"):
@@ -163,8 +167,6 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
             properties (pika.spec.BasicProperties): The message properties like
                 the message headers.
             body (bytes): The message payload.
-            message_callback (callable): the function that will be called with
-                the received message as only argument.
 
         Returns:
             Deferred: fired when the message has been handled.

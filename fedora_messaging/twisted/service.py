@@ -40,6 +40,10 @@ class FedoraMessagingService(service.MultiService):
             on_message (callable|None): Callback that will be passed each
                 incoming messages. If None, no message consuming is setup.
             amqp_url (str): URL to use for the AMQP server.
+            bindings (list(dict)): A list of dictionaries that define queue
+                bindings to exchanges. This parameter can be used to override
+                the bindings declared in the configuration. See the
+                configuration documentation for details.
         """
         service.MultiService.__init__(self)
         amqp_url = amqp_url or config.conf['amqp_url']

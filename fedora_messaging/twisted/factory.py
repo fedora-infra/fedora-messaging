@@ -48,10 +48,20 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
         self._client_ready = defer.Deferred()
 
     def startedConnecting(self, connector):
+        """Called when the connection to the broker has started.
+
+        See the documentation of
+        `twisted.internet.protocol.ReconnectingClientFactory` for details.
+        """
         log.msg('Connecting to the Fedora Messaging broker',
                 system=self.name, logLevel=logging.DEBUG)
 
     def buildProtocol(self, addr):
+        """Create the Protocol instance.
+
+        See the documentation of
+        `twisted.internet.protocol.ReconnectingClientFactory` for details.
+        """
         self.resetDelay()
         log.msg('Connected to the Fedora Messaging broker', system=self.name)
         self.client = self.protocol(self._parameters)
@@ -63,6 +73,7 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
 
     @defer.inlineCallbacks
     def _on_client_ready(self):
+        """Called when the client is ready to send and receive messages."""
         # Setup read (on connect and reconnect).
         if self._message_callback is not None:
             yield self.client.setupRead(self._message_callback)
@@ -71,6 +82,11 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
         self._client_ready.callback(None)
 
     def clientConnectionLost(self, connector, reason):
+        """Called when the connection to the broker has been lost.
+
+        See the documentation of
+        `twisted.internet.protocol.ReconnectingClientFactory` for details.
+        """
         if not isinstance(reason.value, error.ConnectionDone):
             log.msg('Lost connection. Reason: {}'.format(reason.value),
                     system=self.name, logLevel=logging.WARNING)
@@ -82,12 +98,22 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
             self, connector, reason)
 
     def clientConnectionFailed(self, connector, reason):
+        """Called when the client has failed to connect to the broker.
+
+        See the documentation of
+        `twisted.internet.protocol.ReconnectingClientFactory` for details.
+        """
         log.msg('Connection failed. Reason: {}'.format(reason.value),
                 system=self.name, logLevel=logging.WARNING)
         protocol.ReconnectingClientFactory.clientConnectionFailed(
             self, connector, reason)
 
     def stopTrying(self):
+        """Stop trying to reconnect to the broker.
+
+        See the documentation of
+        `twisted.internet.protocol.ReconnectingClientFactory` for details.
+        """
         protocol.ReconnectingClientFactory.stopTrying(self)
         if not self._client_ready.called:
             self._client_ready.errback(pika.exceptions.AMQPConnectionError(
@@ -96,6 +122,11 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
 
     @defer.inlineCallbacks
     def stopFactory(self):
+        """Stop the factory.
+
+        See the documentation of
+        `twisted.internet.protocol.ReconnectingClientFactory` for details.
+        """
         if self.client:
             yield self.client.stopProducing()
         protocol.ReconnectingClientFactory.stopFactory(self)
@@ -127,7 +158,7 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
         Args:
             message (message.Message): The message to publish.
             exchange (str): The name of the AMQP exchange to publish to; defaults
-to :ref:`conf-publish-exchange`
+                to :ref:`conf-publish-exchange`
 
         Raises:
             PublishReturned: If the published message is rejected by the broker.
