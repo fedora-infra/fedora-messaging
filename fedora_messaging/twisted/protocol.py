@@ -18,8 +18,10 @@
 from __future__ import absolute_import, unicode_literals
 
 import logging
+import warnings
 
 import pika
+import pkg_resources
 from pika.adapters.twisted_connection import TwistedProtocolConnection
 from twisted.internet import defer, error
 # twisted.logger is available with Twisted 15+
@@ -27,6 +29,13 @@ from twisted.python import log
 
 from .._session import get_message, get_serialized_message
 from ..exceptions import Nack, Drop, HaltConsumer, ValidationError
+
+
+_pika_version = pkg_resources.get_distribution('pika').parsed_version
+if _pika_version < pkg_resources.parse_version("1.0.0"):
+    ChannelClosedByClient = pika.exceptions.ChannelClosed
+else:
+    ChannelClosedByClient = pika.exceptions.ChannelClosedByClient
 
 
 class FedoraMessagingProtocol(TwistedProtocolConnection):
@@ -49,20 +58,23 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         """
         TwistedProtocolConnection.__init__(self, parameters)
         self._parameters = parameters
+        if confirms and _pika_version < pkg_resources.parse_version("1.0.0"):
+            msg = "Message confirmation is only available with pika 1.0.0+"
+            log.msg(msg)
+            warnings.warn(msg)
+            confirms = False
         self._confirms = confirms
         self._channel = None
         self._running = False
         self._queues = set()
         self._message_callback = None
         self.factory = None
-        self.ready.addCallback(
-            lambda _: self.connectionReady()
-        )
 
     @defer.inlineCallbacks
-    def connectionReady(self):
+    def connectionReady(self, res=None):
         """Called when the AMQP connection is ready.
         """
+        # The optional `res` argument is for compatibility with pika < 1.0.0
         # Create channel
         self._channel = yield self.channel()
         log.msg("AMQP channel created", system=self.name,
@@ -70,6 +82,8 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         yield self._channel.basic_qos(prefetch_count=0, prefetch_size=0)
         if self._confirms:
             yield self._channel.confirm_delivery()
+        if _pika_version < pkg_resources.parse_version("1.0.0"):
+            TwistedProtocolConnection.connectionReady(self, res)
 
     @defer.inlineCallbacks
     def setupRead(self, message_callback):
@@ -106,11 +120,9 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
     def _read(self, queue_object):
         while self._running:
             try:
-                channel, delivery_frame, properties, body = \
+                _channel, delivery_frame, properties, body = \
                     yield queue_object.get()
-            except (
-                    error.ConnectionDone, pika.exceptions.ChannelClosedByClient
-                    ):
+            except (error.ConnectionDone, ChannelClosedByClient):
                 # This is deliberate.
                 log.msg("Closing the read loop on the producer.",
                         system=self.name, logLevel=logging.DEBUG)
@@ -255,17 +267,6 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         self._running = False
         for consumer_tag in self._channel.consumer_tags:
             yield self._channel.basic_cancel(consumer_tag)
-        # Make sure all the queues are closed. On older versions of Pika, the
-        # ClosableDeferredQueues were not closed when the consumer was
-        # cancelled.
-        # TODO: remove this when the new version of Pika has been available for
-        # a while.
-        for queue in self._channel._consumers.items():
-            if not isinstance(queue, set()):
-                break
-            # Old version of pika, loop again:
-            for q in queue:
-                q.close(pika.exceptions.ConsumerCancelled())
         log.msg("Paused retrieval of messages for the server queue",
                 system=self.name, logLevel=logging.DEBUG)
 
@@ -281,7 +282,11 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
             return
         if self._running:
             yield self.pauseProducing()
-        if not self._impl.is_closed:
+        if _pika_version < pkg_resources.parse_version("1.0.0"):
+            is_closed = self.is_closed
+        else:
+            is_closed = self._impl.is_closed
+        if not is_closed:
             log.msg("Disconnecting from the Fedora Messaging broker",
                     system=self.name, logLevel=logging.DEBUG)
             yield self.close()
