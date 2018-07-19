@@ -138,7 +138,6 @@ class PublisherSession(object):
         """
         # Consumers use this to determine what schema to use and if they're out of date
         message.headers['fedora_messaging_schema'] = _schema_name(message.__class__)
-        message.headers['fedora_messaging_schema_version'] = message.schema_version
         message.validate()
 
         properties = pika.BasicProperties(
