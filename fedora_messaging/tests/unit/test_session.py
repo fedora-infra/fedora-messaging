@@ -44,7 +44,6 @@ class PublisherSessionTests(unittest.TestCase):
         self.message.headers = {}
         self.message.topic = "test.topic"
         self.message.body = "test body"
-        self.message.schema_version = 1
         self.tls_conf = {
             'keyfile': None,
             'certfile': None,
@@ -87,7 +86,6 @@ class PublisherSessionTests(unittest.TestCase):
         self.assertEqual(properties.delivery_mode, 2)
         self.assertDictEqual(properties.headers, {
             'fedora_messaging_schema': "mock.mock:Mock",
-            'fedora_messaging_schema_version': 1,
         })
 
     def test_publish_rejected(self):

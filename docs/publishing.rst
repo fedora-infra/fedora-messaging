@@ -28,15 +28,9 @@ Headers
 
 Headers are key-value pairs attached that are useful for storing information
 about the message itself. This library adds a header to every message with the
-following keys:
+``fedora_messaging_schema`` key, pointing to the message schema used.
 
-* ``fedora_messaging_schema`` - This is used to identify the message schema
-  used.
-
-* ``fedora_messaging_schema_version`` - This identifies the version of the
-  message schema.
-
-You should not use these keys for yourself.
+You should not use any key starting with ``fedora_messaging`` for yourself.
 
 You can write :ref:`header-schema` for your messages to enforce a particular
 schema.

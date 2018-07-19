@@ -126,7 +126,6 @@ class Message(object):
         'description': 'Schema for message body',
         'type': 'object',
     }
-    schema_version = 1
 
     def __init__(self, body=None, headers=None, topic=None):
         self.headers = headers or {}
@@ -193,9 +192,9 @@ class Message(object):
             jsonschema.SchemaError: If either the message header schema or the message body
                 schema are invalid.
         """
-        _log.debug('Validating message headers "%r" with schema "%r", version %d',
-                   self.headers, self.headers_schema, self.schema_version)
+        _log.debug('Validating message headers "%r" with schema "%r"',
+                   self.headers, self.headers_schema)
         jsonschema.validate(self.headers, self.headers_schema)
-        _log.debug('Validating message body "%r" with schema "%r", version %d',
-                   self.headers, self.headers_schema, self.schema_version)
+        _log.debug('Validating message body "%r" with schema "%r"',
+                   self.headers, self.headers_schema)
         jsonschema.validate(self.body, self.body_schema)
