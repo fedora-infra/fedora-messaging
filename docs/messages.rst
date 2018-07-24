@@ -47,75 +47,55 @@ The default body schema simply declares that the header field must be a JSON
 object.
 
 
-Example
-=======
+Example Schema
+--------------
 
-An example is worth a thousand words::
-
-    from fedora_messaging import message
-
-    class MailmanMessage(message.Message):
-        """
-        A sub-class of a Fedora message that defines a message schema for
-        messages published by Mailman when it receives mail to send out.
-        """
-        body_schema = {
-            'id': 'http://fedoraproject.org/message-schema/mailman#',
-            '$schema': 'http://json-schema.org/draft-04/schema#',
-            'description': 'Schema for message sent to mailman',
-            'type': 'object',
-            'properties': {
-                'mlist': {
-                    'type': 'object',
-                    'properties': {
-                        'list_name': {
-                            'type': 'string',
-                            'description': 'The name of the mailing list',
-                        },
-                    }
-                },
-                'msg': {
-                    'description': 'An object representing the email',
-                    'type': 'object',
-                    'properties': {
-                        'delivered-to': {'type': 'string'},
-                        'from': {'type': 'string'},
-                        'cc': {'type': 'string'},
-                        'to': {'type': 'string'},
-                        'x-mailman-rule-hits': {'type': 'string'},
-                        'x-mailman-rule-misses': {'type': 'string'},
-                        'x-message-id-hash': {'type': 'string'},
-                        'references': {'type': 'string'},
-                        'in-reply-to': {'type': 'string'},
-                        'message-id': {'type': 'string'},
-                        'subject': {'type': 'string'},
-                    },
-                    'required': ['from', 'to'],
-                },
-            },
-            'required': ['mlist', 'msg'],
-        }
-
-    # Define a valid message body
-    sample_message = {
-        "mlist": {"list_name": "infrastructure"},
-        "msg": {
-            "archived-at": "<https://lists.fedoraproject.org/cold/storage>",
-            "from": "JD <jd@example.com>",
-            "subject": "A sample email",
-            "to": "infrastructure@lists.fedoraproject.org",
-            "x-message-id-hash": "NOTREALLYAHASH",
-        }
-    }
-    msg = MailmanMessage(body=sample_message)
-    msg.validate()
-
-    # Delete a required property and watch it fail
-    del msg.body['msg']['from']
-    msg.validate()
+.. include:: sample_schema_package/mailman_schema/schema.py
+   :literal:
 
 Note that message schema can be composed of other message schema, and
 validation of fields can be much more detailed than just a simple type check.
 Consult the `JSON Schema`_ documentation for complete details.
 
+
+Message Conventions
+===================
+
+Schema are Immutable
+--------------------
+
+Message schema should be treated as immutable. Once defined, they should not be
+altered. Instead, define a new schema class, mark the old one as deprecated,
+and remove it after an appropriate transition period.
+
+
+Packaging
+=========
+
+Finally, you must distribute your schema to clients. It is recommended that you
+maintain your message schema in your application's git repository in a separate
+Python package. The package name should be ``<your-app-name>_schema``.
+
+A complete sample schema package can be found in `the fedora-messaging
+repository`_. This includes unit tests, the schema classes, and a setup.py. You
+can adapt this boilerplate with the following steps:
+
+* Change the package name from ``mailman_schema`` to ``<your-app-name>_schema``
+  in ``setup.py``.
+
+* Rename the ``mailman_schema`` directory to ``<your-app-name>_schema``.
+
+* Add your schema classes to ``schema.py`` and tests to
+  ``tests/test_schema.py``.
+
+* Update the ``README`` file.
+
+* Build the distribution with ``python setup.py sdist bdist_wheel``.
+
+* Upload the sdist and wheel to PyPI with ``twine``.
+
+* Submit an RPM package for it to Fedora and EPEL.
+
+
 .. _JSON Schema: http://json-schema.org/
+.. _the fedora-messaging repository: https://github.com/fedora-infra/fedora-messaging/tree/master/docs/sample_schema_package/
