@@ -73,8 +73,10 @@ arbitrary string keys and values. The default is::
         'version': 'fedora_messaging-<version> with pika-<version>',
     }
 
-It's recommended that applications only change the ``app`` key in the default
-set of keys.
+Apps should set the ``app`` along with any additional keys they feel will help
+administrators when debugging application connections. Do not use the
+``product``, ``information``, and ``version`` keys as these will be set
+automatically.
 
 .. _conf-exchanges:
 
@@ -226,11 +228,12 @@ from __future__ import unicode_literals
 import logging
 import logging.config
 import os
-import sys
 import uuid
 
 import pkg_resources
 import pytoml
+
+from . import exceptions
 
 
 _log = logging.getLogger(__name__)
@@ -320,44 +323,6 @@ DEFAULTS = dict(
     },
 )
 
-# Start with a basic logging configuration, which will be replaced by any user-
-# specified logging configuration when the configuration is loaded.
-logging.config.dictConfig(DEFAULTS['log_config'])
-
-
-def load(filename=None):
-    """
-    Load application configuration from a file and merge it with the default
-    configuration.
-
-    If the ``FEDORA_MESSAGING_CONF`` environment variable is set to a
-    filesystem path, the configuration will be loaded from that location.
-    Otherwise, the path defaults to ``/etc/fedora-messaging/config.toml``.
-    """
-    config = DEFAULTS.copy()
-
-    if filename:
-        config_path = filename
-    elif 'FEDORA_MESSAGING_CONF' in os.environ:
-        config_path = os.environ['FEDORA_MESSAGING_CONF']
-    else:
-        config_path = '/etc/fedora-messaging/config.toml'
-
-    if os.path.exists(config_path):
-        _log.info('Loading configuration from {}'.format(config_path))
-        with open(config_path) as fd:
-            try:
-                file_config = pytoml.loads(fd.read())
-                for key in file_config:
-                    config[key.lower()] = file_config[key]
-            except pytoml.core.TomlError as e:
-                _log.error('Failed to parse {}: {}'.format(config_path, str(e)))
-                sys.exit(1)
-    else:
-        _log.info('The configuration file, {}, does not exist.'.format(config_path))
-
-    return config
-
 
 class LazyConfig(dict):
     """This class lazy-loads the configuration file."""
@@ -374,9 +339,7 @@ class LazyConfig(dict):
         return super(LazyConfig, self).get(*args, **kw)
 
     def pop(self, *args, **kw):
-        if not self.loaded:
-            self.load_config()
-        return super(LazyConfig, self).pop(*args, **kw)
+        raise exceptions.ConfigurationException('Configuration keys cannot be removed!')
 
     def copy(self, *args, **kw):
         if not self.loaded:
@@ -393,9 +356,60 @@ class LazyConfig(dict):
             self.load_config()
         logging.config.dictConfig(self['log_config'])
 
-    def load_config(self, filename=None):
+    def _validate(self):
+        """
+        Perform checks on the configuration to assert its validity
+
+        Raises:
+            ConfigurationException: If the configuration is invalid.
+        """
+        for key in self:
+            if key not in DEFAULTS:
+                raise exceptions.ConfigurationException(
+                    'Unknown configuration key "{}"! Valid configuration keys are'
+                    ' {}'.format(key, list(DEFAULTS.keys())))
+
+        for key in ('version', 'information', 'product'):
+            # Nested dictionaries are not merged so key can be missing
+            if key not in self['client_properties']:
+                self['client_properties'][key] = DEFAULTS['client_properties'][key]
+            # Don't let users override these as they identify this library in AMQP
+            if self['client_properties'][key] != DEFAULTS['client_properties'][key]:
+                raise exceptions.ConfigurationException(
+                    '"{}" is a reserved keyword in client_properties'.format(key))
+
+    def load_config(self):
+        """
+        Load application configuration from a file and merge it with the default
+        configuration.
+
+        If the ``FEDORA_MESSAGING_CONF`` environment variable is set to a
+        filesystem path, the configuration will be loaded from that location.
+        Otherwise, the path defaults to ``/etc/fedora-messaging/config.toml``.
+        """
         self.loaded = True
-        self.update(load(filename=filename))
+        config = DEFAULTS.copy()
+
+        if 'FEDORA_MESSAGING_CONF' in os.environ:
+            config_path = os.environ['FEDORA_MESSAGING_CONF']
+        else:
+            config_path = '/etc/fedora-messaging/config.toml'
+
+        if os.path.exists(config_path):
+            _log.info('Loading configuration from {}'.format(config_path))
+            with open(config_path) as fd:
+                try:
+                    file_config = pytoml.loads(fd.read())
+                    for key in file_config:
+                        config[key.lower()] = file_config[key]
+                except pytoml.core.TomlError as e:
+                    _log.error('Failed to parse {}: {}'.format(config_path, str(e)))
+                    raise exceptions.ConfigurationException(e)
+        else:
+            _log.info('The configuration file, {}, does not exist.'.format(config_path))
+
+        self.update(config)
+        self._validate()
         return self
 
 
