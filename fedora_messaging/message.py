@@ -185,6 +185,8 @@ class Message(object):
         """
         Validate the headers and body with the message schema, if any.
 
+        .. warning:: This method should not be overridden by sub-classes.
+
         Raises:
             jsonschema.ValidationError: If either the message headers or the message body
                 are invalid.
