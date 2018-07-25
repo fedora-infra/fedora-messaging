@@ -206,6 +206,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
             log.msg(
                 'Consumer indicated it wishes consumption to halt, '
                 'shutting down', system=self.name, logLevel=logging.WARNING)
+            yield self._channel.basic_ack(delivery_tag=delivery_frame.delivery_tag)
             yield self.stopProducing()
         except Exception:
             log.err("Received unexpected exception from consumer callback",
