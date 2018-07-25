@@ -253,6 +253,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         log.msg("AMQP consumer is ready",
                 system=self.name, logLevel=logging.DEBUG)
 
+    @defer.inlineCallbacks
     def pauseProducing(self):
         """
         Pause the reception of messages. Does not disconnect from the server.
