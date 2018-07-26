@@ -95,7 +95,5 @@ class FedoraMessagingService(service.MultiService):
             self._parameters.host,
             self._parameters.port,
         )
-        serv.__repr__ = lambda: '<AMQP Connection to {}>'.format(name)
         serv.setName(name)
-        serv.parent = self
-        self.addService(serv)
+        serv.setServiceParent(self)

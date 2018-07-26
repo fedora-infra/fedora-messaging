@@ -3,3 +3,4 @@ pytest-cov
 mock
 twisted
 pytest-twisted
+pyOpenSSL
