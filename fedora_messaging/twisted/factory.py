@@ -139,7 +139,7 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
             message_callback (callable): The callable to pass the message to
                 when one arrives.
         """
-        log.msg('Messages reading setup',
+        log.msg('Setup messages consumption.',
                 system=self.name, logLevel=logging.DEBUG)
         new_setup = self._message_callback is None
         self._message_callback = message_callback
