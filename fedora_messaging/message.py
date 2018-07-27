@@ -196,5 +196,5 @@ class Message(object):
                    self.headers, self.headers_schema)
         jsonschema.validate(self.headers, self.headers_schema)
         _log.debug('Validating message body "%r" with schema "%r"',
-                   self.headers, self.headers_schema)
+                   self.body, self.body_schema)
         jsonschema.validate(self.body, self.body_schema)
