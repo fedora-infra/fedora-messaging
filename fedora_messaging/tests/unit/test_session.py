@@ -356,6 +356,14 @@ class ConsumerSessionMessageTests(unittest.TestCase):
             delivery_tag="testtag", requeue=False)
         self.consumer._consumer_callback.assert_not_called()
 
+    def test_message_not_object(self):
+        body = b"'json string'"
+        self.consumer._on_message(
+            self.channel, self.frame, self.properties, body)
+        self.channel.basic_nack.assert_called_with(
+            delivery_tag="testtag", requeue=False)
+        self.consumer._consumer_callback.assert_not_called()
+
     def test_message_validation_failed(self):
         body = b'"test body"'
         with mock.patch(__name__ + ".FakeMessageClass.VALIDATE_OK", False):
