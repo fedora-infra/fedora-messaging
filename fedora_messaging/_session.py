@@ -210,7 +210,7 @@ class ConsumerSession(object):
         if self._channel:
             _log.info('Halting %r consumer sessions', self._channel.consumer_tags)
         self._running = False
-        if self._connection:
+        if self._connection and self._connection.is_open:
             self._connection.close()
         # Reset the signal handler
         for signum in (signal.SIGTERM, signal.SIGINT):
@@ -239,7 +239,7 @@ class ConsumerSession(object):
         channel.add_on_close_callback(self._on_channel_close)
         channel.add_on_cancel_callback(self._on_cancel)
 
-        channel.basic_qos(self._on_qosok, **config.conf['qos'])
+        channel.basic_qos(callback=self._on_qosok, **config.conf['qos'])
 
     def _on_qosok(self, qosok_frame):
         """
@@ -252,24 +252,43 @@ class ConsumerSession(object):
         """
         for name, args in self._exchanges.items():
             self._channel.exchange_declare(
-                self._on_exchange_declareok, name, exchange_type=args['type'],
-                durable=args['durable'], auto_delete=args['auto_delete'],
-                arguments=args['arguments'])
+                exchange=name,
+                exchange_type=args['type'],
+                durable=args['durable'],
+                auto_delete=args['auto_delete'],
+                arguments=args['arguments'],
+                callback=self._on_exchange_declareok,
+            )
         for name, args in self._queues.items():
             self._channel.queue_declare(
-                self._on_queue_declareok, queue=name, durable=args['durable'],
-                auto_delete=args['auto_delete'], exclusive=args['exclusive'],
-                arguments=args['arguments'])
+                queue=name,
+                durable=args['durable'],
+                auto_delete=args['auto_delete'],
+                exclusive=args['exclusive'],
+                arguments=args['arguments'],
+                callback=self._on_queue_declareok,
+            )
 
-    def _on_channel_close(self, channel, reply_code, reply_text):
+    def _on_channel_close(self, channel, reply_code_or_reason, reply_text=None):
         """
         Callback invoked when the channel is closed.
 
         Args:
             channel (pika.channel.Channel): The channel that got closed.
-            reply_code (int): The AMQP code indicating why the channel was closed.
-            reply_text (str): The human-readable reason for the channel's closure.
+            reply_code_or_reason (int|Exception): The reason why the channel
+                was closed. In older versions of pika, this is the AMQP code.
+            reply_text (str): The human-readable reason for the channel's
+                closure (only in older versions of pika).
         """
+        if isinstance(reply_code_or_reason, pika_errs.ChannelClosed):
+            reply_code = reply_code_or_reason.reply_code
+            reply_text = reply_code_or_reason.reply_text
+        elif isinstance(reply_code_or_reason, int):
+            reply_code = reply_code_or_reason
+        else:
+            reply_code = 0
+            reply_text = str(reply_code_or_reason)
+
         _log.info('Channel %r closed (%d): %s', channel, reply_code, reply_text)
         self._channel = None
 
@@ -284,24 +303,37 @@ class ConsumerSession(object):
         _log.info('Successfully opened connection to %s', connection.params.host)
         self._channel = connection.channel(on_open_callback=self._on_channel_open)
 
-    def _on_connection_close(self, connection, reply_code, reply_text):
+    def _on_connection_close(self, connection, reply_code_or_reason, reply_text=None):
         """
         Callback invoked when a previously-opened connection is closed.
 
         Args:
             connection (pika.connection.SelectConnection): The connection that
                 was just closed.
-            reply_code (int): The AMQP code indicating why the connection was closed.
-            reply_text (str): The human-readable reason the connection was closed.
+            reply_code_or_reason (int|Exception): The reason why the channel
+                was closed. In older versions of pika, this is the AMQP code.
+            reply_text (str): The human-readable reason the connection was
+                closed (only in older versions of pika)
         """
         self._channel = None
+
+        if isinstance(reply_code_or_reason, pika_errs.ConnectionClosed):
+            reply_code = reply_code_or_reason.reply_code
+            reply_text = reply_code_or_reason.reply_text
+        elif isinstance(reply_code_or_reason, int):
+            reply_code = reply_code_or_reason
+        else:
+            reply_code = 0
+            reply_text = str(reply_code_or_reason)
+
         if reply_code == 200:
             # Normal shutdown, exit the consumer.
             _log.info('Server connection closed (%s), shutting down', reply_text)
+            connection.ioloop.stop()
         else:
             _log.warning('Connection to %s closed unexpectedly (%d): %s',
                          connection.params.host, reply_code, reply_text)
-            self._connection.add_timeout(0, self._connection.connect)
+            self.call_later(1, self.reconnect) # TODO: exponential backoff?
 
     def _on_connection_error(self, connection, error_message):
         """
@@ -313,8 +345,10 @@ class ConsumerSession(object):
             error_message (str): The reason the connection couldn't be opened.
         """
         self._channel = None
+        if isinstance(error_message, pika_errs.AMQPConnectionError):
+            error_message = repr(error_message.args[0])
         _log.error(error_message)
-        self._connection.add_timeout(0, self._connection.connect)
+        self.call_later(1, self.reconnect) # TODO: exponential backoff?
 
     def _on_exchange_declareok(self, declare_frame):
         """
@@ -342,9 +376,16 @@ class ConsumerSession(object):
                 for key in binding['routing_keys']:
                     _log.info('Asserting %s is bound to %s with the %s key',
                               binding['queue'], binding['exchange'], key)
-                    self._channel.queue_bind(None, binding['queue'],
-                                             binding['exchange'], key)
-                self._channel.basic_consume(self._on_message, frame.method.queue)
+                    self._channel.queue_bind(
+                        callback=None,
+                        queue=binding['queue'],
+                        exchange=binding['exchange'],
+                        routing_key=key,
+                    )
+                self._channel.basic_consume(
+                    queue=frame.method.queue,
+                    on_message_callback=self._on_message,
+                )
 
     def _on_cancel(self, cancel_frame):
         """
@@ -355,6 +396,44 @@ class ConsumerSession(object):
                 the server.
         """
         _log.info('Server canceled consumer')
+
+    def call_later(self, delay, callback):
+        """Schedule a one-shot timeout given delay seconds.
+
+        This method is only useful for compatibility with older versions of pika.
+
+        Args:
+            delay (float): Non-negative number of seconds from now until
+                expiration
+            callback (method): The callback method, having the signature
+                `callback()`
+        """
+        if hasattr(self._connection.ioloop, "call_later"):
+            self._connection.ioloop.call_later(delay, callback)
+        else:
+            self._connection.ioloop.add_timeout(delay, callback)
+
+    def connect(self):
+        _log.info('Connecting to %s:%d',
+                  self._parameters.host, self._parameters.port)
+        self._connection = pika.SelectConnection(
+            self._parameters,
+            on_open_callback=self._on_connection_open,
+            on_open_error_callback=self._on_connection_error,
+            on_close_callback=self._on_connection_close,
+        )
+
+    def reconnect(self):
+        """Will be invoked by the IOLoop timer if the connection is
+        closed. See the _on_connection_close method.
+        """
+        # This is the old connection instance, stop its ioloop.
+        self._connection.ioloop.stop()
+        if self._running:
+            # Create a new connection
+            self.connect()
+            # There is now a new connection, needs the new ioloop to run.
+            self._connection.ioloop.start()
 
     def consume(self, callback, bindings=None, queues=None, exchanges=None):
         """
@@ -381,13 +460,6 @@ class ConsumerSession(object):
             ValueError: If the callback isn't a function or a class with __call__
                 defined.
         """
-        self._connection = pika.SelectConnection(
-            self._parameters,
-            on_open_callback=self._on_connection_open,
-            on_open_error_callback=self._on_connection_error,
-            on_close_callback=self._on_connection_close,
-            stop_ioloop_on_close=True,
-        )
         self._bindings = bindings or config.conf['bindings']
         self._queues = queues or config.conf['queues']
         self._exchanges = exchanges or config.conf['exchanges']
@@ -401,8 +473,8 @@ class ConsumerSession(object):
             raise ValueError('Callback must be a class that implements __call__'
                              ' or a function.')
         self._running = True
-        while self._running:
-            self._connection.ioloop.start()
+        self.connect()
+        self._connection.ioloop.start()
 
     def _on_message(self, channel, delivery_frame, properties, body):
         """

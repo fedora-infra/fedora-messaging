@@ -144,7 +144,7 @@ class Message(object):
         The default implementation is to format the raw message topic, headers, and body.
         Applications use this to present messages to users.
         """
-        return 'Topic: {t}\n\nHeaders: {h}\n\nBody: {b}'.format(
+        return 'Topic: {t}\nHeaders: {h}\nBody: {b}'.format(
             t=self.topic,
             h=json.dumps(self.headers, sort_keys=True, indent=4),
             b=json.dumps(self.body, sort_keys=True, indent=4)
