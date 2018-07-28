@@ -73,7 +73,7 @@ def cli(conf):
     """The fedora-messaging command line interface."""
     if conf:
         try:
-            config.conf.load_config(filename=conf)
+            config.conf.load_config(config_path=conf)
         except ValueError as e:
             raise click.exceptions.BadParameter(e)
         config.conf.setup_logging()

@@ -378,7 +378,7 @@ class LazyConfig(dict):
                 raise exceptions.ConfigurationException(
                     '"{}" is a reserved keyword in client_properties'.format(key))
 
-    def load_config(self):
+    def load_config(self, config_path=None):
         """
         Load application configuration from a file and merge it with the default
         configuration.
@@ -390,10 +390,11 @@ class LazyConfig(dict):
         self.loaded = True
         config = DEFAULTS.copy()
 
-        if 'FEDORA_MESSAGING_CONF' in os.environ:
-            config_path = os.environ['FEDORA_MESSAGING_CONF']
-        else:
-            config_path = '/etc/fedora-messaging/config.toml'
+        if config_path is None:
+            if 'FEDORA_MESSAGING_CONF' in os.environ:
+                config_path = os.environ['FEDORA_MESSAGING_CONF']
+            else:
+                config_path = '/etc/fedora-messaging/config.toml'
 
         if os.path.exists(config_path):
             _log.info('Loading configuration from {}'.format(config_path))
