@@ -23,6 +23,7 @@ import ssl
 import unittest
 
 import mock
+import pkg_resources
 from pika import exceptions as pika_errs, URLParameters
 from jsonschema.exceptions import ValidationError as JSONValidationError
 
@@ -265,31 +266,41 @@ class ConsumerSessionTests(unittest.TestCase):
         # Declare exchanges and queues
         self.consumer._on_qosok(None)
         self.consumer._channel.exchange_declare.assert_called_with(
-            self.consumer._on_exchange_declareok,
-            "testexchange",
+            exchange="testexchange",
             exchange_type="type",
             durable="durable",
             auto_delete="auto_delete",
             arguments="arguments",
+            callback=self.consumer._on_exchange_declareok,
         )
         self.consumer._channel.queue_declare.assert_called_with(
-            self.consumer._on_queue_declareok,
             queue="testqueue",
             durable="durable",
             auto_delete="auto_delete",
             exclusive="exclusive",
             arguments="arguments",
+            callback=self.consumer._on_queue_declareok,
         )
         # Declare bindings
         frame = mock.Mock()
         frame.method.queue = "testqueue"
         self.consumer._on_queue_declareok(frame)
         self.consumer._channel.queue_bind.assert_called_with(
-            None, "testqueue", "testexchange", "testrk",
+            queue="testqueue",
+            exchange="testexchange",
+            routing_key="testrk",
+            callback=None,
         )
-        self.consumer._channel.basic_consume.assert_called_with(
-            self.consumer._on_message, "testqueue",
-        )
+        if pkg_resources.get_distribution('pika').version.startswith('0.12.'):
+            self.consumer._channel.basic_consume.assert_called_with(
+                consumer_callback=self.consumer._on_message,
+                queue="testqueue",
+            )
+        else:
+            self.consumer._channel.basic_consume.assert_called_with(
+                on_message_callback=self.consumer._on_message,
+                queue="testqueue",
+            )
 
 
 class ConsumerSessionMessageTests(unittest.TestCase):
