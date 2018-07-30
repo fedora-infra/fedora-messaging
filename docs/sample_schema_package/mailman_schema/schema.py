@@ -16,7 +16,7 @@
 from fedora_messaging import message
 
 
-class MailmanMessage(message.Message):
+class Message(message.Message):
     """
     A sub-class of a Fedora message that defines a message schema for messages
     published by Mailman when it receives mail to send out.
