@@ -27,7 +27,7 @@ import pkg_resources
 from pika import exceptions as pika_errs, URLParameters
 from jsonschema.exceptions import ValidationError as JSONValidationError
 
-from fedora_messaging import _session, config, message
+from fedora_messaging import _session, config
 from fedora_messaging.exceptions import (
     PublishReturned, ConnectionException, Nack, Drop,
     HaltConsumer, ConfigurationException)
@@ -304,7 +304,6 @@ class ConsumerSessionTests(unittest.TestCase):
 class ConsumerSessionMessageTests(unittest.TestCase):
 
     def setUp(self):
-        message._class_registry["FakeMessageClass"] = FakeMessageClass
         self.consumer = _session.ConsumerSession()
         self.callback = self.consumer._consumer_callback = mock.Mock()
         self.channel = mock.Mock()
@@ -314,12 +313,14 @@ class ConsumerSessionMessageTests(unittest.TestCase):
         self.frame.delivery_tag = "testtag"
         self.frame.routing_key = "test.topic"
         self.properties = mock.Mock()
-        self.properties.headers = {
-            "fedora_messaging_schema": "FakeMessageClass"
-        }
+        self.properties.headers = {}
         self.properties.content_encoding = "utf-8"
+        self.validate_patch = mock.patch(
+            "fedora_messaging.message.Message.validate")
+        self.validate_mock = self.validate_patch.start()
 
     def tearDown(self):
+        self.validate_patch.stop()
         self.consumer._shutdown()
 
     def test_message(self):
@@ -366,9 +367,9 @@ class ConsumerSessionMessageTests(unittest.TestCase):
 
     def test_message_validation_failed(self):
         body = b'"test body"'
-        with mock.patch(__name__ + ".FakeMessageClass.VALIDATE_OK", False):
-            self.consumer._on_message(
-                self.channel, self.frame, self.properties, body)
+        self.validate_mock.side_effect = JSONValidationError(None)
+        self.consumer._on_message(
+            self.channel, self.frame, self.properties, body)
         self.channel.basic_nack.assert_called_with(
             delivery_tag="testtag", requeue=False)
         self.consumer._consumer_callback.assert_not_called()
@@ -409,17 +410,6 @@ class ConsumerSessionMessageTests(unittest.TestCase):
             delivery_tag=0, multiple=True, requeue=True)
         self.assertFalse(self.consumer._running)
         self.consumer._connection.close.assert_called_once()
-
-
-class FakeMessageClass(message.Message):
-
-    VALIDATE_OK = True
-
-    def __init__(self, *args, **kwargs):
-        super(FakeMessageClass, self).__init__(*args, **kwargs)
-        self.validate = mock.Mock()
-        if not self.VALIDATE_OK:
-            self.validate.side_effect = JSONValidationError(None)
 
 
 class ConfigureTlsParameters(unittest.TestCase):
