@@ -87,6 +87,9 @@ html_theme_options = {
     'github_user': 'fedora-infra',
     'github_repo': 'fedora-messaging',
     'page_width': '1040px',
+    "show_related": True,
+    "sidebar_collapse": True,
+    "show_relbar_bottom": True,
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,

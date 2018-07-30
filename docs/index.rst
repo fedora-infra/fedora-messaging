@@ -35,6 +35,15 @@ Command Line Interface Manuals
    fedora-messaging
 
 
+Tutorial
+========
+
+.. toctree::
+   :maxdepth: 2
+
+   tutorial/index
+
+
 API Documentation
 =================
 
