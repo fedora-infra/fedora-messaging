@@ -333,7 +333,7 @@ class ConsumerSession(object):
         else:
             _log.warning('Connection to %s closed unexpectedly (%d): %s',
                          connection.params.host, reply_code, reply_text)
-            self.call_later(1, self.reconnect) # TODO: exponential backoff?
+            self.call_later(1, self.reconnect)  # TODO: exponential backoff?
 
     def _on_connection_error(self, connection, error_message):
         """
@@ -348,7 +348,7 @@ class ConsumerSession(object):
         if isinstance(error_message, pika_errs.AMQPConnectionError):
             error_message = repr(error_message.args[0])
         _log.error(error_message)
-        self.call_later(1, self.reconnect) # TODO: exponential backoff?
+        self.call_later(1, self.reconnect)  # TODO: exponential backoff?
 
     def _on_exchange_declareok(self, declare_frame):
         """
@@ -382,10 +382,12 @@ class ConsumerSession(object):
                         exchange=binding['exchange'],
                         routing_key=key,
                     )
-                self._channel.basic_consume(
-                    queue=frame.method.queue,
-                    on_message_callback=self._on_message,
-                )
+                bc_args = dict(queue=frame.method.queue)
+                if pkg_resources.get_distribution('pika').version.startswith('0.12.'):
+                    bc_args["consumer_callback"] = self._on_message
+                else:
+                    bc_args["on_message_callback"] = self._on_message
+                self._channel.basic_consume(**bc_args)
 
     def _on_cancel(self, cancel_frame):
         """

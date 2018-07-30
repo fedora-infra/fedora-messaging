@@ -33,7 +33,7 @@ class MessageTests(unittest.TestCase):
 
     def test_str(self):
         """Assert calling str on a message produces a human-readable result."""
-        expected = 'Topic: test.topic\n\nHeaders: {}\n\nBody: {\n    "my": "key"\n}'
+        expected = 'Topic: test.topic\nHeaders: {}\nBody: {\n    "my": "key"\n}'
         msg = message.Message(topic='test.topic', body={'my': 'key'})
         self.assertEqual(expected, str(msg))
 
