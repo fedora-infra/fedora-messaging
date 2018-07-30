@@ -20,7 +20,7 @@ from jsonschema import ValidationError
 from .. import schema
 
 
-class MailmanMessageTests(unittest.TestCase):
+class MessageTests(unittest.TestCase):
     """A set of unit tests to ensure the schema works as expected."""
 
     def test_minimal_message(self):
@@ -37,7 +37,7 @@ class MailmanMessageTests(unittest.TestCase):
                 "body": "hello world",
             }
         }
-        message = schema.MailmanMessage(body=minimal_message)
+        message = schema.Message(body=minimal_message)
 
         message.validate()
 
@@ -60,7 +60,7 @@ class MailmanMessageTests(unittest.TestCase):
                 'body': 'This is a good email',
             }
         }
-        message = schema.MailmanMessage(body=full_message)
+        message = schema.Message(body=full_message)
 
         message.validate()
 
@@ -72,7 +72,7 @@ class MailmanMessageTests(unittest.TestCase):
                 "from": "JD <jd@example.com>",
             }
         }
-        message = schema.MailmanMessage(body=minimal_message)
+        message = schema.Message(body=minimal_message)
         self.assertRaises(ValidationError, message.validate)
 
     def test_str(self):
@@ -87,7 +87,7 @@ class MailmanMessageTests(unittest.TestCase):
             }
         }
         expected_str = 'Subject: A sample email\n\nhello world\n'
-        message = schema.MailmanMessage(body=body)
+        message = schema.Message(body=body)
 
         message.validate()
         self.assertEqual(expected_str, str(message))
@@ -104,6 +104,6 @@ class MailmanMessageTests(unittest.TestCase):
             }
         }
         expected_summary = 'A sample email'
-        message = schema.MailmanMessage(body=body)
+        message = schema.Message(body=body)
 
         self.assertEqual(expected_summary, message.summary())

@@ -55,7 +55,7 @@ setup(
     test_suite='mailman_schema.tests',
     entry_points={
         'fedora.messages': [
-            'mailman.message=mailman_schema.schema:MailmanMessage',
+            'mailman.message=mailman_schema.schema:Message',
         ]
     }
 )
