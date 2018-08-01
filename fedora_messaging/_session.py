@@ -20,13 +20,11 @@ import inspect
 import json
 import logging
 import signal
-import uuid
 import ssl
 
 from pika import exceptions as pika_errs
 import pika
 import pkg_resources
-import jsonschema
 try:
     # Versions of pika greater than the 0.11 series uses SSLOptions to configure
     # a TLS connection.
@@ -35,7 +33,7 @@ except ImportError:
     SSLOptions = None
 
 from . import config
-from .message import _schema_name, get_class, Message
+from .message import get_message
 from .exceptions import (
     Nack, Drop, HaltConsumer, ValidationError, PublishReturned, ConnectionException,
     ConfigurationException)
@@ -136,17 +134,16 @@ class PublisherSession(object):
 
         .. _exchange: https://www.rabbitmq.com/tutorials/amqp-concepts.html#exchanges
         """
-        body, routing_key, properties = get_serialized_message(message)
+        message.validate()
         try:
-            self._connect_and_publish(exchange, routing_key, body, properties)
+            self._connect_and_publish(exchange, message)
         except (pika_errs.ConnectionClosed, pika_errs.ChannelClosed) as e:
             # Because this is a blocking connection (and thus can't heartbeat)
             # we might need to restart the connection.
             _log.info('Resetting connection to %s', self._parameters.host)
             self._connection = self._channel = None
             try:
-                self._connect_and_publish(
-                    exchange, routing_key, body, properties)
+                self._connect_and_publish(exchange, message)
             except pika_errs.AMQPConnectionError as e:
                 _log.error(str(e))
                 if self._connection and self._connection.is_open:
@@ -160,14 +157,17 @@ class PublisherSession(object):
                 self._connection.close()
             raise ConnectionException(reason=e)
 
-    def _connect_and_publish(self, exchange, routing_key, body, properties):
+    def _connect_and_publish(self, exchange, message):
         if not self._connection or not self._channel:
             self._connection = pika.BlockingConnection(self._parameters)
             self._channel = self._connection.channel()
             if self._confirms:
                 self._channel.confirm_delivery()
 
-        self._channel.publish(exchange, routing_key, body, properties)
+        body = json.dumps(message.body).encode('utf-8')
+        routing_key = message.topic.encode('utf-8')
+        self._channel.publish(
+            exchange, routing_key, body, message.properties)
 
 
 class ConsumerSession(object):
@@ -527,71 +527,3 @@ class ConsumerSession(object):
             channel.basic_nack(delivery_tag=0, multiple=True, requeue=True)
             self._shutdown()
             raise HaltConsumer(exit_code=1, reason=e)
-
-
-def get_message(routing_key, properties, body):
-    if properties.headers is None:
-        _log.error('Message (body=%r) arrived without headers. '
-                   'A publisher is misbehaving!', body)
-        properties.headers = {}
-
-    try:
-        MessageClass = get_class(properties.headers['fedora_messaging_schema'])
-    except KeyError:
-        _log.error('Message (headers=%r, body=%r) arrived without a schema header.'
-                   ' A publisher is misbehaving!', properties.headers, body)
-        MessageClass = Message
-
-    if properties.content_encoding is None:
-        _log.error('Message arrived without a content encoding')
-        properties.content_encoding = 'utf-8'
-    try:
-        body = body.decode(properties.content_encoding)
-    except UnicodeDecodeError as e:
-        _log.error('Unable to decode message body %r with %s content encoding',
-                   body, properties.content_encoding)
-        raise ValidationError(e)
-
-    try:
-        body = json.loads(body)
-    except ValueError as e:
-        _log.error('Failed to load message body %r, %r', body, e)
-        raise ValidationError(e)
-
-    message = MessageClass(
-        body=body, headers=properties.headers, topic=routing_key)
-    try:
-        message.validate()
-        _log.debug('Successfully validated message %r', message)
-    except jsonschema.exceptions.ValidationError as e:
-        _log.error('Message validation of %r failed: %r', message, e)
-        raise ValidationError(e)
-    return message
-
-
-def get_serialized_message(message):
-    """
-    Serialize a :class:`Message` to JSON and create a pika configuration object.
-
-    Args:
-        message (fedora_messaging.message.Message): A message ready for serialization.
-
-    Returns:
-        tuple: A three-tuple of (str, str, pika.BasicProperties) where the
-        first str is JSON-serialized, UTF-8 encoded message body, the second
-        str is the UTF-8 encoded topic, and the third object contains the AMQP
-        properties for the message.
-    """
-    # Consumers use this to determine what schema to use and if they're out of date
-    message.headers['fedora_messaging_schema'] = _schema_name(message.__class__)
-    message.validate()
-
-    properties = pika.BasicProperties(
-        content_type='application/json', content_encoding='utf-8', delivery_mode=2,
-        headers=message.headers, message_id=str(uuid.uuid4()))
-
-    return (
-        json.dumps(message.body).encode('utf-8'),
-        message.topic.encode('utf-8'),
-        properties,
-    )

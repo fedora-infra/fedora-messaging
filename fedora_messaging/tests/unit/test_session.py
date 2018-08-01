@@ -80,13 +80,6 @@ class PublisherSessionTests(unittest.TestCase):
         self.assertEqual(publish_call[0], None)
         self.assertEqual(publish_call[1], b"test.topic")
         self.assertEqual(publish_call[2], b'"test body"')
-        properties = publish_call[3]
-        self.assertEqual(properties.content_type, "application/json")
-        self.assertEqual(properties.content_encoding, "utf-8")
-        self.assertEqual(properties.delivery_mode, 2)
-        self.assertDictEqual(properties.headers, {
-            'fedora_messaging_schema': "mock.mock:Mock",
-        })
 
     def test_publish_rejected(self):
         # Check that the correct exception is raised when the publication is
@@ -121,11 +114,11 @@ class PublisherSessionTests(unittest.TestCase):
         channel_mock = mock.Mock()
         connection_class_mock.return_value = connection_mock
         connection_mock.channel.return_value = channel_mock
+        self.message.properties = "properties"
         with mock.patch(
                 "fedora_messaging._session.pika.BlockingConnection",
                 connection_class_mock):
-            self.publisher._connect_and_publish(
-                None, b"test.topic", b'"test body"', "properties")
+            self.publisher._connect_and_publish(None, self.message)
         connection_class_mock.assert_called_with(self.publisher._parameters)
         channel_mock.confirm_delivery.assert_called_once()
         channel_mock.publish.assert_called_with(

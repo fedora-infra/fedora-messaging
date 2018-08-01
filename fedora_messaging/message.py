@@ -23,9 +23,13 @@ entry point name is unused.
 
 import json
 import logging
+import uuid
 
 import jsonschema
+import pika
 import pkg_resources
+
+from .exceptions import ValidationError
 
 
 _log = logging.getLogger(__name__)
@@ -85,6 +89,46 @@ def _schema_name(cls):
     return '{}:{}'.format(cls.__module__, cls.__name__)
 
 
+def get_message(routing_key, properties, body):
+    if properties.headers is None:
+        _log.error('Message (body=%r) arrived without headers. '
+                   'A publisher is misbehaving!', body)
+        properties.headers = {}
+
+    try:
+        MessageClass = get_class(properties.headers['fedora_messaging_schema'])
+    except KeyError:
+        _log.error('Message (headers=%r, body=%r) arrived without a schema header.'
+                   ' A publisher is misbehaving!', properties.headers, body)
+        MessageClass = Message
+
+    if properties.content_encoding is None:
+        _log.error('Message arrived without a content encoding')
+        properties.content_encoding = 'utf-8'
+    try:
+        body = body.decode(properties.content_encoding)
+    except UnicodeDecodeError as e:
+        _log.error('Unable to decode message body %r with %s content encoding',
+                   body, properties.content_encoding)
+        raise ValidationError(e)
+
+    try:
+        body = json.loads(body)
+    except ValueError as e:
+        _log.error('Failed to load message body %r, %r', body, e)
+        raise ValidationError(e)
+
+    message = MessageClass(
+        body=body, topic=routing_key, properties=properties)
+    try:
+        message.validate()
+        _log.debug('Successfully validated message %r', message)
+    except jsonschema.exceptions.ValidationError as e:
+        _log.error('Message validation of %r failed: %r', message, e)
+        raise ValidationError(e)
+    return message
+
+
 class Message(object):
     """
     Messages are simply JSON-encoded objects. This allows message authors to
@@ -127,11 +171,37 @@ class Message(object):
         'type': 'object',
     }
 
-    def __init__(self, body=None, headers=None, topic=None):
-        self.headers = headers or {}
+    def __init__(self, body=None, headers=None, topic=None, properties=None):
         self.body = body or {}
         if topic:
             self.topic = topic
+        headers = headers or {}
+        self.properties = properties or self._build_properties(headers)
+
+    def _build_properties(self, headers):
+        # Consumers use this to determine what schema to use and if they're out
+        # of date.
+        headers['fedora_messaging_schema'] = _schema_name(self.__class__)
+        return pika.BasicProperties(
+            content_type='application/json', content_encoding='utf-8', delivery_mode=2,
+            headers=headers, message_id=str(uuid.uuid4())
+        )
+
+    @property
+    def headers(self):
+        return self.properties.headers
+
+    @headers.setter
+    def headers_setter(self, value):
+        self.properties.headers = value
+
+    @property
+    def id(self):
+        return self.properties.message_id
+
+    @id.setter
+    def id_setter(self, value):
+        self.properties.message_id = value
 
     def __str__(self):
         """
@@ -140,10 +210,11 @@ class Message(object):
         This should provide a detailed representation of the message, much like the body
         of an email.
 
-        The default implementation is to format the raw message topic, headers, and body.
-        Applications use this to present messages to users.
+        The default implementation is to format the raw message id, topic, headers, and
+        body. Applications use this to present messages to users.
         """
-        return 'Topic: {t}\nHeaders: {h}\nBody: {b}'.format(
+        return 'Id: {i}\nTopic: {t}\nHeaders: {h}\nBody: {b}'.format(
+            i=self.id,
             t=self.topic,
             h=json.dumps(self.headers, sort_keys=True, indent=4),
             b=json.dumps(self.body, sort_keys=True, indent=4)
@@ -153,8 +224,8 @@ class Message(object):
         """
         Provide a printable representation of the object that can be passed to func:`eval`.
         """
-        return "{}(body={}, headers={}, topic={})".format(
-            self.__class__.__name__, repr(self.body), repr(self.headers), repr(self.topic))
+        return "{}(id={}, topic={}, body={})".format(
+            self.__class__.__name__, repr(self.id), repr(self.topic), repr(self.body))
 
     def __eq__(self, other):
         """
