@@ -14,6 +14,12 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+"""
+Twisted Protocol based on pika's Twisted Protocol, and implementing the
+specificities of Fedora Messaging.
+
+See https://twistedmatrix.com/documents/current/core/howto/clients.html#protocol
+"""
 
 from __future__ import absolute_import, unicode_literals
 

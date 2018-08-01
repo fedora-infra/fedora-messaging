@@ -14,6 +14,15 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+"""
+Twisted Service to start and stop the Fedora Messaging Twisted Factory.
+
+This Service makes it easier to build a Twisted application that embeds a
+Fedora Messaging component. See the ``verify_missing`` service in
+fedmsg-migration-tools for a use case.
+
+See https://twistedmatrix.com/documents/current/core/howto/application.html
+"""
 
 from __future__ import absolute_import, unicode_literals
 
