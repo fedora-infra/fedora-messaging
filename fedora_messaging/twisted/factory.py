@@ -39,7 +39,7 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
 
         Args:
             parameters (pika.ConnectionParameters): The connection parameters.
-            bindings (dict): which bindings to setup on connect.
+            bindings (list of dict): which bindings to setup on connect.
         """
         self.bindings = bindings
         self._parameters = parameters
