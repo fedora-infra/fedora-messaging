@@ -35,10 +35,11 @@ class MessageTests(unittest.TestCase):
     def test_str(self):
         """Assert calling str on a message produces a human-readable result."""
         msg = message.Message(topic='test.topic', body={'my': 'key'})
+        expected_headers = json.dumps(msg.headers, sort_keys=True, indent=4)
         expected = ('Id: {}\nTopic: test.topic\n'
-                    'Headers: {{\n    "fedora_messaging_schema": '
-                    '"fedora_messaging.message:Message"\n}}'
-                    '\nBody: {{\n    "my": "key"\n}}').format(msg.id)
+                    'Headers: {}'
+                    '\nBody: {{\n    "my": "key"\n}}').format(
+                    msg.id, expected_headers)
         self.assertEqual(expected, str(msg))
 
     def test_equality(self):
@@ -76,9 +77,12 @@ class MessageTests(unittest.TestCase):
         self.assertEqual(msg.properties.content_type, "application/json")
         self.assertEqual(msg.properties.content_encoding, "utf-8")
         self.assertEqual(msg.properties.delivery_mode, 2)
-        self.assertDictEqual(msg.properties.headers, {
-            'fedora_messaging_schema': "fedora_messaging.message:Message",
-        })
+        self.assertIn("sent-at", msg.properties.headers)
+        self.assertIn("fedora_messaging_schema", msg.properties.headers)
+        self.assertEqual(
+            msg.properties.headers["fedora_messaging_schema"],
+            "fedora_messaging.message:Message"
+        )
 
     def test_headers(self):
         msg = message.Message(headers={"foo": "bar"})
