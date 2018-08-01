@@ -20,7 +20,7 @@ Twisted Factory to create the Fedora Messaging Twisted Protocol instance.
 See https://twistedmatrix.com/documents/current/core/howto/clients.html#clientfactory
 """
 
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import
 
 import logging
 
@@ -36,7 +36,7 @@ from .protocol import FedoraMessagingProtocol
 class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
     """Reconnecting factory for the Fedora Messaging protocol."""
 
-    name = 'FedoraMessaging:Factory'
+    name = u'FedoraMessaging:Factory'
     protocol = FedoraMessagingProtocol
 
     def __init__(self, parameters, bindings):
@@ -58,7 +58,7 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
         See the documentation of
         `twisted.internet.protocol.ReconnectingClientFactory` for details.
         """
-        log.msg(b'Connecting to the Fedora Messaging broker',
+        log.msg('Connecting to the Fedora Messaging broker',
                 system=self.name, logLevel=logging.DEBUG)
 
     def buildProtocol(self, addr):
@@ -68,7 +68,7 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
         `twisted.internet.protocol.ReconnectingClientFactory` for details.
         """
         self.resetDelay()
-        log.msg(b'Connected to the Fedora Messaging broker', system=self.name)
+        log.msg('Connected to the Fedora Messaging broker', system=self.name)
         self.client = self.protocol(self._parameters)
         self.client.factory = self
         self.client.ready.addCallback(
@@ -94,8 +94,7 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
         """
         if not isinstance(reason.value, error.ConnectionDone):
             log.msg(
-                'Lost connection. Reason: {}'.format(
-                    reason.value).encode("utf-8"),
+                'Lost connection. Reason: {}'.format(reason.value),
                 system=self.name, logLevel=logging.WARNING)
         if self._client_ready.called:
             # Renew the ready deferred, it will callback when the
@@ -111,8 +110,7 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
         `twisted.internet.protocol.ReconnectingClientFactory` for details.
         """
         log.msg(
-            'Connection failed. Reason: {}'.format(
-                reason.value).encode("utf-8"),
+            'Connection failed. Reason: {}'.format(reason.value),
             system=self.name, logLevel=logging.WARNING)
         protocol.ReconnectingClientFactory.clientConnectionFailed(
             self, connector, reason)
@@ -126,7 +124,7 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
         protocol.ReconnectingClientFactory.stopTrying(self)
         if not self._client_ready.called:
             self._client_ready.errback(pika.exceptions.AMQPConnectionError(
-                "Could not connect, reconnection cancelled."
+                u"Could not connect, reconnection cancelled."
             ))
 
     @defer.inlineCallbacks
@@ -148,7 +146,7 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
             message_callback (callable): The callable to pass the message to
                 when one arrives.
         """
-        log.msg(b'Setup messages consumption.',
+        log.msg('Setup messages consumption.',
                 system=self.name, logLevel=logging.DEBUG)
         new_setup = self._message_callback is None
         self._message_callback = message_callback
@@ -181,16 +179,14 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
         except (
                 pika.exceptions.ConnectionClosed, pika.exceptions.ChannelClosed
                 ) as e:
-            log.msg(b'Connection lost while publishing, retrying.',
+            log.msg('Connection lost while publishing, retrying.',
                     system=self.name, logLevel=logging.WARNING)
             yield self.publish(message, exchange)
         except (
                 pika.exceptions.NackError, pika.exceptions.UnroutableError
                 ) as e:
-            log.msg(
-                'Message was rejected by the broker ({})'.format(
-                    e).encode("utf-8"),
-                system=self.name, logLevel=logging.WARNING)
+            log.msg('Message was rejected by the broker ({})'.format(e),
+                    system=self.name, logLevel=logging.WARNING)
             raise PublishReturned(reason=e)
         except pika.exceptions.AMQPError as e:
             self.stopTrying()

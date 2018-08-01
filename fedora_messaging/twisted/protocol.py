@@ -21,7 +21,7 @@ specificities of Fedora Messaging.
 See https://twistedmatrix.com/documents/current/core/howto/clients.html#protocol
 """
 
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import
 
 import logging
 
@@ -51,7 +51,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
     specific to the Fedora Messaging implementation.
     """
 
-    name = 'FedoraMessaging:Protocol'
+    name = u'FedoraMessaging:Protocol'
 
     def __init__(self, parameters, confirms=False):
         """Initialize the protocol.
@@ -65,7 +65,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         TwistedProtocolConnection.__init__(self, parameters)
         self._parameters = parameters
         if confirms and _pika_version < pkg_resources.parse_version("1.0.0"):
-            log.msg(b"Message confirmation is only available with pika 1.0.0+",
+            log.msg("Message confirmation is only available with pika 1.0.0+",
                     system=self.name, logLevel=logging.ERROR)
             confirms = False
         self._confirms = confirms
@@ -82,7 +82,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         # The optional `res` argument is for compatibility with pika < 1.0.0
         # Create channel
         self._channel = yield self.channel()
-        log.msg(b"AMQP channel created", system=self.name,
+        log.msg("AMQP channel created", system=self.name,
                 logLevel=logging.DEBUG)
         yield self._channel.basic_qos(
             prefetch_count=config.conf["qos"]["prefetch_count"],
@@ -121,7 +121,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
                 routing_key=binding['routing_key'],
             )
             self._queues.add(queue_name)
-        log.msg(b"AMQP bindings declared", system=self.name,
+        log.msg("AMQP bindings declared", system=self.name,
                 logLevel=logging.DEBUG)
 
     @defer.inlineCallbacks
@@ -132,19 +132,19 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
                     yield queue_object.get()
             except (error.ConnectionDone, ChannelClosedByClient):
                 # This is deliberate.
-                log.msg(b"Closing the read loop on the producer.",
+                log.msg("Closing the read loop on the producer.",
                         system=self.name, logLevel=logging.DEBUG)
                 break
             except pika.exceptions.ChannelClosed as e:
                 log.err(e, system=self.name)
                 break
             except pika.exceptions.ConsumerCancelled:
-                log.msg(b"Consumer cancelled, quitting the read loop.",
+                log.msg("Consumer cancelled, quitting the read loop.",
                         system=self.name)
                 break
             except Exception as e:
-                log.err(b"Failed getting the next message in the queue, "
-                        b"stopping.", system=self.name)
+                log.err("Failed getting the next message in the queue, "
+                        "stopping.", system=self.name)
                 log.err(e, system=self.name)
                 break
             if body:
@@ -177,13 +177,13 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         """
         log.msg('Message arrived with delivery tag {tag}'.format(
             tag=delivery_frame.delivery_tag
-            ).encode("utf-8"), system=self.name, logLevel=logging.DEBUG)
+            ), system=self.name, logLevel=logging.DEBUG)
         try:
             message = get_message(delivery_frame.routing_key, properties, body)
         except ValidationError:
             log.msg('Message id {msgid} did not pass validation.'.format(
                 msgid=properties.message_id,
-            ).encode("utf-8"), system=self.name, logLevel=logging.WARNING)
+            ), system=self.name, logLevel=logging.WARNING)
             yield self._channel.basic_nack(
                 delivery_tag=delivery_frame.delivery_tag, requeue=False)
             return
@@ -192,28 +192,28 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
             log.msg(
                 'Consuming message from topic {topic!r} (id {msgid})'.format(
                     topic=message.topic, msgid=properties.message_id,
-                ).encode("utf-8"), system=self.name, logLevel=logging.DEBUG)
+                ), system=self.name, logLevel=logging.DEBUG)
             yield defer.maybeDeferred(self._message_callback, message)
         except Nack:
             log.msg('Returning message id {msgid} to the queue'.format(
                 msgid=properties.message_id,
-            ).encode("utf-8"), system=self.name, logLevel=logging.WARNING)
+            ), system=self.name, logLevel=logging.WARNING)
             yield self._channel.basic_nack(
                 delivery_tag=delivery_frame.delivery_tag, requeue=True)
         except Drop:
             log.msg('Dropping message id {msgid}'.format(
                 msgid=properties.message_id,
-            ).encode("utf-8"), system=self.name, logLevel=logging.WARNING)
+            ), system=self.name, logLevel=logging.WARNING)
             yield self._channel.basic_nack(
                 delivery_tag=delivery_frame.delivery_tag, requeue=False)
         except HaltConsumer:
             log.msg(
-                b'Consumer indicated it wishes consumption to halt, '
-                b'shutting down', system=self.name, logLevel=logging.WARNING)
+                'Consumer indicated it wishes consumption to halt, '
+                'shutting down', system=self.name, logLevel=logging.WARNING)
             yield self._channel.basic_ack(delivery_tag=delivery_frame.delivery_tag)
             yield self.stopProducing()
         except Exception:
-            log.err(b"Received unexpected exception from consumer callback",
+            log.err("Received unexpected exception from consumer callback",
                     system=self.name)
             log.err(system=self.name)
             yield self._channel.basic_nack(
@@ -254,7 +254,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
             queue_object, _consumer_tag = yield self._channel.basic_consume(
                 queue=queue_name)
             self._read(queue_object).addErrback(log.err, system=self.name)
-        log.msg(b"AMQP consumer is ready",
+        log.msg("AMQP consumer is ready",
                 system=self.name, logLevel=logging.DEBUG)
 
     @defer.inlineCallbacks
@@ -275,7 +275,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         self._running = False
         for consumer_tag in self._channel.consumer_tags:
             yield self._channel.basic_cancel(consumer_tag)
-        log.msg(b"Paused retrieval of messages for the server queue",
+        log.msg("Paused retrieval of messages for the server queue",
                 system=self.name, logLevel=logging.DEBUG)
 
     @defer.inlineCallbacks
@@ -295,7 +295,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         else:
             is_closed = self._impl.is_closed
         if not is_closed:
-            log.msg(b"Disconnecting from the Fedora Messaging broker",
+            log.msg("Disconnecting from the Fedora Messaging broker",
                     system=self.name, logLevel=logging.DEBUG)
             yield self.close()
         self._channel = None
