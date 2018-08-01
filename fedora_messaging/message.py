@@ -90,6 +90,15 @@ def _schema_name(cls):
 
 
 def get_message(routing_key, properties, body):
+    """
+    Construct a Message instance given the routing key, the properties and the
+    body received from the AMQP broker.
+
+    Args:
+        routing_key (str): The AMQP routing key (will become the message topic)
+        properties (pika.BasicProperties): the AMQP properties
+        body (bytes): The encoded message body
+    """
     if properties.headers is None:
         _log.error('Message (body=%r) arrived without headers. '
                    'A publisher is misbehaving!', body)
@@ -144,11 +153,17 @@ class Message(object):
     255 bytes.
 
     Attributes:
+        id (six.text_type): The message id as a unicode string.
         topic (six.text_type): The message topic as a unicode string.
         headers_schema (dict): A `JSON schema <http://json-schema.org/>`_ to be used with
             :func:`jsonschema.validate` to validate the message headers.
         body_schema (dict): A `JSON schema <http://json-schema.org/>`_ to be used with
             :func:`jsonschema.validate` to validate the message headers.
+        headers (dict): A set of message headers. Consult the headers schema for
+            expected keys and values.
+        encoded_routing_key (bytes): The encoded routing key used to publish
+            the message on the broker.
+        encoded_body (bytes): The encoded body used to publish the message.
 
     Args:
         headers (dict): A set of message headers. Consult the headers schema for
@@ -157,6 +172,8 @@ class Message(object):
             and values.
         topic (six.text_type): The message topic as a unicode string. If this is
             not provided, the default topic for the class is used.
+        properties (pika.BasicProperties): The AMQP properties. If this is not
+            provided, they will be generated.
     """
 
     topic = ''
@@ -202,6 +219,14 @@ class Message(object):
     @id.setter
     def id_setter(self, value):
         self.properties.message_id = value
+
+    @property
+    def encoded_routing_key(self):
+        return self.topic.encode('utf-8')
+
+    @property
+    def encoded_body(self):
+        return json.dumps(self.body).encode('utf-8')
 
     def __str__(self):
         """

@@ -17,7 +17,6 @@
 from __future__ import absolute_import, unicode_literals
 
 import inspect
-import json
 import logging
 import signal
 import ssl
@@ -164,10 +163,12 @@ class PublisherSession(object):
             if self._confirms:
                 self._channel.confirm_delivery()
 
-        body = json.dumps(message.body).encode('utf-8')
-        routing_key = message.topic.encode('utf-8')
         self._channel.publish(
-            exchange, routing_key, body, message.properties)
+            exchange=exchange,
+            routing_key=message.encoded_routing_key,
+            body=message.encoded_body,
+            properties=message.properties,
+        )
 
 
 class ConsumerSession(object):

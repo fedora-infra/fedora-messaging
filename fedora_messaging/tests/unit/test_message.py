@@ -15,6 +15,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+import json
 import unittest
 
 import jsonschema
@@ -93,6 +94,17 @@ class MessageTests(unittest.TestCase):
         properties = object()
         msg = message.Message(properties=properties)
         self.assertEqual(msg.properties, properties)
+
+    def test_encoded_routing_key(self):
+        """Assert encoded routing key is correct."""
+        msg = message.Message(topic='test.topic')
+        self.assertEqual(msg.encoded_routing_key, b'test.topic')
+
+    def test_encoded_body(self):
+        """Assert encoded body is correct."""
+        body = {"foo": "barr\u00e9"}
+        msg = message.Message(body=body)
+        self.assertEqual(msg.encoded_body, json.dumps(body).encode("utf-8"))
 
 
 class ClassRegistryTests(unittest.TestCase):
