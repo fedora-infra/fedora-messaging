@@ -136,22 +136,17 @@ class PublisherSession(object):
 
         .. _exchange: https://www.rabbitmq.com/tutorials/amqp-concepts.html#exchanges
         """
-        # Consumers use this to determine what schema to use and if they're out of date
-        message.headers['fedora_messaging_schema'] = _schema_name(message.__class__)
-        message.validate()
-
-        properties = pika.BasicProperties(
-            content_type='application/json', content_encoding='utf-8', delivery_mode=2,
-            headers=message.headers, message_id=str(uuid.uuid4()))
+        body, routing_key, properties = get_serialized_message(message)
         try:
-            self._connect_and_publish(exchange, message, properties)
+            self._connect_and_publish(exchange, routing_key, body, properties)
         except (pika_errs.ConnectionClosed, pika_errs.ChannelClosed) as e:
             # Because this is a blocking connection (and thus can't heartbeat)
             # we might need to restart the connection.
             _log.info('Resetting connection to %s', self._parameters.host)
             self._connection = self._channel = None
             try:
-                self._connect_and_publish(exchange, message, properties)
+                self._connect_and_publish(
+                    exchange, routing_key, body, properties)
             except pika_errs.AMQPConnectionError as e:
                 _log.error(str(e))
                 if self._connection and self._connection.is_open:
@@ -165,15 +160,14 @@ class PublisherSession(object):
                 self._connection.close()
             raise ConnectionException(reason=e)
 
-    def _connect_and_publish(self, exchange, message, properties):
+    def _connect_and_publish(self, exchange, routing_key, body, properties):
         if not self._connection or not self._channel:
             self._connection = pika.BlockingConnection(self._parameters)
             self._channel = self._connection.channel()
             if self._confirms:
                 self._channel.confirm_delivery()
 
-        self._channel.publish(exchange, message.topic.encode('utf-8'),
-                              json.dumps(message.body).encode('utf-8'), properties)
+        self._channel.publish(exchange, routing_key, body, properties)
 
 
 class ConsumerSession(object):
@@ -573,3 +567,31 @@ def get_message(routing_key, properties, body):
         _log.error('Message validation of %r failed: %r', message, e)
         raise ValidationError(e)
     return message
+
+
+def get_serialized_message(message):
+    """
+    Serialize a :class:`Message` to JSON and create a pika configuration object.
+
+    Args:
+        message (fedora_messaging.message.Message): A message ready for serialization.
+
+    Returns:
+        tuple: A three-tuple of (str, str, pika.BasicProperties) where the
+        first str is JSON-serialized, UTF-8 encoded message body, the second
+        str is the UTF-8 encoded topic, and the third object contains the AMQP
+        properties for the message.
+    """
+    # Consumers use this to determine what schema to use and if they're out of date
+    message.headers['fedora_messaging_schema'] = _schema_name(message.__class__)
+    message.validate()
+
+    properties = pika.BasicProperties(
+        content_type='application/json', content_encoding='utf-8', delivery_mode=2,
+        headers=message.headers, message_id=str(uuid.uuid4()))
+
+    return (
+        json.dumps(message.body).encode('utf-8'),
+        message.topic.encode('utf-8'),
+        properties,
+    )

@@ -125,7 +125,7 @@ class PublisherSessionTests(unittest.TestCase):
                 "fedora_messaging._session.pika.BlockingConnection",
                 connection_class_mock):
             self.publisher._connect_and_publish(
-                None, self.message, "properties")
+                None, b"test.topic", b'"test body"', "properties")
         connection_class_mock.assert_called_with(self.publisher._parameters)
         channel_mock.confirm_delivery.assert_called_once()
         channel_mock.publish.assert_called_with(
