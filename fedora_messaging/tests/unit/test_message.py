@@ -33,8 +33,11 @@ class MessageTests(unittest.TestCase):
 
     def test_str(self):
         """Assert calling str on a message produces a human-readable result."""
-        expected = 'Topic: test.topic\nHeaders: {}\nBody: {\n    "my": "key"\n}'
         msg = message.Message(topic='test.topic', body={'my': 'key'})
+        expected = ('Id: {}\nTopic: test.topic\n'
+                    'Headers: {{\n    "fedora_messaging_schema": '
+                    '"fedora_messaging.message:Message"\n}}'
+                    '\nBody: {{\n    "my": "key"\n}}').format(msg.id)
         self.assertEqual(expected, str(msg))
 
     def test_equality(self):
@@ -47,11 +50,12 @@ class MessageTests(unittest.TestCase):
 
     def test_repr(self):
         """Assert the message produces a valid representation of the message."""
-        Message = message.Message  # noqa
-        expected = "Message(body={'my': 'key'}, headers={}, topic='test.topic')"
         msg = message.Message(topic='test.topic', body={'my': 'key'})
+        expected = (
+            "Message(id='{}', topic='test.topic', body={{'my': 'key'}})".format(
+                msg.id)
+        )
         self.assertEqual(expected, repr(msg))
-        self.assertEqual(msg, eval(repr(msg)))
 
     def test_valid_message(self):
         """Assert that the default schema allows objects for the header and body."""
@@ -65,6 +69,30 @@ class MessageTests(unittest.TestCase):
     def test_default_message(self):
         """Assert the default message is valid."""
         message.Message().validate()
+
+    def test_properties_default(self):
+        msg = message.Message()
+        self.assertEqual(msg.properties.content_type, "application/json")
+        self.assertEqual(msg.properties.content_encoding, "utf-8")
+        self.assertEqual(msg.properties.delivery_mode, 2)
+        self.assertDictEqual(msg.properties.headers, {
+            'fedora_messaging_schema': "fedora_messaging.message:Message",
+        })
+
+    def test_headers(self):
+        msg = message.Message(headers={"foo": "bar"})
+        self.assertIn("foo", msg.properties.headers)
+        self.assertEqual(msg.properties.headers["foo"], "bar")
+        # The fedora_messaging_schema key must also be added when headers are given.
+        self.assertEqual(
+            msg.properties.headers['fedora_messaging_schema'],
+            "fedora_messaging.message:Message",
+        )
+
+    def test_properties(self):
+        properties = object()
+        msg = message.Message(properties=properties)
+        self.assertEqual(msg.properties, properties)
 
 
 class ClassRegistryTests(unittest.TestCase):

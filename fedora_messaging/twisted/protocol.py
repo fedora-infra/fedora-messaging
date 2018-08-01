@@ -23,6 +23,7 @@ See https://twistedmatrix.com/documents/current/core/howto/clients.html#protocol
 
 from __future__ import absolute_import
 
+import json
 import logging
 
 import pika
@@ -33,7 +34,7 @@ from twisted.internet import defer, error
 from twisted.python import log
 
 from .. import config
-from .._session import get_message, get_serialized_message
+from ..message import get_message
 from ..exceptions import Nack, Drop, HaltConsumer, ValidationError
 
 
@@ -234,8 +235,11 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
 
         .. _exchange: https://www.rabbitmq.com/tutorials/amqp-concepts.html#exchanges
         """
-        body, routing_key, properties = get_serialized_message(message)
-        yield self._channel.publish(exchange, body, routing_key, properties)
+        message.validate()
+        body = json.dumps(message.body).encode('utf-8')
+        routing_key = message.topic.encode('utf-8')
+        yield self._channel.publish(
+            exchange, body, routing_key, message.properties)
 
     @defer.inlineCallbacks
     def resumeProducing(self):
