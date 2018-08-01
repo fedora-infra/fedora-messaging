@@ -182,7 +182,7 @@ class ConsumerSession(object):
             self._parameters.client_properties = config.conf['client_properties']
         self._connection = None
         self._channel = None
-        self._bindings = {}
+        self._bindings = []
         self._running = False
 
         def _signal_handler(signum, frame):
@@ -443,8 +443,9 @@ class ConsumerSession(object):
         Args:
             callback (callable): The callable to pass the message to when one
                 arrives.
-            bindings (dict): A dictionary of bindings for queues. Refer to the
-                :ref:`conf-bindings` configuration documentation for the format.
+            bindings (list of dict): A list of dictionaries describing bindings
+                for queues. Refer to the :ref:`conf-bindings` configuration
+                documentation for the format.
             queues (dict): A dictionary of queues to ensure exist. Refer to the
                 :ref:`conf-queues` configuration documentation for the format.
             exchanges (dict): A dictionary of exchanges to ensure exist. Refer
