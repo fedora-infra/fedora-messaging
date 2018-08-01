@@ -21,6 +21,7 @@ this class in a small Python package of its own. Note that at this time, the
 entry point name is unused.
 """
 
+import datetime
 import json
 import logging
 import uuid
@@ -199,9 +200,10 @@ class Message(object):
         # Consumers use this to determine what schema to use and if they're out
         # of date.
         headers['fedora_messaging_schema'] = _schema_name(self.__class__)
+        message_id = "{}.{}".format(datetime.date.today().year, uuid.uuid4())
         return pika.BasicProperties(
             content_type='application/json', content_encoding='utf-8', delivery_mode=2,
-            headers=headers, message_id=str(uuid.uuid4())
+            headers=headers, message_id=message_id,
         )
 
     @property
