@@ -39,7 +39,7 @@ class MockChannel(mock.Mock):
         super(MockChannel, self).__init__(*args, **kwargs)
         deferred_methods = (
             "basic_qos", "confirm_delivery", "exchange_declare", "queue_bind",
-            "basic_ack", "basic_nack", "publish",
+            "basic_ack", "basic_nack", "basic_publish",
         )
         for method in deferred_methods:
             setattr(self, method, mock.Mock(
@@ -206,14 +206,12 @@ class ProtocolTests(unittest.TestCase):
         d = self.protocol.publish(message, "test-exchange")
 
         def _check(_):
-            self.protocol._channel.publish.assert_called_once()
-            args = self.protocol._channel.publish.call_args_list[0][0]
-            self.assertEqual(args[0:3], (
-                "test-exchange",
-                json.dumps(body).encode("utf-8"),
-                b"testing.topic",
-            ))
-            props = args[3]
+            self.protocol._channel.basic_publish.assert_called_once()
+            args = self.protocol._channel.basic_publish.call_args_list[0][1]
+            self.assertEqual(args["exchange"], "test-exchange")
+            self.assertEqual(args["routing_key"], b"testing.topic")
+            self.assertEqual(args["body"], json.dumps(body).encode("utf-8"))
+            props = args["properties"]
             self.assertEqual(props.headers, headers)
             self.assertEqual(props.content_encoding, "utf-8")
             self.assertEqual(props.content_type, "application/json")

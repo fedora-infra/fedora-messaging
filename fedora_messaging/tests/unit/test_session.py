@@ -43,7 +43,9 @@ class PublisherSessionTests(unittest.TestCase):
         self.message = mock.Mock()
         self.message.headers = {}
         self.message.topic = "test.topic"
+        self.message.encoded_routing_key = b"test.topic"
         self.message.body = "test body"
+        self.message.encoded_body = b'"test body"'
         self.tls_conf = {
             'keyfile': None,
             'certfile': None,
@@ -76,10 +78,10 @@ class PublisherSessionTests(unittest.TestCase):
         self.publisher.publish(self.message)
         self.message.validate.assert_called_once()
         self.publisher._channel.publish.assert_called_once()
-        publish_call = self.publisher._channel.publish.call_args_list[0][0]
-        self.assertEqual(publish_call[0], None)
-        self.assertEqual(publish_call[1], b"test.topic")
-        self.assertEqual(publish_call[2], b'"test body"')
+        publish_call = self.publisher._channel.publish.call_args_list[0][1]
+        self.assertEqual(publish_call["exchange"], None)
+        self.assertEqual(publish_call["routing_key"], b"test.topic")
+        self.assertEqual(publish_call["body"], b'"test body"')
 
     def test_publish_rejected(self):
         # Check that the correct exception is raised when the publication is
@@ -122,7 +124,8 @@ class PublisherSessionTests(unittest.TestCase):
         connection_class_mock.assert_called_with(self.publisher._parameters)
         channel_mock.confirm_delivery.assert_called_once()
         channel_mock.publish.assert_called_with(
-            None, b"test.topic", b'"test body"', "properties",
+            exchange=None, routing_key=b"test.topic",
+            body=b'"test body"', properties="properties",
         )
 
     def test_publish_disconnected(self):

@@ -23,7 +23,6 @@ See https://twistedmatrix.com/documents/current/core/howto/clients.html#protocol
 
 from __future__ import absolute_import
 
-import json
 import logging
 
 import pika
@@ -236,10 +235,12 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         .. _exchange: https://www.rabbitmq.com/tutorials/amqp-concepts.html#exchanges
         """
         message.validate()
-        body = json.dumps(message.body).encode('utf-8')
-        routing_key = message.topic.encode('utf-8')
-        yield self._channel.publish(
-            exchange, body, routing_key, message.properties)
+        yield self._channel.basic_publish(
+            exchange=exchange,
+            routing_key=message.encoded_routing_key,
+            body=message.encoded_body,
+            properties=message.properties,
+        )
 
     @defer.inlineCallbacks
     def resumeProducing(self):
