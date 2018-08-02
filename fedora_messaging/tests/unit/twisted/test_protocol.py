@@ -65,6 +65,7 @@ class MockProtocol(FedoraMessagingProtocol):
     def __init__(self, *args, **kwargs):
         super(MockProtocol, self).__init__(*args, **kwargs)
         self._impl = mock.Mock(name="_impl")
+        self._impl.is_closed = True
         self._channel = MockChannel(name="_channel")
         self.channel = mock.Mock(
             name="channel",
@@ -88,12 +89,12 @@ class ProtocolTests(unittest.TestCase):
                 prefetch_count=config.conf["qos"]["prefetch_count"],
                 prefetch_size=config.conf["qos"]["prefetch_size"],
             )
-            if _pika_version >= pkg_resources.parse_version("1.0.0"):
+            if _pika_version >= pkg_resources.parse_version("1.0.0b1"):
                 self.protocol._channel.confirm_delivery.assert_called()
         d = self.protocol.ready
         d.addCallback(_check)
 
-        if _pika_version < pkg_resources.parse_version("1.0.0"):
+        if _pika_version < pkg_resources.parse_version("1.0.0b1"):
             self.protocol.connectionReady(None)
         else:
             self.protocol._on_connection_ready(None)
@@ -281,6 +282,7 @@ class ProtocolTests(unittest.TestCase):
         self.protocol._channel.consumer_tags = []
         self.protocol.close = mock.Mock()
         self.protocol._running = True
+        self.protocol._impl.is_closed = False
         d = self.protocol.stopProducing()
 
         def _check(_):
@@ -309,6 +311,7 @@ class ProtocolReadTests(unittest.TestCase):
     def setUp(self):
         self.protocol = MockProtocol(None)
         self.protocol._running = True
+        self.protocol._impl.is_closed = False
         self.protocol._on_message = mock.Mock()
         self.queue = mock.Mock()
 
@@ -366,7 +369,7 @@ class ProtocolReadTests(unittest.TestCase):
             pika.exceptions.ConsumerCancelled(),
             RuntimeError(),
         ]
-        if _pika_version >= pkg_resources.parse_version("1.0.0"):
+        if _pika_version >= pkg_resources.parse_version("1.0.0b1"):
             exceptions.append(pika.exceptions.ChannelClosedByClient(42, "testing"))
 
         deferreds = []
@@ -388,6 +391,7 @@ class ProtocolOnMessageTests(unittest.TestCase):
     def setUp(self):
         self.protocol = MockProtocol(None)
         self.protocol._message_callback = mock.Mock()
+        self.protocol._impl.is_closed = False
 
     def _call_on_message(self, topic, headers, body):
         """Prepare arguments for the _on_message() method and call it."""

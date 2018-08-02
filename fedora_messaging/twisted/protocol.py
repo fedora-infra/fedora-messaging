@@ -38,7 +38,7 @@ from ..exceptions import Nack, Drop, HaltConsumer, ValidationError
 
 
 _pika_version = pkg_resources.get_distribution('pika').parsed_version
-if _pika_version < pkg_resources.parse_version("1.0.0"):
+if _pika_version < pkg_resources.parse_version("1.0.0b1"):
     ChannelClosedByClient = pika.exceptions.ChannelClosed
 else:
     ChannelClosedByClient = pika.exceptions.ChannelClosedByClient
@@ -64,7 +64,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         """
         TwistedProtocolConnection.__init__(self, parameters)
         self._parameters = parameters
-        if confirms and _pika_version < pkg_resources.parse_version("1.0.0"):
+        if confirms and _pika_version < pkg_resources.parse_version("1.0.0b1"):
             log.msg("Message confirmation is only available with pika 1.0.0+",
                     system=self.name, logLevel=logging.ERROR)
             confirms = False
@@ -90,7 +90,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         )
         if self._confirms:
             yield self._channel.confirm_delivery()
-        if _pika_version < pkg_resources.parse_version("1.0.0"):
+        if _pika_version < pkg_resources.parse_version("1.0.0b1"):
             TwistedProtocolConnection.connectionReady(self, res)
 
     @defer.inlineCallbacks
@@ -295,11 +295,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
             return
         if self._running:
             yield self.pauseProducing()
-        if _pika_version < pkg_resources.parse_version("1.0.0"):
-            is_closed = self.is_closed
-        else:
-            is_closed = self._impl.is_closed
-        if not is_closed:
+        if not self.is_closed:
             log.msg("Disconnecting from the Fedora Messaging broker",
                     system=self.name, logLevel=logging.DEBUG)
             yield self.close()
