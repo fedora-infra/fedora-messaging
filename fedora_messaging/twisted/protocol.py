@@ -53,7 +53,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
 
     name = u'FedoraMessaging:Protocol'
 
-    def __init__(self, parameters, confirms=False):
+    def __init__(self, parameters, confirms=True):
         """Initialize the protocol.
 
         Args:
