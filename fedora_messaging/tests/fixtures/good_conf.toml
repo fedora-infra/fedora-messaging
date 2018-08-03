@@ -1,0 +1,6 @@
+callback = "fedora_messaging.tests.unit.test_cli:echo"
+
+[[bindings]]
+exchange = "e"
+queue_name = "q"
+routing_key = "#"
