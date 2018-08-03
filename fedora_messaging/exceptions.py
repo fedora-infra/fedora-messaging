@@ -6,7 +6,19 @@ class BaseException(Exception):
 
 
 class ConfigurationException(BaseException):
-    """Raised when there's an invalid configuration setting"""
+    """
+    Raised when there's an invalid configuration setting
+
+    Args:
+        message (str): A detailed description of the configuration problem
+                       which is presented to the user.
+    """
+
+    def __init__(self, message):
+        self.message = message
+
+    def __str__(self):
+        return 'Configuration error: ' + self.message
 
 
 class PublishException(BaseException):
