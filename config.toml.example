@@ -7,9 +7,12 @@ publish_exchange = "amq.topic"
 
 callback = "fedora_messaging.examples:print_msg"
 
-bindings = [
-    {"queue" = "my_queue", "exchange" = "amq.topic", "routing_keys" = ["#"]},
-]
+# Note the double brackets below.
+# To add another binding, add another [[bindings]] section.
+[[bindings]]
+queue = "my_queue"
+exchange = "amq.topic"
+routing_keys = ["#"]
 
 [tls]
 ca_cert = "/etc/pki/tls/certs/ca-bundle.crt"
