@@ -35,6 +35,7 @@ Signals
 .. autodata:: fedora_messaging.api.publish_signal
 .. autodata:: fedora_messaging.api.publish_failed_signal
 
+
 .. _message-api:
 
 Message Schemas
@@ -43,6 +44,8 @@ Message Schemas
 .. automodule:: fedora_messaging.message
    :members: Message, get_class
 
+
+.. _exceptions-api:
 
 Exceptions
 ==========

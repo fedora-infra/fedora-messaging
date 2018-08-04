@@ -3,12 +3,13 @@ Handling exceptions
 
 .. highlight:: python
 
-All exceptions are located in the ``fedora_messaging.exceptions`` module.
+All exceptions are located in the :py:mod:`fedora_messaging.exceptions` module.
 
 When publishing
 ---------------
 
-When calling ``fedora_messaging.api.publish``, the following exceptions can be raised:
+When calling :py:func:`fedora_messaging.api.publish`, the following
+exceptions can be raised:
 
 - ``ValidationError``: raised if the message fails validation with
   its JSON schema. This only depends on the message you are trying to

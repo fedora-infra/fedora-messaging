@@ -18,11 +18,21 @@ class PublishException(BaseException):
 
 
 class PublishReturned(PublishException):
-    """Raised when the broker rejects and returns the message to the publisher."""
+    """
+    Raised when the broker rejects and returns the message to the publisher.
+
+    You may handle this exception by logging it and resending or discarding the
+    message.
+    """
 
 
 class ConnectionException(BaseException):
-    """Raised if a general connection error occurred."""
+    """
+    Raised if a general connection error occurred.
+
+    You may handle this exception by logging it and resending or discarding the
+    message.
+    """
 
     def __init__(self, reason=None, **kwargs):
         super(ConnectionException, self).__init__(**kwargs)
@@ -63,4 +73,11 @@ class HaltConsumer(ConsumeException):
 
 
 class ValidationError(BaseException):
-    """This error is raised when a message fails validation."""
+    """
+    This error is raised when a message fails validation with its JSON schema
+
+    This exception can be raised on an incoming or outgoing message. No need to
+    catch this exception when publishing, it should warn you during development
+    and testing that you're trying to publish a message with a different
+    format, and that you should either fix it or update the schema.
+    """

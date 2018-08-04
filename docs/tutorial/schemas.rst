@@ -142,8 +142,8 @@ system. Run ``python setup.py develop`` in the schema directory to install it.
 
 Now you can use the ``yourapp_message_schemas.schema.Message`` class (or
 however you named the package) to construct your message instances and call
-``fedora_messaging.api.publish()`` on them. Edit the ``publish.py`` script to
-read::
+:py:func:`fedora_messaging.api.publish <pub-api>` on them. Edit the
+``publish.py`` script to read::
 
     #!/usr/bin/env python3
 
