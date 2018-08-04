@@ -11,9 +11,9 @@ Publishing
 ----------
 
 To publish on the Fedora Messaging bus, you just need to use the
-``fedora_messaging.api.publish()`` function, passing it an instance of the
-``fedora_messaging.message:Message`` class that represents the message you want
-to publish.
+:py:func:`fedora_messaging.api.publish` function, passing it an
+instance of the :py:class:`fedora_messaging.message.Message` class
+that represents the message you want to publish.
 
 A message has a schema, a topic, a body and a set of headers. We'll cover the
 schema later in this tutorial. The headers and the body are Python
@@ -34,7 +34,8 @@ Create a publishing script called ``publish.py``::
     )
     publish(message)
 
-Of course, you can make a smarter script that will use command-line arguments, this is left as an exercice to the reader. Now run it::
+Of course, you can make a smarter script that will use command-line arguments,
+this is left as an exercice to the reader. Now run it::
 
     chmod +x publish.py
     ./publish.py
@@ -58,17 +59,21 @@ routed to a queue on the server, and clients will consume messages from this
 queue. In the AMQP language, this is called *binding* a queue to an exchange,
 and the topic pattern is called the *routing_key*.
 
-In the configuration file, the ``bindings`` option is a list that controls which queues will be subscribed to which topic patterns. Edit the file so the option looks like this::
+In the configuration file, the ``bindings`` section controls which queues will
+be subscribed to which topic patterns. Edit the file so the option looks like
+this::
 
-    bindings = [
-        {"queue" = "tutorial", "exchange" = "amq.topic", "routing_keys" = ["tutorial.#"]},
-    ]
+    [[bindings]]
+    queue = "tutorial"
+    exchange = "amq.topic"
+    routing_keys = ["tutorial.#"]
 
 This means that the queue named ``tutorial`` will be created and subcribed to
 the ``amq.topic`` exchange using the ``tutorial.#`` pattern. All messages with
 a topic starting with ``tutorial.`` will end up in this queue, and no other.
 
-Now configure this new queue's properties in the file using a snippet that looks like this::
+Now configure this new queue's properties in the file using a snippet that
+looks like this::
 
     [queues.tutorial]
     durable = true
@@ -79,6 +84,8 @@ Now configure this new queue's properties in the file using a snippet that looks
 This means that messages in this queue will survive a client's disconnection
 and a server restart, and that multiple client can connect to it simultaneously
 to consume messages in a round-robin fashion.
+
+.. _consume-script:
 
 Python script
 ~~~~~~~~~~~~~

@@ -1,14 +1,20 @@
+===============================
 Converting a fedmsg application
 ===============================
 
 .. highlight:: python
+
+
+Converting publishers
+=====================
 
 Converting a Flask app
 ----------------------
 
 .. elections, fedocal
 
-Let's use the `elections`_ app as an example. Clone the code using the following command::
+Let's use the `elections`_ app as an example. Clone the code using the
+following command::
 
     git clone https://pagure.io/elections.git
 
@@ -31,7 +37,7 @@ In parallel, copy the ``docs/sample_schema_package/`` directory from the
 ``fedora-messaging`` git clone to your app directory. Rename it to
 ``elections-message-schemas``. Edit the ``setup.py`` file like you did before,
 to change the package metadata (including the entry
-point). Use ``fedora-elections-message-schemas`` for the name. Rename the
+point). Use ``fedora_elections_message_schemas`` for the name. Rename the
 ``mailman_schema`` directory to ``fedora_elections_message_schemas`` and adapt
 the ``setup.py`` metadata.
 
@@ -171,9 +177,9 @@ this entry in the ``bindings`` list::
 You could also add ``"fedora.elections.#"`` to the ``"routing_keys"`` value in
 the existing entry.
 
-Now make sure that RabbitMQ is still running, and run the ``consume.py`` script we
-used before. Make sure it is not systematically raising exceptions in the
-callback function (as we did before).
+Now make sure that RabbitMQ is still running, and run the ``consume.py`` script
+:ref:`we used before <consume-script>`. Make sure it is not systematically
+raising exceptions in the callback function (as we did before).
 
 Now we'll run the election app, but first we need to create a configuration
 file. Create a file called ``config.py`` with the following content::
@@ -224,7 +230,7 @@ we'll just use the generic schema.
 Sending the messages
 ~~~~~~~~~~~~~~~~~~~~
 Now you can replace the current call to fedmsg with a call to
-``fedora_messaging.api.publish()``. Add these lines in the
+:py:func:`fedora_messaging.api.publish <pub-api>`. Add these lines in the
 ``github2fedmsg.views.webhook`` module::
 
     import logging
@@ -251,7 +257,6 @@ And replace the call to ``fedmsg.publish`` with::
 
 Testing it
 ~~~~~~~~~~
-
 Make sure the Fedora Messaging configuration file is correct in
 ``/etc/fedora-messaging/config.toml``. We will add a queue binding to route
 messages with the ``github`` topic to the ``tutorial`` queue. Add
@@ -265,9 +270,9 @@ this entry in the ``bindings`` list::
 You could also add ``"github.#"`` to the ``"routing_keys"`` value in the
 existing entry.
 
-Now make sure that RabbitMQ is still running, and run the ``consume.py`` script we
-used before. Make sure it is not systematically raising exceptions in the
-callback function (as we did before).
+Now make sure that RabbitMQ is still running, and run the ``consume.py`` script
+:ref:`we used before <consume-script>`. Make sure it is not systematically
+raising exceptions in the callback function (as we did before).
 
 To setup the ``github2fedmsg`` application, follow the ``README.rst`` file::
 
@@ -287,6 +292,8 @@ Create the database and start the application::
   pserve development.ini --reload
 
 
-Converting a Fedmsg consumer
-----------------------------
+
+Converting consumers
+====================
+
 TODO the-new-hotness

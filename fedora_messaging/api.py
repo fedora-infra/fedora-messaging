@@ -87,6 +87,9 @@ def publish(message, exchange=None):
             message.
         fedora_messaging.exceptions.ConnectionException: Raised if a connection error
             occurred before the publish confirmation arrived.
+        fedora_messaging.exceptions.ValidationError: Raised if the message
+            fails validation with its JSON schema. This only depends on the
+            message you are trying to send, the AMQP server is not involved.
     """
     pre_publish_signal.send(publish, message=message)
 
