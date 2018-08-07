@@ -160,11 +160,6 @@ class Message(object):
             :func:`jsonschema.validate` to validate the message headers.
         body_schema (dict): A `JSON schema <http://json-schema.org/>`_ to be used with
             :func:`jsonschema.validate` to validate the message headers.
-        headers (dict): A set of message headers. Consult the headers schema for
-            expected keys and values.
-        encoded_routing_key (bytes): The encoded routing key used to publish
-            the message on the broker.
-        encoded_body (bytes): The encoded body used to publish the message.
 
     Args:
         headers (dict): A set of message headers. Consult the headers schema for
@@ -190,11 +185,11 @@ class Message(object):
     }
 
     def __init__(self, body=None, headers=None, topic=None, properties=None):
-        self.body = body or {}
+        self._body = body or {}
         if topic:
             self.topic = topic
         headers = headers or {}
-        self.properties = properties or self._build_properties(headers)
+        self._properties = properties or self._build_properties(headers)
 
     def _build_properties(self, headers):
         # Consumers use this to determine what schema to use and if they're out
@@ -210,28 +205,36 @@ class Message(object):
         )
 
     @property
-    def headers(self):
-        return self.properties.headers
+    def _headers(self):
+        """
+        The message headers dictionary.
 
-    @headers.setter
-    def headers_setter(self, value):
-        self.properties.headers = value
+        .. note: If there's a reason users want to use this interface, it can
+              be made public. Please file a bug if you feel you need this.
+        """
+        return self._properties.headers
+
+    @_headers.setter
+    def _headers_setter(self, value):
+        self._properties.headers = value
 
     @property
     def id(self):
-        return self.properties.message_id
+        return self._properties.message_id
 
     @id.setter
     def id_setter(self, value):
-        self.properties.message_id = value
+        self._properties.message_id = value
 
     @property
-    def encoded_routing_key(self):
+    def _encoded_routing_key(self):
+        """The encoded routing key used to publish the message on the broker."""
         return self.topic.encode('utf-8')
 
     @property
-    def encoded_body(self):
-        return json.dumps(self.body).encode('utf-8')
+    def _encoded_body(self):
+        """The encoded body used to publish the message."""
+        return json.dumps(self._body).encode('utf-8')
 
     def __str__(self):
         """
@@ -246,8 +249,8 @@ class Message(object):
         return 'Id: {i}\nTopic: {t}\nHeaders: {h}\nBody: {b}'.format(
             i=self.id,
             t=self.topic,
-            h=json.dumps(self.headers, sort_keys=True, indent=4),
-            b=json.dumps(self.body, sort_keys=True, indent=4)
+            h=json.dumps(self._headers, sort_keys=True, indent=4),
+            b=json.dumps(self._body, sort_keys=True, indent=4)
         )
 
     def __repr__(self):
@@ -255,7 +258,7 @@ class Message(object):
         Provide a printable representation of the object that can be passed to func:`eval`.
         """
         return "{}(id={}, topic={}, body={})".format(
-            self.__class__.__name__, repr(self.id), repr(self.topic), repr(self.body))
+            self.__class__.__name__, repr(self.id), repr(self.topic), repr(self._body))
 
     def __eq__(self, other):
         """
@@ -268,7 +271,7 @@ class Message(object):
             bool: True if the messages are equal.
         """
         return (isinstance(other, self.__class__) and self.topic == other.topic and
-                self.body == other.body and self.headers == other.headers)
+                self._body == other._body and self._headers == other._headers)
 
     def summary(self):
         """
@@ -294,8 +297,8 @@ class Message(object):
                 schema are invalid.
         """
         _log.debug('Validating message headers "%r" with schema "%r"',
-                   self.headers, self.headers_schema)
-        jsonschema.validate(self.headers, self.headers_schema)
+                   self._headers, self.headers_schema)
+        jsonschema.validate(self._headers, self.headers_schema)
         _log.debug('Validating message body "%r" with schema "%r"',
-                   self.body, self.body_schema)
-        jsonschema.validate(self.body, self.body_schema)
+                   self._body, self.body_schema)
+        jsonschema.validate(self._body, self.body_schema)

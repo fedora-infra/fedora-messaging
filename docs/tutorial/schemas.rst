@@ -121,7 +121,7 @@ from the message, or to create a human-readable representation.
 Change the ``__str__()`` method to use the expected items from the message body. For example::
 
     return '{owner} did something to the {package} package'.format(
-        owner=self.body['owner'], package=self.body['package']['name'])
+        owner=self._body['owner'], package=self._body['package']['name'])
 
 Also edit the ``summary()`` method to return something relevant.
 

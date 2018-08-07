@@ -165,9 +165,9 @@ class PublisherSession(object):
 
         self._channel.publish(
             exchange=exchange,
-            routing_key=message.encoded_routing_key,
-            body=message.encoded_body,
-            properties=message.properties,
+            routing_key=message._encoded_routing_key,
+            body=message._encoded_body,
+            properties=message._properties,
         )
 
 
