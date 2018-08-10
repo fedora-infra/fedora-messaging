@@ -24,9 +24,9 @@ copyright = '2018, Red Hat, Inc'
 author = 'Fedora Infrastructure'
 
 # The short X.Y version
-version = '0.1'
+version = '1.0'
 # The full version, including alpha/beta/rc tags
-release = '0.1.0a2'
+release = '1.0.0a1'
 
 
 # -- General configuration ---------------------------------------------------
