@@ -4,7 +4,7 @@
 Messages
 ========
 
-Before release your application, you should create a subclass of
+Before you release your application, you should create a subclass of
 :class:`fedora_messaging.message.Message`, define a schema, and implement
 some methods.
 
@@ -67,6 +67,14 @@ Schema are Immutable
 Message schema should be treated as immutable. Once defined, they should not be
 altered. Instead, define a new schema class, mark the old one as deprecated,
 and remove it after an appropriate transition period.
+
+Provide Accessors
+-----------------
+
+The JSON schema ensures the message sent "on the wire" conforms to a particular
+format. Messages should provide Python properties to access the deserialized
+JSON object. This Python API should maintain backwards compatibility between
+schema. This shields consumers from changes in schema.
 
 
 Packaging

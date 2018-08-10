@@ -20,15 +20,13 @@ from jsonschema import ValidationError
 from .. import schema
 
 
-class MessageTests(unittest.TestCase):
+class MessageV1Tests(unittest.TestCase):
     """A set of unit tests to ensure the schema works as expected."""
 
-    def test_minimal_message(self):
-        """
-        Assert the message schema validates a message with the minimal number
-        of required fields.
-        """
-        minimal_message = {
+    msg_class = schema.MessageV1
+
+    def setUp(self):
+        self.minimal_message = {
             "mlist": {"list_name": "infrastructure"},
             "msg": {
                 "from": "JD <jd@example.com>",
@@ -37,13 +35,7 @@ class MessageTests(unittest.TestCase):
                 "body": "hello world",
             }
         }
-        message = schema.Message(body=minimal_message)
-
-        message.validate()
-
-    def test_full_message(self):
-        """Assert a message with all fields passes validation."""
-        full_message = {
+        self.full_message = {
             "mlist": {"list_name": "infrastructure"},
             "msg": {
                 "from": "Me <me@example.com>",
@@ -57,53 +49,91 @@ class MessageTests(unittest.TestCase):
                 'in-reply-to': '<abc-123@example.com',
                 'message-id': '12345',
                 "subject": 'A sample email',
-                'body': 'This is a good email',
+                'body': 'hello world',
             }
         }
-        message = schema.Message(body=full_message)
+
+    def test_minimal_message(self):
+        """
+        Assert the message schema validates a message with the minimal number
+        of required fields.
+        """
+        message = self.msg_class(body=self.minimal_message)
+
+        message.validate()
+
+    def test_full_message(self):
+        """Assert a message with all fields passes validation."""
+        message = self.msg_class(body=self.full_message)
 
         message.validate()
 
     def test_missing_fields(self):
         """Assert an exception is actually raised on validation failure."""
-        minimal_message = {
-            "mlist": {"list_name": "infrastructure"},
-            "msg": {
-                "from": "JD <jd@example.com>",
-            }
-        }
-        message = schema.Message(body=minimal_message)
+        del self.minimal_message['mlist']
+        message = self.msg_class(body=self.minimal_message)
+
         self.assertRaises(ValidationError, message.validate)
 
     def test_str(self):
         """Assert __str__ produces a human-readable message."""
-        body = {
-            "mlist": {"list_name": "infrastructure"},
-            "msg": {
-                "from": "JD <jd@example.com>",
-                "subject": "A sample email",
-                "to": "infrastructure@lists.fedoraproject.org",
-                "body": "hello world",
-            }
-        }
         expected_str = 'Subject: A sample email\n\nhello world\n'
-        message = schema.Message(body=body)
+        message = self.msg_class(body=self.full_message)
 
         message.validate()
         self.assertEqual(expected_str, str(message))
 
     def test_summary(self):
         """Assert the summary matches the message subject."""
-        body = {
-            "mlist": {"list_name": "infrastructure"},
-            "msg": {
-                "from": "JD <jd@example.com>",
-                "subject": "A sample email",
-                "to": "infrastructure@lists.fedoraproject.org",
-                "body": "hello world",
-            }
-        }
-        expected_summary = 'A sample email'
-        message = schema.Message(body=body)
+        message = self.msg_class(body=self.full_message)
 
-        self.assertEqual(expected_summary, message.summary())
+        self.assertEqual('A sample email', message.summary())
+
+    def test_subject(self):
+        """Assert the message provides a "subject" attribute."""
+        message = self.msg_class(body=self.full_message)
+
+        self.assertEqual('A sample email', message.subject)
+
+    def test_body(self):
+        """Assert the message provides a "subject" attribute."""
+        message = self.msg_class(body=self.full_message)
+
+        self.assertEqual('hello world', message.body)
+
+
+class MessageV2Tests(MessageV1Tests):
+    """A set of unit tests to ensure the schema works as expected."""
+
+    msg_class = schema.MessageV2
+
+    def setUp(self):
+        self.minimal_message = {
+            "mailing_list": "infrastructure",
+            "from": "JD <jd@example.com>",
+            "subject": "A sample email",
+            "to": "infrastructure@lists.fedoraproject.org",
+            "body": "hello world",
+        }
+        self.full_message = {
+            "mailing_list": "infrastructure",
+            "from": "Me <me@example.com>",
+            'cc': 'them@example.com',
+            'to': 'you@example.com',
+            'delivered-to': 'someone@example.com',
+            'x-mailman-rule-hits': '3',
+            'x-mailman-rule-misses': '0',
+            'x-message-id-hash': 'potatoes',
+            'references': '<abc-123@example.com>',
+            'in-reply-to': '<abc-123@example.com',
+            'message-id': '12345',
+            "subject": 'A sample email',
+            'body': 'hello world',
+        }
+
+    def test_missing_fields(self):
+        """Assert an exception is actually raised on validation failure."""
+        del self.minimal_message['body']
+        message = self.msg_class(body=self.minimal_message)
+
+        self.assertRaises(ValidationError, message.validate)

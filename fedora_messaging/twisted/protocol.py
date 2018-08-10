@@ -237,9 +237,9 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         message.validate()
         yield self._channel.basic_publish(
             exchange=exchange,
-            routing_key=message.encoded_routing_key,
-            body=message.encoded_body,
-            properties=message.properties,
+            routing_key=message._encoded_routing_key,
+            body=message._encoded_body,
+            properties=message._properties,
         )
 
     @defer.inlineCallbacks
