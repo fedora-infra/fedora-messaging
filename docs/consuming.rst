@@ -140,7 +140,7 @@ called when a message arrives::
                 message (fedora_messaging.api.Message): The message from AMQP.
             """
             if self.summary:
-                print(message.summary())
+                print(message.summary)
             else:
                 print(message)
 

@@ -30,7 +30,7 @@ class MessageTests(unittest.TestCase):
     def test_summary(self):
         """Assert message summaries default to the message topic."""
         msg = message.Message(topic='test.topic')
-        self.assertEqual(msg.topic, msg.summary())
+        self.assertEqual(msg.topic, msg.summary)
 
     def test_str(self):
         """Assert calling str on a message produces a human-readable result."""

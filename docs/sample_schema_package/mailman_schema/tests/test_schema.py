@@ -87,7 +87,7 @@ class MessageV1Tests(unittest.TestCase):
         """Assert the summary matches the message subject."""
         message = self.msg_class(body=self.full_message)
 
-        self.assertEqual('A sample email', message.summary())
+        self.assertEqual('A sample email', message.summary)
 
     def test_subject(self):
         """Assert the message provides a "subject" attribute."""

@@ -236,6 +236,18 @@ class Message(object):
         """The encoded body used to publish the message."""
         return json.dumps(self._body).encode('utf-8')
 
+    @property
+    def summary(self):
+        """
+        A short, human-readable representation of this message.
+
+        This should provide a short summary of the message, much like the subject line
+        of an email.
+
+        The default implementation is to simply return the message topic.
+        """
+        return self.topic
+
     def __str__(self):
         """
         A human-readable representation of this message.
@@ -272,17 +284,6 @@ class Message(object):
         """
         return (isinstance(other, self.__class__) and self.topic == other.topic and
                 self._body == other._body and self._headers == other._headers)
-
-    def summary(self):
-        """
-        A short, human-readable representation of this message.
-
-        This should provide a short summary of the message, much like the subject line
-        of an email.
-
-        The default implementation is to simply return the message topic.
-        """
-        return self.topic
 
     def validate(self):
         """
