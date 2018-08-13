@@ -103,7 +103,7 @@ dumped to JSON. The schema could be written as::
         'required': ['agent', 'election'],
     }
 
-Use this schema and adapt the ``__str__()`` and ``summary()`` methods.
+Use this schema and adapt the ``__str__()`` method and the ``summary`` property.
 
 Since the schema is distributed in a separate python package, it must be added
 to the ``election`` app's dependencies in ``requirements.txt``.

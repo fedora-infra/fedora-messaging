@@ -2,6 +2,16 @@
 Release Notes
 =============
 
+master
+======
+
+API Changes
+-----------
+
+* ``fedora_messaging.message.Message.summary`` is now a property rather than
+  a method.
+
+
 v1.0.0a1
 ========
 

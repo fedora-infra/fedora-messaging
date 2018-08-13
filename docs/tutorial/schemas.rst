@@ -123,7 +123,7 @@ Change the ``__str__()`` method to use the expected items from the message body.
     return '{owner} did something to the {package} package'.format(
         owner=self._body['owner'], package=self._body['package']['name'])
 
-Also edit the ``summary()`` method to return something relevant.
+Also edit the ``summary`` property to return something relevant.
 
 
 Testing it
