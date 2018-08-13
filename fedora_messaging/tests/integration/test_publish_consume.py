@@ -2,8 +2,12 @@
 
 from collections import defaultdict
 import multiprocessing
+import threading
 import time
 import unittest
+import socket
+
+import mock
 
 from fedora_messaging import api, message, exceptions
 
@@ -43,3 +47,14 @@ class PubSubTests(unittest.TestCase):
 
         consumer_process.join(timeout=30)
         self.assertEqual(0, consumer_process.exitcode)
+
+    @mock.patch('fedora_messaging.api._session_cache', threading.local())
+    def test_pub_connection_refused(self):
+        """Assert ConnectionException is raised on connection refused."""
+        # Because we don't call accept, we can be sure of a connection refusal
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind(('', 0))
+        url = 'amqp://localhost:{port}/'.format(port=sock.getsockname()[1])
+        api._session_cache.session = api._session.PublisherSession(amqp_url=url)
+
+        self.assertRaises(exceptions.ConnectionException, api.publish, api.Message())
