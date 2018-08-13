@@ -48,6 +48,7 @@ setup(
     version='1.0.0a1',
     description="A set of tools for using Fedora's messaging infrastructure",
     long_description=README,
+    url="https://github.com/fedora-infra/fedora-messaging",
     # Possible options are at https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
         'Development Status :: 3 - Alpha',
