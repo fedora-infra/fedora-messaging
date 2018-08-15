@@ -23,13 +23,19 @@ import unittest
 import mock
 import pika
 import pkg_resources
-import pytest_twisted
+import pytest
 from twisted.internet import defer, error
 
 from fedora_messaging import config
 from fedora_messaging.message import Message
 from fedora_messaging.exceptions import Nack, Drop, HaltConsumer
 from fedora_messaging.twisted.protocol import FedoraMessagingProtocol, _pika_version
+
+
+try:
+    import pytest_twisted
+except ImportError:
+    pytest.skip("pytest-twisted is missing, skipping tests", allow_module_level=True)
 
 
 class MockChannel(mock.Mock):
