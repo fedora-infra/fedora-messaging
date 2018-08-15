@@ -7,6 +7,8 @@ This documentation covers the public interfaces fedora_messaging provides.
 .. note:: Documented interfaces follow `Semantic Versioning 2.0.0`_. Any interface
           not documented here may change at any time without warning.
 
+.. _semantic versioning 2.0.0: http://semver.org/
+
 
 .. _pub-api:
 
@@ -54,4 +56,25 @@ Exceptions
    :members:
 
 
-.. _semantic versioning 2.0.0: http://semver.org/
+.. _twisted-api:
+
+Twisted
+=======
+
+Protocol
+--------
+
+.. automodule:: fedora_messaging.twisted.protocol
+   :members:
+
+Factory
+-------
+
+.. automodule:: fedora_messaging.twisted.factory
+   :members:
+
+Service
+-------
+
+.. automodule:: fedora_messaging.twisted.service
+   :members:
