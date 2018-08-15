@@ -21,12 +21,18 @@ import unittest
 
 import mock
 import pika
-import pytest_twisted
+import pytest
 from twisted.internet import defer
 from twisted.python.failure import Failure
 
 from fedora_messaging.twisted.factory import FedoraMessagingFactory
 from fedora_messaging.exceptions import PublishReturned, ConnectionException
+
+
+try:
+    import pytest_twisted
+except ImportError:
+    pytest.skip("pytest-twisted is missing, skipping tests", allow_module_level=True)
 
 
 class FactoryTests(unittest.TestCase):
