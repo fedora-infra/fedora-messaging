@@ -404,8 +404,9 @@ class LazyConfig(dict):
                     for key in file_config:
                         config[key.lower()] = file_config[key]
                 except pytoml.core.TomlError as e:
-                    _log.error('Failed to parse {}: {}'.format(config_path, str(e)))
-                    raise exceptions.ConfigurationException(e)
+                    msg = 'Failed to parse {}: error at line {}, column {}'.format(
+                            config_path, e.line, e.col)
+                    raise exceptions.ConfigurationException(msg)
         else:
             _log.info('The configuration file, {}, does not exist.'.format(config_path))
 

@@ -24,6 +24,7 @@ from __future__ import absolute_import
 import importlib
 import logging
 import logging.config
+import os
 import sys
 
 import click
@@ -72,10 +73,12 @@ _amqp_url_help = (
 def cli(conf):
     """The fedora-messaging command line interface."""
     if conf:
+        if not os.path.isfile(conf):
+            raise click.exceptions.BadParameter('{} is not a file'.format(conf))
         try:
             config.conf.load_config(config_path=conf)
-        except ValueError as e:
-            raise click.exceptions.BadParameter(e)
+        except exceptions.ConfigurationException as e:
+            raise click.exceptions.BadParameter(str(e))
         config.conf.setup_logging()
 
 
@@ -87,7 +90,7 @@ def cli(conf):
 @click.option('--exchange', help=_exchange_help)
 @click.option('--amqp-url', help=_amqp_url_help)
 def consume(amqp_url, exchange, queue_name, routing_key, callback, app_name):
-
+    """Consume messages from an AMQP queue using a Python callback."""
     amqp_url = amqp_url or config.conf['amqp_url']
     if exchange and queue_name and routing_key:
         bindings = [{
