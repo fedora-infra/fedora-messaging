@@ -89,7 +89,7 @@ class FedoraMessagingService(service.MultiService):
                 host=self._parameters.host,
                 port=self._parameters.port,
                 factory=factory,
-                contextFactory=ssl.ClientContextFactory(),
+                contextFactory=_ssl_context_factory(self._parameters),
             )
         else:
             serv = TCPClient(
@@ -103,3 +103,36 @@ class FedoraMessagingService(service.MultiService):
         )
         serv.setName(name)
         serv.setServiceParent(self)
+
+
+def _ssl_context_factory(parameters):
+    """
+    Produce a Twisted SSL context object from a pika connection parameter object.
+    This is necessary as Twisted manages the connection, not Pika.
+
+    Args:
+        parameters (pika.ConnectionParameters): The connection parameters built
+            from the fedora_messaging configuration.
+    """
+    client_cert = None
+    key = config.conf["tls"]["keyfile"]
+    cert = config.conf["tls"]["certfile"]
+    with open(config.conf["tls"]["ca_cert"]) as fd:
+        ca_cert = ssl.Certificate.loadPEM(fd.read())
+    if key and cert:
+        # Note that _configure_tls_parameters sets the auth mode to EXTERNAL
+        # if both key and cert are defined, so we don't need to do that here.
+        with open(key) as fd:
+            client_keypair = fd.read()
+        with open(cert) as fd:
+            client_keypair += fd.read()
+        client_cert = ssl.PrivateCertificate.loadPEM(client_keypair)
+
+    context_factory = ssl.optionsForClientTLS(
+        parameters.host,
+        trustRoot=ca_cert,
+        clientCertificate=client_cert,
+        extraCertificateOptions={"raiseMinimumTo": ssl.TLSVersion.TLSv1_2},
+    )
+
+    return context_factory

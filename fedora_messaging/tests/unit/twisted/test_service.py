@@ -18,12 +18,18 @@
 from __future__ import absolute_import, unicode_literals
 
 import unittest
+import os
 
+from twisted.internet import ssl
 import mock
 import pika
 
 from fedora_messaging import config
-from fedora_messaging.twisted.service import FedoraMessagingService
+from fedora_messaging.twisted.service import (
+    FedoraMessagingService,
+    _ssl_context_factory,
+)
+from fedora_messaging.tests import FIXTURES_DIR
 
 
 class ServiceTests(unittest.TestCase):
@@ -96,3 +102,69 @@ class ServiceTests(unittest.TestCase):
         with mock.patch(ss_path) as stopService:
             service.stopService()
             stopService.assert_not_called()
+
+
+class SslContextFactoryTests(unittest.TestCase):
+    @mock.patch("fedora_messaging.twisted.service.ssl.Certificate.loadPEM")
+    @mock.patch("fedora_messaging.twisted.service.ssl.optionsForClientTLS")
+    def test_no_key(self, mock_opts, mock_load_pem):
+        """Assert if there's no client key, the factory isn't configured to use it."""
+        tls_conf = {
+            "keyfile": None,
+            "certfile": os.path.join(FIXTURES_DIR, "cert.pem"),
+            "ca_cert": os.path.join(FIXTURES_DIR, "ca_bundle.pem"),
+        }
+
+        with mock.patch.dict(config.conf, {"tls": tls_conf}):
+            factory = _ssl_context_factory(mock.Mock(host="dummy_host"))
+
+        mock_opts.assert_called_once_with(
+            "dummy_host",
+            trustRoot=mock_load_pem.return_value,
+            clientCertificate=None,
+            extraCertificateOptions={"raiseMinimumTo": ssl.TLSVersion.TLSv1_2},
+        )
+        self.assertEqual(factory, mock_opts.return_value)
+
+    @mock.patch("fedora_messaging.twisted.service.ssl.Certificate.loadPEM")
+    @mock.patch("fedora_messaging.twisted.service.ssl.optionsForClientTLS")
+    def test_no_cert(self, mock_opts, mock_load_pem):
+        """Assert if there's no client cert, the factory isn't configured to use it."""
+        tls_conf = {
+            "keyfile": os.path.join(FIXTURES_DIR, "key.pem"),
+            "certfile": None,
+            "ca_cert": os.path.join(FIXTURES_DIR, "ca_bundle.pem"),
+        }
+
+        with mock.patch.dict(config.conf, {"tls": tls_conf}):
+            factory = _ssl_context_factory(mock.Mock(host="dummy_host"))
+
+        mock_opts.assert_called_once_with(
+            "dummy_host",
+            trustRoot=mock_load_pem.return_value,
+            clientCertificate=None,
+            extraCertificateOptions={"raiseMinimumTo": ssl.TLSVersion.TLSv1_2},
+        )
+        self.assertEqual(factory, mock_opts.return_value)
+
+    @mock.patch("fedora_messaging.twisted.service.ssl.PrivateCertificate.loadPEM")
+    @mock.patch("fedora_messaging.twisted.service.ssl.Certificate.loadPEM")
+    @mock.patch("fedora_messaging.twisted.service.ssl.optionsForClientTLS")
+    def test_key_and_cert(self, mock_opts, mock_load_pem, mock_priv_load_pem):
+        """Assert if there's a client key and cert, the factory has both."""
+        tls_conf = {
+            "keyfile": os.path.join(FIXTURES_DIR, "key.pem"),
+            "certfile": os.path.join(FIXTURES_DIR, "cert.pem"),
+            "ca_cert": os.path.join(FIXTURES_DIR, "ca_bundle.pem"),
+        }
+
+        with mock.patch.dict(config.conf, {"tls": tls_conf}):
+            factory = _ssl_context_factory(mock.Mock(host="dummy_host"))
+
+        mock_opts.assert_called_once_with(
+            "dummy_host",
+            trustRoot=mock_load_pem.return_value,
+            clientCertificate=mock_priv_load_pem.return_value,
+            extraCertificateOptions={"raiseMinimumTo": ssl.TLSVersion.TLSv1_2},
+        )
+        self.assertEqual(factory, mock_opts.return_value)
