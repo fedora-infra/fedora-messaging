@@ -24,7 +24,7 @@ import unittest
 
 import mock
 import pkg_resources
-from pika import exceptions as pika_errs, URLParameters
+from pika import exceptions as pika_errs, URLParameters, credentials
 from jsonschema.exceptions import ValidationError as JSONValidationError
 
 from fedora_messaging import _session, config
@@ -72,6 +72,31 @@ class PublisherSessionTests(unittest.TestCase):
         self.assertEqual(publisher._parameters.virtual_host, "vhost")
         self.assertIsNotNone(publisher._parameters.ssl_options)
         self.assertEqual(publisher._exchange, "test_exchange")
+
+    def test_plain_auth(self):
+        """Assert when there's no key or certfile, plain authentication is used"""
+        with mock.patch.dict(config.conf, {'tls': self.tls_conf}):
+            publisher = _session.PublisherSession(
+                "amqps://username:password@rabbit.example.com/vhost",
+                "test_exchange",
+            )
+        self.assertIsInstance(
+            publisher._parameters.credentials, credentials.PlainCredentials)
+
+    def test_external_auth(self):
+        """Assert when there's both a key and certfile, external auth is used"""
+        tls_conf = {
+            'keyfile': os.path.join(FIXTURES_DIR, 'key.pem'),
+            'certfile': os.path.join(FIXTURES_DIR, 'cert.pem'),
+            'ca_cert': os.path.join(FIXTURES_DIR, 'ca_bundle.pem'),
+        }
+        with mock.patch.dict(config.conf, {'tls': tls_conf}):
+            publisher = _session.PublisherSession(
+                "amqps://username:password@rabbit.example.com/vhost",
+                "test_exchange",
+            )
+        self.assertIsInstance(
+            publisher._parameters.credentials, credentials.ExternalCredentials)
 
     def test_publish(self):
         # Check that the publication works properly.
@@ -176,8 +201,26 @@ class ConsumerSessionTests(unittest.TestCase):
     def tearDown(self):
         self.consumer._shutdown()
 
-    def test_tls_parameters(self):
-        """Assert TLS settings translate to a TLS connection for consumers."""
+    def test_plain_auth(self):
+        """Assert when there's no key or certfile, plain authentication is used"""
+        tls_conf = {
+            'amqp_url': 'amqps://',
+            'tls': {
+                'keyfile': None,
+                'certfile': None,
+                'ca_cert': os.path.join(FIXTURES_DIR, 'ca_bundle.pem'),
+            }
+        }
+
+        with mock.patch.dict(config.conf, tls_conf):
+            consumer = _session.ConsumerSession()
+
+        self.assertTrue(consumer._parameters.ssl_options is not None)
+        self.assertIsInstance(
+            consumer._parameters.credentials, credentials.PlainCredentials)
+
+    def test_external_auth(self):
+        """Assert when there's both a key and certfile, external auth is used"""
         tls_conf = {
             'amqp_url': 'amqps://',
             'tls': {
@@ -191,6 +234,8 @@ class ConsumerSessionTests(unittest.TestCase):
             consumer = _session.ConsumerSession()
 
         self.assertTrue(consumer._parameters.ssl_options is not None)
+        self.assertIsInstance(
+            consumer._parameters.credentials, credentials.ExternalCredentials)
 
     def test_consume(self):
         # Test the consume function.
