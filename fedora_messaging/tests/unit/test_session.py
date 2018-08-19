@@ -176,7 +176,7 @@ class PublisherSessionTests(unittest.TestCase):
         self.assertEqual(self.publisher._channel, channel_mock)
         channel_mock.publish.assert_called_once()
 
-    def test_publish_reconnect_failed(self):
+    def test_publish_reconnect_failed_generic_error(self):
         # The publisher must try to re-establish a connection on publish, and
         # close the connection if it can't be established.
         self.publisher._channel.publish.side_effect = pika_errs.ConnectionClosed(
@@ -185,7 +185,7 @@ class PublisherSessionTests(unittest.TestCase):
         connection_class_mock = mock.Mock()
         connection_mock = mock.Mock()
         connection_class_mock.return_value = connection_mock
-        connection_mock.channel.side_effect = pika_errs.AMQPConnectionError()
+        connection_mock.channel.side_effect = pika_errs.AMQPError()
         with mock.patch(
             "fedora_messaging._session.pika.BlockingConnection", connection_class_mock
         ):
@@ -194,6 +194,24 @@ class PublisherSessionTests(unittest.TestCase):
         connection_class_mock.assert_called_with(self.publisher._parameters)
         self.assertEqual(self.publisher._connection, connection_mock)
         connection_mock.close.assert_called_once()
+
+    def test_publish_reconnect_failed_rejected(self):
+        # The publisher must try to re-establish a connection on publish, and
+        # close the connection if it can't be established.
+        self.publisher._channel.publish.side_effect = pika_errs.ConnectionClosed(
+            200, "I wanted to"
+        )
+        connection_class_mock = mock.Mock()
+        connection_mock = mock.Mock()
+        connection_class_mock.return_value = connection_mock
+        connection_mock.channel.side_effect = pika_errs.NackError([self.message])
+        with mock.patch(
+            "fedora_messaging._session.pika.BlockingConnection", connection_class_mock
+        ):
+            self.assertRaises(PublishReturned, self.publisher.publish, self.message)
+        # Check that the connection was reestablished
+        connection_class_mock.assert_called_with(self.publisher._parameters)
+        self.assertEqual(self.publisher._connection, connection_mock)
 
 
 class ConsumerSessionTests(unittest.TestCase):

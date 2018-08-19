@@ -160,7 +160,10 @@ class PublisherSession(object):
             self._connection = self._channel = None
             try:
                 self._connect_and_publish(exchange, message)
-            except pika_errs.AMQPConnectionError as e:
+            except (pika_errs.NackError, pika_errs.UnroutableError) as e:
+                _log.warning("Message was rejected by the broker (%s)", str(e))
+                raise PublishReturned(reason=e)
+            except pika_errs.AMQPError as e:
                 _log.error(str(e))
                 if self._connection and self._connection.is_open:
                     self._connection.close()
