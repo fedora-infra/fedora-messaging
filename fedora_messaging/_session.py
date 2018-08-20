@@ -63,6 +63,7 @@ def _configure_tls_parameters(parameters):
     if cert and key:
         _log.info('Authenticating with server using x509 (certfile: %s, keyfile: %s)',
                   cert, key)
+        parameters.credentials = pika.credentials.ExternalCredentials()
     else:
         cert, key = None, None
 

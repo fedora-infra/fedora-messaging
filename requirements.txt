@@ -2,5 +2,5 @@ blinker
 click
 jsonschema
 pytoml
-pika
+pika>=0.12
 six
