@@ -16,6 +16,7 @@
 """This is an example of a message schema."""
 
 from fedora_messaging import message
+from .utils import get_avatar
 
 
 class BaseMessage(message.Message):
@@ -31,6 +32,7 @@ class BaseMessage(message.Message):
         return 'Subject: {subj}\n{body}\n'.format(
             subj=self.subject, body=self.body)
 
+    @property
     def summary(self):
         """Return a summary of the message."""
         return self.subject
@@ -44,6 +46,41 @@ class BaseMessage(message.Message):
     def body(self):
         """The email message body."""
         return 'Message did not implement "body" property'
+
+    @property
+    def url(self):
+        """An URL to the email in HyperKitty
+
+        Returns:
+            str or None: A relevant URL.
+        """
+        base_url = 'https://lists.fedoraproject.org/archives'
+        archived_at = self._get_archived_at()
+        if archived_at and archived_at.startswith('<'):
+            archived_at = archived_at[1:]
+        if archived_at and archived_at.endswith('>'):
+            archived_at = archived_at[:-1]
+        if archived_at and archived_at.startswith('http'):
+            return archived_at
+        elif archived_at:
+            return base_url + archived_at
+        else:
+            return None
+
+    @property
+    def app_icon(self):
+        """An URL to the icon of the application that generated the message."""
+        return "https://apps.fedoraproject.org/img/icons/hyperkitty.png"
+
+    @property
+    def usernames(self):
+        """List of users affected by the action that generated this message."""
+        return []
+
+    @property
+    def packages(self):
+        """List of packages affected by the action that generated this message."""
+        return []
 
 
 class MessageV1(BaseMessage):
@@ -80,6 +117,7 @@ class MessageV1(BaseMessage):
                     'references': {'type': 'string'},
                     'in-reply-to': {'type': 'string'},
                     'message-id': {'type': 'string'},
+                    'archived-at': {'type': 'string'},
                     'subject': {'type': 'string'},
                     'body': {'type': 'string'},
                 },
@@ -98,6 +136,15 @@ class MessageV1(BaseMessage):
     def body(self):
         """The email message body."""
         return self._body['msg']['body']
+
+    @property
+    def agent_avatar(self):
+        """An URL to the avatar of the user who caused the action."""
+        from_header = self._body['msg']['from']
+        return get_avatar(from_header)
+
+    def _get_archived_at(self):
+        return self._body['msg']['archived-at']
 
 
 class MessageV2(BaseMessage):
@@ -128,6 +175,7 @@ class MessageV2(BaseMessage):
             'references': {'type': 'string'},
             'in-reply-to': {'type': 'string'},
             'message-id': {'type': 'string'},
+            'archived-at': {'type': 'string'},
             'subject': {'type': 'string'},
             'body': {'type': 'string'},
         },
@@ -142,3 +190,12 @@ class MessageV2(BaseMessage):
     def body(self):
         """The email message body."""
         return self._body['body']
+
+    @property
+    def agent_avatar(self):
+        """An URL to the avatar of the user who caused the action."""
+        from_header = self._body['from']
+        return get_avatar(from_header)
+
+    def _get_archived_at(self):
+        return self._body['archived-at']

@@ -110,6 +110,26 @@ class MessageTests(unittest.TestCase):
         msg = message.Message(body=body)
         self.assertEqual(msg._encoded_body, json.dumps(body).encode("utf-8"))
 
+    def test_url(self):
+        # The url property must exist and defaults to None
+        self.assertIsNone(message.Message().url)
+
+    def test_app_icon(self):
+        # The app_icon property must exist and defaults to None
+        self.assertIsNone(message.Message().app_icon)
+
+    def test_agent_avatar(self):
+        # The agent_avatar property must exist and defaults to None
+        self.assertIsNone(message.Message().agent_avatar)
+
+    def test_usernames(self):
+        # The usenames property must exist and be a list
+        self.assertEqual(message.Message().usernames, [])
+
+    def test_packages(self):
+        # The packages property must exist and be a list
+        self.assertEqual(message.Message().packages, [])
+
 
 class ClassRegistryTests(unittest.TestCase):
     """Tests for the :func:`fedora_messaging.message.load_message_classes`."""
