@@ -48,6 +48,7 @@ class MessageV1Tests(unittest.TestCase):
                 'references': '<abc-123@example.com>',
                 'in-reply-to': '<abc-123@example.com',
                 'message-id': '12345',
+                'archived-at': '<http://example.com/12345>',
                 "subject": 'A sample email',
                 'body': 'hello world',
             }
@@ -77,7 +78,7 @@ class MessageV1Tests(unittest.TestCase):
 
     def test_str(self):
         """Assert __str__ produces a human-readable message."""
-        expected_str = 'Subject: A sample email\n\nhello world\n'
+        expected_str = 'Subject: A sample email\nhello world\n'
         message = self.msg_class(body=self.full_message)
 
         message.validate()
@@ -96,10 +97,34 @@ class MessageV1Tests(unittest.TestCase):
         self.assertEqual('A sample email', message.subject)
 
     def test_body(self):
-        """Assert the message provides a "subject" attribute."""
+        """Assert the message provides a "body" attribute."""
         message = self.msg_class(body=self.full_message)
 
         self.assertEqual('hello world', message.body)
+
+    def test_url(self):
+        """Assert the message provides a "url" attribute."""
+        message = self.msg_class(body=self.full_message)
+        self.assertEqual('http://example.com/12345', message.url)
+
+    def test_agent_avatar(self):
+        """Assert the message provides a "agent_avatar" attribute."""
+        message = self.msg_class(body=self.full_message)
+        self.assertEqual(
+            "https://seccdn.libravatar.org/avatar/"
+            "8c2a47d3bdb8d3096a6479f53eac3b724291db5f1c31611100f675be5537329d"
+            "?s=64&d=retro",
+            message.agent_avatar)
+
+    def test_usernames(self):
+        """Assert the message provides a "usernames" attribute."""
+        message = self.msg_class(body=self.full_message)
+        self.assertEqual([], message.usernames)
+
+    def test_packages(self):
+        """Assert the message provides a "packages" attribute."""
+        message = self.msg_class(body=self.full_message)
+        self.assertEqual([], message.packages)
 
 
 class MessageV2Tests(MessageV1Tests):
@@ -127,6 +152,7 @@ class MessageV2Tests(MessageV1Tests):
             'references': '<abc-123@example.com>',
             'in-reply-to': '<abc-123@example.com',
             'message-id': '12345',
+            'archived-at': '<http://example.com/12345>',
             "subject": 'A sample email',
             'body': 'hello world',
         }
@@ -137,3 +163,17 @@ class MessageV2Tests(MessageV1Tests):
         message = self.msg_class(body=self.minimal_message)
 
         self.assertRaises(ValidationError, message.validate)
+
+    def test_url(self):
+        """Assert the message provides a "url" attribute."""
+        message = self.msg_class(body=self.full_message)
+        self.assertEqual('http://example.com/12345', message.url)
+
+    def test_agent_avatar(self):
+        """Assert the message provides a "agent_avatar" attribute."""
+        message = self.msg_class(body=self.full_message)
+        self.assertEqual(
+            "https://seccdn.libravatar.org/avatar/"
+            "8c2a47d3bdb8d3096a6479f53eac3b724291db5f1c31611100f675be5537329d"
+            "?s=64&d=retro",
+            message.agent_avatar)

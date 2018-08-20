@@ -236,6 +236,56 @@ class Message(object):
         """The encoded body used to publish the message."""
         return json.dumps(self._body).encode('utf-8')
 
+    def __repr__(self):
+        """
+        Provide a printable representation of the object that can be passed to func:`eval`.
+        """
+        return "{}(id={}, topic={}, body={})".format(
+            self.__class__.__name__, repr(self.id), repr(self.topic), repr(self._body)
+        )
+
+    def __eq__(self, other):
+        """
+        Two messages of the same class with the same topic, headers, and body are equal.
+
+        Args:
+            other (object): The object to check for equality.
+
+        Returns:
+            bool: True if the messages are equal.
+        """
+        return (
+            isinstance(other, self.__class__)
+            and self.topic == other.topic
+            and self._body == other._body
+            and self._headers == other._headers
+        )
+
+    def validate(self):
+        """
+        Validate the headers and body with the message schema, if any.
+
+        .. warning:: This method should not be overridden by sub-classes.
+
+        Raises:
+            jsonschema.ValidationError: If either the message headers or the message body
+                are invalid.
+            jsonschema.SchemaError: If either the message header schema or the message body
+                schema are invalid.
+        """
+        _log.debug(
+            'Validating message headers "%r" with schema "%r"',
+            self._headers,
+            self.headers_schema,
+        )
+        jsonschema.validate(self._headers, self.headers_schema)
+        _log.debug(
+            'Validating message body "%r" with schema "%r"',
+            self._body,
+            self.body_schema,
+        )
+        jsonschema.validate(self._body, self.body_schema)
+
     @property
     def summary(self):
         """
@@ -265,41 +315,48 @@ class Message(object):
             b=json.dumps(self._body, sort_keys=True, indent=4)
         )
 
-    def __repr__(self):
+    @property
+    def url(self):
         """
-        Provide a printable representation of the object that can be passed to func:`eval`.
-        """
-        return "{}(id={}, topic={}, body={})".format(
-            self.__class__.__name__, repr(self.id), repr(self.topic), repr(self._body))
-
-    def __eq__(self, other):
-        """
-        Two messages of the same class with the same topic, headers, and body are equal.
-
-        Args:
-            other (object): The object to check for equality.
+        An URL to the action that caused this message to be emitted.
 
         Returns:
-            bool: True if the messages are equal.
+            str or None: A relevant URL.
         """
-        return (isinstance(other, self.__class__) and self.topic == other.topic and
-                self._body == other._body and self._headers == other._headers)
+        return None
 
-    def validate(self):
+    @property
+    def app_icon(self):
+        """An URL to the icon of the application that generated the message.
+
+        Returns:
+            str or None: The URL to the app's icon.
         """
-        Validate the headers and body with the message schema, if any.
+        return None
 
-        .. warning:: This method should not be overridden by sub-classes.
+    @property
+    def agent_avatar(self):
+        """An URL to the avatar of the user who caused the action.
 
-        Raises:
-            jsonschema.ValidationError: If either the message headers or the message body
-                are invalid.
-            jsonschema.SchemaError: If either the message header schema or the message body
-                schema are invalid.
+        Returns:
+            str or None: The URL to the user's avatar.
         """
-        _log.debug('Validating message headers "%r" with schema "%r"',
-                   self._headers, self.headers_schema)
-        jsonschema.validate(self._headers, self.headers_schema)
-        _log.debug('Validating message body "%r" with schema "%r"',
-                   self._body, self.body_schema)
-        jsonschema.validate(self._body, self.body_schema)
+        return None
+
+    @property
+    def usernames(self):
+        """List of users affected by the action that generated this message.
+
+        Returns:
+            list(str): A list of affected usernames.
+        """
+        return []
+
+    @property
+    def packages(self):
+        """List of packages affected by the action that generated this message.
+
+        Returns:
+            list(str): A list of affected package names.
+        """
+        return []
