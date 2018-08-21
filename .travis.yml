@@ -39,3 +39,5 @@ matrix:
       env: TOXENV=docs
     - python: "3.6"
       env: TOXENV=lint
+    - python: "3.6"
+      env: TOXENV=format
