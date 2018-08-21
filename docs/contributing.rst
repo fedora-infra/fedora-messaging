@@ -39,6 +39,10 @@ Code Style
 We follow the `PEP8 <https://www.python.org/dev/peps/pep-0008/>`_ style guide
 for Python. This is automatically enforced by the CI suite.
 
+We are using `Black <https://github.com/ambv/black>` to automatically format
+the source code. It is also checked in CI. The Black webpage contains
+instructions to configure your editor to run it on the files you edit.
+
 
 Tests
 -----
