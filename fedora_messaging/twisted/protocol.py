@@ -306,7 +306,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         # Exit the read loop and cancel the consumer on the server.
         self._running = False
         for consumer_tag in self._channel.consumer_tags:
-            yield self._channel.basic_cancel(consumer_tag)
+            yield self._channel.basic_cancel(consumer_tag=consumer_tag)
         log.msg(
             "Paused retrieval of messages for the server queue",
             system=self.name,

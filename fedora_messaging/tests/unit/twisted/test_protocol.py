@@ -302,7 +302,8 @@ class ProtocolTests(unittest.TestCase):
             self.assertFalse(self.protocol._running)
             self.assertEqual(self.protocol._channel.basic_cancel.call_count, 2)
             called_cts = [
-                arg[0] for arg, kw in self.protocol._channel.basic_cancel.call_args_list
+                kw["consumer_tag"]
+                for arg, kw in self.protocol._channel.basic_cancel.call_args_list
             ]
             self.assertEqual(called_cts, ["ct1", "ct2"])
 
