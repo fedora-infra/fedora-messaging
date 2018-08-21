@@ -63,15 +63,18 @@ def get_class(schema_name):
     try:
         return _class_registry[schema_name]
     except KeyError:
-        _log.warning('The schema "%s" is not in the schema registry! Either install '
-                     'the package with its schema definition or define a schema. '
-                     'Falling back to the default schema...', schema_name)
+        _log.warning(
+            'The schema "%s" is not in the schema registry! Either install '
+            "the package with its schema definition or define a schema. "
+            "Falling back to the default schema...",
+            schema_name,
+        )
         return _class_registry[_schema_name(Message)]
 
 
 def load_message_classes():
     """Load the 'fedora.messages' entry points and register the message classes."""
-    for message in pkg_resources.iter_entry_points('fedora.messages'):
+    for message in pkg_resources.iter_entry_points("fedora.messages"):
         cls = message.load()
         _log.info("Registering the '%r' class as a Fedora Message", cls)
         _class_registry[_schema_name(cls)] = cls
@@ -87,7 +90,7 @@ def _schema_name(cls):
     Returns:
         str: The path in the format "<module>:<class_name>".
     """
-    return '{}:{}'.format(cls.__module__, cls.__name__)
+    return "{}:{}".format(cls.__module__, cls.__name__)
 
 
 def get_message(routing_key, properties, body):
@@ -101,40 +104,48 @@ def get_message(routing_key, properties, body):
         body (bytes): The encoded message body
     """
     if properties.headers is None:
-        _log.error('Message (body=%r) arrived without headers. '
-                   'A publisher is misbehaving!', body)
+        _log.error(
+            "Message (body=%r) arrived without headers. " "A publisher is misbehaving!",
+            body,
+        )
         properties.headers = {}
 
     try:
-        MessageClass = get_class(properties.headers['fedora_messaging_schema'])
+        MessageClass = get_class(properties.headers["fedora_messaging_schema"])
     except KeyError:
-        _log.error('Message (headers=%r, body=%r) arrived without a schema header.'
-                   ' A publisher is misbehaving!', properties.headers, body)
+        _log.error(
+            "Message (headers=%r, body=%r) arrived without a schema header."
+            " A publisher is misbehaving!",
+            properties.headers,
+            body,
+        )
         MessageClass = Message
 
     if properties.content_encoding is None:
-        _log.error('Message arrived without a content encoding')
-        properties.content_encoding = 'utf-8'
+        _log.error("Message arrived without a content encoding")
+        properties.content_encoding = "utf-8"
     try:
         body = body.decode(properties.content_encoding)
     except UnicodeDecodeError as e:
-        _log.error('Unable to decode message body %r with %s content encoding',
-                   body, properties.content_encoding)
+        _log.error(
+            "Unable to decode message body %r with %s content encoding",
+            body,
+            properties.content_encoding,
+        )
         raise ValidationError(e)
 
     try:
         body = json.loads(body)
     except ValueError as e:
-        _log.error('Failed to load message body %r, %r', body, e)
+        _log.error("Failed to load message body %r, %r", body, e)
         raise ValidationError(e)
 
-    message = MessageClass(
-        body=body, topic=routing_key, properties=properties)
+    message = MessageClass(body=body, topic=routing_key, properties=properties)
     try:
         message.validate()
-        _log.debug('Successfully validated message %r', message)
+        _log.debug("Successfully validated message %r", message)
     except jsonschema.exceptions.ValidationError as e:
-        _log.error('Message validation of %r failed: %r', message, e)
+        _log.error("Message validation of %r failed: %r", message, e)
         raise ValidationError(e)
     return message
 
@@ -172,16 +183,16 @@ class Message(object):
             provided, they will be generated.
     """
 
-    topic = ''
+    topic = ""
     headers_schema = {
-        '$schema': 'http://json-schema.org/draft-04/schema#',
-        'description': 'Schema for message headers',
-        'type': 'object',
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "description": "Schema for message headers",
+        "type": "object",
     }
     body_schema = {
-        '$schema': 'http://json-schema.org/draft-04/schema#',
-        'description': 'Schema for message body',
-        'type': 'object',
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "description": "Schema for message body",
+        "type": "object",
     }
 
     def __init__(self, body=None, headers=None, topic=None, properties=None):
@@ -194,14 +205,17 @@ class Message(object):
     def _build_properties(self, headers):
         # Consumers use this to determine what schema to use and if they're out
         # of date.
-        headers['fedora_messaging_schema'] = _schema_name(self.__class__)
+        headers["fedora_messaging_schema"] = _schema_name(self.__class__)
         now = datetime.datetime.now().replace(microsecond=0)
-        headers['sent-at'] = now.isoformat()
+        headers["sent-at"] = now.isoformat()
         # message_id = "{}.{}".format(now.year, uuid.uuid4())
         message_id = str(uuid.uuid4())
         return pika.BasicProperties(
-            content_type='application/json', content_encoding='utf-8', delivery_mode=2,
-            headers=headers, message_id=message_id,
+            content_type="application/json",
+            content_encoding="utf-8",
+            delivery_mode=2,
+            headers=headers,
+            message_id=message_id,
         )
 
     @property
@@ -229,12 +243,12 @@ class Message(object):
     @property
     def _encoded_routing_key(self):
         """The encoded routing key used to publish the message on the broker."""
-        return self.topic.encode('utf-8')
+        return self.topic.encode("utf-8")
 
     @property
     def _encoded_body(self):
         """The encoded body used to publish the message."""
-        return json.dumps(self._body).encode('utf-8')
+        return json.dumps(self._body).encode("utf-8")
 
     def __repr__(self):
         """
@@ -308,11 +322,11 @@ class Message(object):
         The default implementation is to format the raw message id, topic, headers, and
         body. Applications use this to present messages to users.
         """
-        return 'Id: {i}\nTopic: {t}\nHeaders: {h}\nBody: {b}'.format(
+        return "Id: {i}\nTopic: {t}\nHeaders: {h}\nBody: {b}".format(
             i=self.id,
             t=self.topic,
             h=json.dumps(self._headers, sort_keys=True, indent=4),
-            b=json.dumps(self._body, sort_keys=True, indent=4)
+            b=json.dumps(self._body, sort_keys=True, indent=4),
         )
 
     @property

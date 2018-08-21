@@ -24,6 +24,7 @@ import ssl
 from pika import exceptions as pika_errs
 import pika
 import pkg_resources
+
 try:
     # Versions of pika greater than the 0.11 series uses SSLOptions to configure
     # a TLS connection.
@@ -34,15 +35,21 @@ except ImportError:
 from . import config
 from .message import get_message
 from .exceptions import (
-    Nack, Drop, HaltConsumer, ValidationError, PublishReturned, ConnectionException,
-    ConfigurationException)
+    Nack,
+    Drop,
+    HaltConsumer,
+    ValidationError,
+    PublishReturned,
+    ConnectionException,
+    ConfigurationException,
+)
 
 _log = logging.getLogger(__name__)
 
 # pika 0.12 introduces the SSLOptions object in 0.12, but it doesn't have the
 # same API that 1.0.0 has. Additionally, the connection parameters still expect
 # the old dictionary, so mark SSLOptions as None if this is 0.12
-if pkg_resources.get_distribution('pika').version.startswith('0.12.'):
+if pkg_resources.get_distribution("pika").version.startswith("0.12."):
     SSLOptions = None
 
 
@@ -58,11 +65,14 @@ def _configure_tls_parameters(parameters):
         parameters (pika.ConnectionParameters): The connection parameters to apply
             TLS connection settings to.
     """
-    cert = config.conf['tls']['certfile']
-    key = config.conf['tls']['keyfile']
+    cert = config.conf["tls"]["certfile"]
+    key = config.conf["tls"]["keyfile"]
     if cert and key:
-        _log.info('Authenticating with server using x509 (certfile: %s, keyfile: %s)',
-                  cert, key)
+        _log.info(
+            "Authenticating with server using x509 (certfile: %s, keyfile: %s)",
+            cert,
+            key,
+        )
         parameters.credentials = pika.credentials.ExternalCredentials()
     else:
         cert, key = None, None
@@ -70,19 +80,20 @@ def _configure_tls_parameters(parameters):
     if SSLOptions is None:
         parameters.ssl = True
         parameters.ssl_options = {
-            'keyfile': key,
-            'certfile': cert,
-            'ca_certs': config.conf['tls']['ca_cert'],
-            'cert_reqs': ssl.CERT_REQUIRED,
-            'ssl_version': ssl.PROTOCOL_TLSv1_2,
+            "keyfile": key,
+            "certfile": cert,
+            "ca_certs": config.conf["tls"]["ca_cert"],
+            "cert_reqs": ssl.CERT_REQUIRED,
+            "ssl_version": ssl.PROTOCOL_TLSv1_2,
         }
     else:
         ssl_context = ssl.create_default_context()
         try:
-            ssl_context.load_verify_locations(cafile=config.conf['tls']['ca_cert'])
+            ssl_context.load_verify_locations(cafile=config.conf["tls"]["ca_cert"])
         except ssl.SSLError as e:
             raise ConfigurationException(
-                'The "ca_cert" setting in the "tls" section is invalid ({})'.format(e))
+                'The "ca_cert" setting in the "tls" section is invalid ({})'.format(e)
+            )
         ssl_context.options |= ssl.OP_NO_SSLv2
         ssl_context.options |= ssl.OP_NO_SSLv3
         ssl_context.options |= ssl.OP_NO_TLSv1
@@ -94,21 +105,26 @@ def _configure_tls_parameters(parameters):
                 ssl_context.load_cert_chain(cert, key)
             except ssl.SSLError as e:
                 raise ConfigurationException(
-                    'The "keyfile" setting in the "tls" section is invalid ({})'.format(e))
-        parameters.ssl_options = SSLOptions(ssl_context, server_hostname=parameters.host)
+                    'The "keyfile" setting in the "tls" section is invalid ({})'.format(
+                        e
+                    )
+                )
+        parameters.ssl_options = SSLOptions(
+            ssl_context, server_hostname=parameters.host
+        )
 
 
 class PublisherSession(object):
     """A session with blocking APIs for publishing to an AMQP broker."""
 
     def __init__(self, amqp_url=None, exchange=None, confirms=True):
-        self._exchange = exchange or config.conf['publish_exchange']
-        amqp_url = amqp_url or config.conf['amqp_url']
+        self._exchange = exchange or config.conf["publish_exchange"]
+        amqp_url = amqp_url or config.conf["amqp_url"]
         self._parameters = pika.URLParameters(amqp_url)
-        if amqp_url.startswith('amqps'):
+        if amqp_url.startswith("amqps"):
             _configure_tls_parameters(self._parameters)
         if self._parameters.client_properties is None:
-            self._parameters.client_properties = config.conf['client_properties']
+            self._parameters.client_properties = config.conf["client_properties"]
         self._confirms = confirms
         self._connection = None
         self._channel = None
@@ -140,7 +156,7 @@ class PublisherSession(object):
         except (pika_errs.ConnectionClosed, pika_errs.ChannelClosed) as e:
             # Because this is a blocking connection (and thus can't heartbeat)
             # we might need to restart the connection.
-            _log.info('Resetting connection to %s', self._parameters.host)
+            _log.info("Resetting connection to %s", self._parameters.host)
             self._connection = self._channel = None
             try:
                 self._connect_and_publish(exchange, message)
@@ -150,7 +166,7 @@ class PublisherSession(object):
                     self._connection.close()
                 raise ConnectionException(reason=e)
         except (pika_errs.NackError, pika_errs.UnroutableError) as e:
-            _log.warning('Message was rejected by the broker (%s)', str(e))
+            _log.warning("Message was rejected by the broker (%s)", str(e))
             raise PublishReturned(reason=e)
         except pika_errs.AMQPError as e:
             if self._connection and self._connection.is_open:
@@ -176,11 +192,11 @@ class ConsumerSession(object):
     """A session using the asynchronous APIs offered by Pika."""
 
     def __init__(self):
-        self._parameters = pika.URLParameters(config.conf['amqp_url'])
-        if config.conf['amqp_url'].startswith('amqps'):
+        self._parameters = pika.URLParameters(config.conf["amqp_url"])
+        if config.conf["amqp_url"].startswith("amqps"):
             _configure_tls_parameters(self._parameters)
         if self._parameters.client_properties is None:
-            self._parameters.client_properties = config.conf['client_properties']
+            self._parameters.client_properties = config.conf["client_properties"]
         self._connection = None
         self._channel = None
         self._bindings = []
@@ -203,7 +219,7 @@ class ConsumerSession(object):
     def _shutdown(self):
         """Gracefully shut down the consumer and exit."""
         if self._channel:
-            _log.info('Halting %r consumer sessions', self._channel.consumer_tags)
+            _log.info("Halting %r consumer sessions", self._channel.consumer_tags)
         self._running = False
         if self._connection and self._connection.is_open:
             self._connection.close()
@@ -219,7 +235,7 @@ class ConsumerSession(object):
             cancel_frame (pika.spec.Basic.CancelOk): The cancelok frame from
                 the server.
         """
-        _log.info('Consumer canceled; returning all unprocessed messages to the queue')
+        _log.info("Consumer canceled; returning all unprocessed messages to the queue")
         self._channel.basic_nack(delivery_tag=0, multiple=True, requeue=True)
 
     def _on_channel_open(self, channel):
@@ -234,7 +250,7 @@ class ConsumerSession(object):
         channel.add_on_close_callback(self._on_channel_close)
         channel.add_on_cancel_callback(self._on_cancel)
 
-        channel.basic_qos(callback=self._on_qosok, **config.conf['qos'])
+        channel.basic_qos(callback=self._on_qosok, **config.conf["qos"])
 
     def _on_qosok(self, qosok_frame):
         """
@@ -248,19 +264,19 @@ class ConsumerSession(object):
         for name, args in self._exchanges.items():
             self._channel.exchange_declare(
                 exchange=name,
-                exchange_type=args['type'],
-                durable=args['durable'],
-                auto_delete=args['auto_delete'],
-                arguments=args['arguments'],
+                exchange_type=args["type"],
+                durable=args["durable"],
+                auto_delete=args["auto_delete"],
+                arguments=args["arguments"],
                 callback=self._on_exchange_declareok,
             )
         for name, args in self._queues.items():
             self._channel.queue_declare(
                 queue=name,
-                durable=args['durable'],
-                auto_delete=args['auto_delete'],
-                exclusive=args['exclusive'],
-                arguments=args['arguments'],
+                durable=args["durable"],
+                auto_delete=args["auto_delete"],
+                exclusive=args["exclusive"],
+                arguments=args["arguments"],
                 callback=self._on_queue_declareok,
             )
 
@@ -284,7 +300,7 @@ class ConsumerSession(object):
             reply_code = 0
             reply_text = str(reply_code_or_reason)
 
-        _log.info('Channel %r closed (%d): %s', channel, reply_code, reply_text)
+        _log.info("Channel %r closed (%d): %s", channel, reply_code, reply_text)
         self._channel = None
 
     def _on_connection_open(self, connection):
@@ -295,7 +311,7 @@ class ConsumerSession(object):
             connection (pika.connection.SelectConnection): The newly-estabilished
                 connection.
         """
-        _log.info('Successfully opened connection to %s', connection.params.host)
+        _log.info("Successfully opened connection to %s", connection.params.host)
         self._channel = connection.channel(on_open_callback=self._on_channel_open)
 
     def _on_connection_close(self, connection, reply_code_or_reason, reply_text=None):
@@ -323,11 +339,15 @@ class ConsumerSession(object):
 
         if reply_code == 200:
             # Normal shutdown, exit the consumer.
-            _log.info('Server connection closed (%s), shutting down', reply_text)
+            _log.info("Server connection closed (%s), shutting down", reply_text)
             connection.ioloop.stop()
         else:
-            _log.warning('Connection to %s closed unexpectedly (%d): %s',
-                         connection.params.host, reply_code, reply_text)
+            _log.warning(
+                "Connection to %s closed unexpectedly (%d): %s",
+                connection.params.host,
+                reply_code,
+                reply_text,
+            )
             self.call_later(1, self.reconnect)  # TODO: exponential backoff?
 
     def _on_connection_error(self, connection, error_message):
@@ -356,7 +376,7 @@ class ConsumerSession(object):
             frame (pika.spec.Exchange.DeclareOk): The DeclareOk frame from the
                 server.
         """
-        _log.info('Exchange declared successfully')
+        _log.info("Exchange declared successfully")
 
     def _on_queue_declareok(self, frame):
         """
@@ -365,20 +385,24 @@ class ConsumerSession(object):
         Args:
             frame (pika.frame.Method): The message sent from the server.
         """
-        _log.info('Successfully declared the %s queue', frame.method.queue)
+        _log.info("Successfully declared the %s queue", frame.method.queue)
         for binding in self._bindings:
-            if binding['queue'] == frame.method.queue:
-                for key in binding['routing_keys']:
-                    _log.info('Asserting %s is bound to %s with the %s key',
-                              binding['queue'], binding['exchange'], key)
+            if binding["queue"] == frame.method.queue:
+                for key in binding["routing_keys"]:
+                    _log.info(
+                        "Asserting %s is bound to %s with the %s key",
+                        binding["queue"],
+                        binding["exchange"],
+                        key,
+                    )
                     self._channel.queue_bind(
                         callback=None,
-                        queue=binding['queue'],
-                        exchange=binding['exchange'],
+                        queue=binding["queue"],
+                        exchange=binding["exchange"],
                         routing_key=key,
                     )
                 bc_args = dict(queue=frame.method.queue)
-                if pkg_resources.get_distribution('pika').version.startswith('0.12.'):
+                if pkg_resources.get_distribution("pika").version.startswith("0.12."):
                     bc_args["consumer_callback"] = self._on_message
                 else:
                     bc_args["on_message_callback"] = self._on_message
@@ -392,7 +416,7 @@ class ConsumerSession(object):
             cancel_frame (pika.spec.Basic.Cancel): The cancel frame from
                 the server.
         """
-        _log.info('Server canceled consumer')
+        _log.info("Server canceled consumer")
 
     def call_later(self, delay, callback):
         """Schedule a one-shot timeout given delay seconds.
@@ -411,8 +435,7 @@ class ConsumerSession(object):
             self._connection.ioloop.add_timeout(delay, callback)
 
     def connect(self):
-        _log.info('Connecting to %s:%d',
-                  self._parameters.host, self._parameters.port)
+        _log.info("Connecting to %s:%d", self._parameters.host, self._parameters.port)
         self._connection = pika.SelectConnection(
             self._parameters,
             on_open_callback=self._on_connection_open,
@@ -458,9 +481,9 @@ class ConsumerSession(object):
             ValueError: If the callback isn't a function or a class with __call__
                 defined.
         """
-        self._bindings = bindings or config.conf['bindings']
-        self._queues = queues or config.conf['queues']
-        self._exchanges = exchanges or config.conf['exchanges']
+        self._bindings = bindings or config.conf["bindings"]
+        self._queues = queues or config.conf["queues"]
+        self._exchanges = exchanges or config.conf["exchanges"]
 
         # If the callback is a class, create an instance of it first
         if inspect.isclass(callback):
@@ -468,8 +491,9 @@ class ConsumerSession(object):
         elif inspect.isfunction(callback):
             self._consumer_callback = callback
         else:
-            raise ValueError('Callback must be a class that implements __call__'
-                             ' or a function.')
+            raise ValueError(
+                "Callback must be a class that implements __call__" " or a function."
+            )
         self._running = True
         self.connect()
         self._connection.ioloop.start()
@@ -500,7 +524,7 @@ class ConsumerSession(object):
         Raises:
             HaltConsumer: Raised when the consumer halts.
         """
-        _log.debug('Message arrived with delivery tag %s', delivery_frame.delivery_tag)
+        _log.debug("Message arrived with delivery tag %s", delivery_frame.delivery_tag)
 
         try:
             message = get_message(delivery_frame.routing_key, properties, body)
@@ -509,18 +533,21 @@ class ConsumerSession(object):
             return
 
         try:
-            _log.info('Consuming message from topic "%s" (id %s)', message.topic,
-                      properties.message_id)
+            _log.info(
+                'Consuming message from topic "%s" (id %s)',
+                message.topic,
+                properties.message_id,
+            )
             self._consumer_callback(message)
             channel.basic_ack(delivery_tag=delivery_frame.delivery_tag)
         except Nack:
-            _log.info('Returning message id %s to the queue', properties.message_id)
+            _log.info("Returning message id %s to the queue", properties.message_id)
             channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=True)
         except Drop:
-            _log.info('Dropping message id %s', properties.message_id)
+            _log.info("Dropping message id %s", properties.message_id)
             channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=False)
         except HaltConsumer as e:
-            _log.info('Consumer requested halt, returning messages to queue')
+            _log.info("Consumer requested halt, returning messages to queue")
             channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=True)
             self._shutdown()
             if e.exit_code != 0:

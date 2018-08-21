@@ -18,7 +18,7 @@ class ConfigurationException(BaseException):
         self.message = message
 
     def __str__(self):
-        return 'Configuration error: ' + self.message
+        return "Configuration error: " + self.message
 
 
 class PublishException(BaseException):

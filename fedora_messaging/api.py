@@ -8,12 +8,12 @@ from .message import Message
 
 
 __all__ = (
-    'Message',
-    'consume',
-    'publish',
-    'pre_publish_signal',
-    'publish_signal',
-    'publish_failed_signal',
+    "Message",
+    "consume",
+    "publish",
+    "pre_publish_signal",
+    "publish_signal",
+    "publish_failed_signal",
 )
 
 # Sessions aren't thread-safe, so each thread gets its own
@@ -94,10 +94,10 @@ def publish(message, exchange=None):
     pre_publish_signal.send(publish, message=message)
 
     if exchange is None:
-        exchange = config.conf['publish_exchange']
+        exchange = config.conf["publish_exchange"]
 
     global _session_cache
-    if not hasattr(_session_cache, 'session'):
+    if not hasattr(_session_cache, "session"):
         _session_cache.session = _session.PublisherSession()
 
     try:

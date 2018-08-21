@@ -29,17 +29,18 @@ class MessageTests(unittest.TestCase):
 
     def test_summary(self):
         """Assert message summaries default to the message topic."""
-        msg = message.Message(topic='test.topic')
+        msg = message.Message(topic="test.topic")
         self.assertEqual(msg.topic, msg.summary)
 
     def test_str(self):
         """Assert calling str on a message produces a human-readable result."""
-        msg = message.Message(topic='test.topic', body={'my': 'key'})
+        msg = message.Message(topic="test.topic", body={"my": "key"})
         expected_headers = json.dumps(msg._headers, sort_keys=True, indent=4)
-        expected = ('Id: {}\nTopic: test.topic\n'
-                    'Headers: {}'
-                    '\nBody: {{\n    "my": "key"\n}}').format(
-                    msg.id, expected_headers)
+        expected = (
+            "Id: {}\nTopic: test.topic\n"
+            "Headers: {}"
+            '\nBody: {{\n    "my": "key"\n}}'
+        ).format(msg.id, expected_headers)
         self.assertEqual(expected, str(msg))
 
     def test_equality(self):
@@ -47,25 +48,26 @@ class MessageTests(unittest.TestCase):
         Assert two messages of the same class with the same topic, headers, and
         body are equivalent.
         """
-        self.assertEqual(message.Message(topic='test.topic', body={'my': 'key'}),
-                         message.Message(topic='test.topic', body={'my': 'key'}))
+        self.assertEqual(
+            message.Message(topic="test.topic", body={"my": "key"}),
+            message.Message(topic="test.topic", body={"my": "key"}),
+        )
 
     def test_repr(self):
         """Assert the message produces a valid representation of the message."""
-        msg = message.Message(topic='test.topic', body={'my': 'key'})
-        expected = (
-            "Message(id='{}', topic='test.topic', body={{'my': 'key'}})".format(
-                msg.id)
+        msg = message.Message(topic="test.topic", body={"my": "key"})
+        expected = "Message(id='{}', topic='test.topic', body={{'my': 'key'}})".format(
+            msg.id
         )
         self.assertEqual(expected, repr(msg))
 
     def test_valid_message(self):
         """Assert that the default schema allows objects for the header and body."""
-        message.Message(topic='test.topic', headers={}, body={}).validate()
+        message.Message(topic="test.topic", headers={}, body={}).validate()
 
     def test_invalid_message(self):
         """Assert that a non-object body raises a ValidationError on validation."""
-        msg = message.Message(topic='test.topic', headers={}, body='text')
+        msg = message.Message(topic="test.topic", headers={}, body="text")
         self.assertRaises(jsonschema.ValidationError, msg.validate)
 
     def test_default_message(self):
@@ -81,7 +83,7 @@ class MessageTests(unittest.TestCase):
         self.assertIn("fedora_messaging_schema", msg._properties.headers)
         self.assertEqual(
             msg._properties.headers["fedora_messaging_schema"],
-            "fedora_messaging.message:Message"
+            "fedora_messaging.message:Message",
         )
 
     def test_headers(self):
@@ -90,7 +92,7 @@ class MessageTests(unittest.TestCase):
         self.assertEqual(msg._properties.headers["foo"], "bar")
         # The fedora_messaging_schema key must also be added when headers are given.
         self.assertEqual(
-            msg._properties.headers['fedora_messaging_schema'],
+            msg._properties.headers["fedora_messaging_schema"],
             "fedora_messaging.message:Message",
         )
 
@@ -101,8 +103,8 @@ class MessageTests(unittest.TestCase):
 
     def test_encoded_routing_key(self):
         """Assert encoded routing key is correct."""
-        msg = message.Message(topic='test.topic')
-        self.assertEqual(msg._encoded_routing_key, b'test.topic')
+        msg = message.Message(topic="test.topic")
+        self.assertEqual(msg._encoded_routing_key, b"test.topic")
 
     def test_encoded_body(self):
         """Assert encoded body is correct."""
@@ -137,27 +139,32 @@ class ClassRegistryTests(unittest.TestCase):
     def test_load_message(self):
         with mock.patch.dict(message._class_registry, {}, clear=True):
             message.load_message_classes()
-            self.assertIn('fedora_messaging.message:Message', message._class_registry)
+            self.assertIn("fedora_messaging.message:Message", message._class_registry)
             self.assertTrue(
-                message._class_registry['fedora_messaging.message:Message'] is message.Message)
+                message._class_registry["fedora_messaging.message:Message"]
+                is message.Message
+            )
 
-    @mock.patch('fedora_messaging.message._registry_loaded', False)
+    @mock.patch("fedora_messaging.message._registry_loaded", False)
     def test_get_class_autoload(self):
         """Assert the registry is automatically loaded."""
         with mock.patch.dict(message._class_registry, {}, clear=True):
             self.assertEqual(
-                message.get_class('fedora_messaging.message:Message'), message.Message)
+                message.get_class("fedora_messaging.message:Message"), message.Message
+            )
 
-    @mock.patch('fedora_messaging.message._registry_loaded', False)
+    @mock.patch("fedora_messaging.message._registry_loaded", False)
     def test_get_class_autoload_first_call(self):
         """Assert the registry loads classes on first call to get_class."""
         with mock.patch.dict(message._class_registry, {}, clear=True):
             self.assertEqual(
-                message.get_class('fedora_messaging.message:Message'), message.Message)
+                message.get_class("fedora_messaging.message:Message"), message.Message
+            )
 
-    @mock.patch('fedora_messaging.message._registry_loaded', True)
+    @mock.patch("fedora_messaging.message._registry_loaded", True)
     def test_get_class_autoload_once(self):
         """Assert the registry doesn't repeatedly load."""
         with mock.patch.dict(message._class_registry, {}, clear=True):
             self.assertRaises(
-                KeyError, message.get_class, 'fedora_messaging.message:Message')
+                KeyError, message.get_class, "fedora_messaging.message:Message"
+            )

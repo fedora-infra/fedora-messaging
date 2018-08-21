@@ -21,41 +21,36 @@ from setuptools import setup, find_packages
 
 
 here = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(here, 'README')) as fd:
+with open(os.path.join(here, "README")) as fd:
     README = fd.read()
 
 
 setup(
-    name='mailman_schema',
-    version='1.0.0',
-    description='A sample schema package for messages sent by mailman',
+    name="mailman_schema",
+    version="1.0.0",
+    description="A sample schema package for messages sent by mailman",
     long_description=README,
-    url='https://github.com/fedora-infra/fedora-messaging/',
+    url="https://github.com/fedora-infra/fedora-messaging/",
     # Possible options are at https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
-        'License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)',
-        'Operating System :: POSIX :: Linux',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
+        "License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)",
+        "Operating System :: POSIX :: Linux",
+        "Programming Language :: Python :: 2",
+        "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.4",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
     ],
-    license='GPLv2+',
-    maintainer='Fedora Infrastructure Team',
-    maintainer_email='infrastructure@lists.fedoraproject.org',
-    platforms=['Fedora', 'GNU/Linux'],
-    keywords='fedora',
-    packages=find_packages(
-        exclude=('mailman_schema.tests', 'mailman_schema.tests.*')),
+    license="GPLv2+",
+    maintainer="Fedora Infrastructure Team",
+    maintainer_email="infrastructure@lists.fedoraproject.org",
+    platforms=["Fedora", "GNU/Linux"],
+    keywords="fedora",
+    packages=find_packages(exclude=("mailman_schema.tests", "mailman_schema.tests.*")),
     include_package_data=True,
     zip_safe=False,
-    install_requires=['fedora_messaging'],
-    test_suite='mailman_schema.tests',
-    entry_points={
-        'fedora.messages': [
-            'mailman.message=mailman_schema.schema:Message',
-        ]
-    }
+    install_requires=["fedora_messaging"],
+    test_suite="mailman_schema.tests",
+    entry_points={"fedora.messages": ["mailman.message=mailman_schema.schema:Message"]},
 )

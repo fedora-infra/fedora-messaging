@@ -29,13 +29,17 @@ from jsonschema.exceptions import ValidationError as JSONValidationError
 
 from fedora_messaging import _session, config
 from fedora_messaging.exceptions import (
-    PublishReturned, ConnectionException, Nack, Drop,
-    HaltConsumer, ConfigurationException)
+    PublishReturned,
+    ConnectionException,
+    Nack,
+    Drop,
+    HaltConsumer,
+    ConfigurationException,
+)
 from fedora_messaging.tests import FIXTURES_DIR
 
 
 class PublisherSessionTests(unittest.TestCase):
-
     def setUp(self):
         self.publisher = _session.PublisherSession()
         self.publisher._connection = mock.Mock()
@@ -47,13 +51,13 @@ class PublisherSessionTests(unittest.TestCase):
         self.message._body = "test body"
         self.message._encoded_body = b'"test body"'
         self.tls_conf = {
-            'keyfile': None,
-            'certfile': None,
-            'ca_cert': os.path.join(FIXTURES_DIR, 'ca_bundle.pem'),
+            "keyfile": None,
+            "certfile": None,
+            "ca_cert": os.path.join(FIXTURES_DIR, "ca_bundle.pem"),
         }
 
     def test_publisher_init(self):
-        with mock.patch.dict(config.conf, {'tls': self.tls_conf}):
+        with mock.patch.dict(config.conf, {"tls": self.tls_conf}):
             publisher = _session.PublisherSession()
         self.assertEqual(publisher._parameters.host, "localhost")
         self.assertEqual(publisher._parameters.port, 5672)
@@ -62,10 +66,9 @@ class PublisherSessionTests(unittest.TestCase):
 
     def test_publish_init_custom_url(self):
         """Assert a custom URL can be provided to the publisher session."""
-        with mock.patch.dict(config.conf, {'tls': self.tls_conf}):
+        with mock.patch.dict(config.conf, {"tls": self.tls_conf}):
             publisher = _session.PublisherSession(
-                "amqps://username:password@rabbit.example.com/vhost",
-                "test_exchange",
+                "amqps://username:password@rabbit.example.com/vhost", "test_exchange"
             )
         self.assertEqual(publisher._parameters.host, "rabbit.example.com")
         self.assertEqual(publisher._parameters.port, 5671)
@@ -75,28 +78,28 @@ class PublisherSessionTests(unittest.TestCase):
 
     def test_plain_auth(self):
         """Assert when there's no key or certfile, plain authentication is used"""
-        with mock.patch.dict(config.conf, {'tls': self.tls_conf}):
+        with mock.patch.dict(config.conf, {"tls": self.tls_conf}):
             publisher = _session.PublisherSession(
-                "amqps://username:password@rabbit.example.com/vhost",
-                "test_exchange",
+                "amqps://username:password@rabbit.example.com/vhost", "test_exchange"
             )
         self.assertIsInstance(
-            publisher._parameters.credentials, credentials.PlainCredentials)
+            publisher._parameters.credentials, credentials.PlainCredentials
+        )
 
     def test_external_auth(self):
         """Assert when there's both a key and certfile, external auth is used"""
         tls_conf = {
-            'keyfile': os.path.join(FIXTURES_DIR, 'key.pem'),
-            'certfile': os.path.join(FIXTURES_DIR, 'cert.pem'),
-            'ca_cert': os.path.join(FIXTURES_DIR, 'ca_bundle.pem'),
+            "keyfile": os.path.join(FIXTURES_DIR, "key.pem"),
+            "certfile": os.path.join(FIXTURES_DIR, "cert.pem"),
+            "ca_cert": os.path.join(FIXTURES_DIR, "ca_bundle.pem"),
         }
-        with mock.patch.dict(config.conf, {'tls': tls_conf}):
+        with mock.patch.dict(config.conf, {"tls": tls_conf}):
             publisher = _session.PublisherSession(
-                "amqps://username:password@rabbit.example.com/vhost",
-                "test_exchange",
+                "amqps://username:password@rabbit.example.com/vhost", "test_exchange"
             )
         self.assertIsInstance(
-            publisher._parameters.credentials, credentials.ExternalCredentials)
+            publisher._parameters.credentials, credentials.ExternalCredentials
+        )
 
     def test_publish(self):
         # Check that the publication works properly.
@@ -111,26 +114,23 @@ class PublisherSessionTests(unittest.TestCase):
     def test_publish_rejected(self):
         # Check that the correct exception is raised when the publication is
         # rejected.
-        self.publisher._channel.publish.side_effect = \
-            pika_errs.NackError([self.message])
-        self.assertRaises(
-            PublishReturned, self.publisher.publish, self.message)
-        self.publisher._channel.publish.side_effect = \
-            pika_errs.UnroutableError([self.message])
-        self.assertRaises(
-            PublishReturned, self.publisher.publish, self.message)
+        self.publisher._channel.publish.side_effect = pika_errs.NackError(
+            [self.message]
+        )
+        self.assertRaises(PublishReturned, self.publisher.publish, self.message)
+        self.publisher._channel.publish.side_effect = pika_errs.UnroutableError(
+            [self.message]
+        )
+        self.assertRaises(PublishReturned, self.publisher.publish, self.message)
 
     def test_publish_generic_error(self):
         # Check that the correct exception is raised when the publication has
         # failed for an unknown reason, and that the connection is closed.
         self.publisher._connection.is_open = False
-        self.publisher._channel.publish.side_effect = \
-            pika_errs.AMQPError()
-        self.assertRaises(
-            ConnectionException, self.publisher.publish, self.message)
+        self.publisher._channel.publish.side_effect = pika_errs.AMQPError()
+        self.assertRaises(ConnectionException, self.publisher.publish, self.message)
         self.publisher._connection.is_open = True
-        self.assertRaises(
-            ConnectionException, self.publisher.publish, self.message)
+        self.assertRaises(ConnectionException, self.publisher.publish, self.message)
         self.publisher._connection.close.assert_called_once()
 
     def test_connect_and_publish_not_connnected(self):
@@ -143,28 +143,31 @@ class PublisherSessionTests(unittest.TestCase):
         connection_mock.channel.return_value = channel_mock
         self.message._properties = "properties"
         with mock.patch(
-                "fedora_messaging._session.pika.BlockingConnection",
-                connection_class_mock):
+            "fedora_messaging._session.pika.BlockingConnection", connection_class_mock
+        ):
             self.publisher._connect_and_publish(None, self.message)
         connection_class_mock.assert_called_with(self.publisher._parameters)
         channel_mock.confirm_delivery.assert_called_once()
         channel_mock.publish.assert_called_with(
-            exchange=None, routing_key=b"test.topic",
-            body=b'"test body"', properties="properties",
+            exchange=None,
+            routing_key=b"test.topic",
+            body=b'"test body"',
+            properties="properties",
         )
 
     def test_publish_disconnected(self):
         # The publisher must try to re-establish a connection on publish.
-        self.publisher._channel.publish.side_effect = \
-            pika_errs.ConnectionClosed(200, 'I wanted to')
+        self.publisher._channel.publish.side_effect = pika_errs.ConnectionClosed(
+            200, "I wanted to"
+        )
         connection_class_mock = mock.Mock()
         connection_mock = mock.Mock()
         channel_mock = mock.Mock()
         connection_class_mock.return_value = connection_mock
         connection_mock.channel.return_value = channel_mock
         with mock.patch(
-                "fedora_messaging._session.pika.BlockingConnection",
-                connection_class_mock):
+            "fedora_messaging._session.pika.BlockingConnection", connection_class_mock
+        ):
             self.publisher.publish(self.message)
         # Check that the connection was reestablished
         connection_class_mock.assert_called_with(self.publisher._parameters)
@@ -176,17 +179,17 @@ class PublisherSessionTests(unittest.TestCase):
     def test_publish_reconnect_failed(self):
         # The publisher must try to re-establish a connection on publish, and
         # close the connection if it can't be established.
-        self.publisher._channel.publish.side_effect = \
-            pika_errs.ConnectionClosed(200, 'I wanted to')
+        self.publisher._channel.publish.side_effect = pika_errs.ConnectionClosed(
+            200, "I wanted to"
+        )
         connection_class_mock = mock.Mock()
         connection_mock = mock.Mock()
         connection_class_mock.return_value = connection_mock
         connection_mock.channel.side_effect = pika_errs.AMQPConnectionError()
         with mock.patch(
-                "fedora_messaging._session.pika.BlockingConnection",
-                connection_class_mock):
-            self.assertRaises(
-                ConnectionException, self.publisher.publish, self.message)
+            "fedora_messaging._session.pika.BlockingConnection", connection_class_mock
+        ):
+            self.assertRaises(ConnectionException, self.publisher.publish, self.message)
         # Check that the connection was reestablished
         connection_class_mock.assert_called_with(self.publisher._parameters)
         self.assertEqual(self.publisher._connection, connection_mock)
@@ -194,7 +197,6 @@ class PublisherSessionTests(unittest.TestCase):
 
 
 class ConsumerSessionTests(unittest.TestCase):
-
     def setUp(self):
         self.consumer = _session.ConsumerSession()
 
@@ -204,12 +206,12 @@ class ConsumerSessionTests(unittest.TestCase):
     def test_plain_auth(self):
         """Assert when there's no key or certfile, plain authentication is used"""
         tls_conf = {
-            'amqp_url': 'amqps://',
-            'tls': {
-                'keyfile': None,
-                'certfile': None,
-                'ca_cert': os.path.join(FIXTURES_DIR, 'ca_bundle.pem'),
-            }
+            "amqp_url": "amqps://",
+            "tls": {
+                "keyfile": None,
+                "certfile": None,
+                "ca_cert": os.path.join(FIXTURES_DIR, "ca_bundle.pem"),
+            },
         }
 
         with mock.patch.dict(config.conf, tls_conf):
@@ -217,17 +219,18 @@ class ConsumerSessionTests(unittest.TestCase):
 
         self.assertTrue(consumer._parameters.ssl_options is not None)
         self.assertIsInstance(
-            consumer._parameters.credentials, credentials.PlainCredentials)
+            consumer._parameters.credentials, credentials.PlainCredentials
+        )
 
     def test_external_auth(self):
         """Assert when there's both a key and certfile, external auth is used"""
         tls_conf = {
-            'amqp_url': 'amqps://',
-            'tls': {
-                'keyfile': os.path.join(FIXTURES_DIR, 'key.pem'),
-                'certfile': os.path.join(FIXTURES_DIR, 'cert.pem'),
-                'ca_cert': os.path.join(FIXTURES_DIR, 'ca_bundle.pem'),
-            }
+            "amqp_url": "amqps://",
+            "tls": {
+                "keyfile": os.path.join(FIXTURES_DIR, "key.pem"),
+                "certfile": os.path.join(FIXTURES_DIR, "cert.pem"),
+                "ca_cert": os.path.join(FIXTURES_DIR, "ca_bundle.pem"),
+            },
         }
 
         with mock.patch.dict(config.conf, tls_conf):
@@ -235,43 +238,40 @@ class ConsumerSessionTests(unittest.TestCase):
 
         self.assertTrue(consumer._parameters.ssl_options is not None)
         self.assertIsInstance(
-            consumer._parameters.credentials, credentials.ExternalCredentials)
+            consumer._parameters.credentials, credentials.ExternalCredentials
+        )
 
     def test_consume(self):
         # Test the consume function.
         def stop_consumer():
             # Necessary to exit the while loop
             self.consumer._running = False
+
         connection = mock.Mock()
         connection.ioloop.start.side_effect = stop_consumer
         with mock.patch(
-                "fedora_messaging._session.pika.SelectConnection",
-                lambda *a, **kw: connection):
+            "fedora_messaging._session.pika.SelectConnection",
+            lambda *a, **kw: connection,
+        ):
             # Callback is a callable
             def callback(m):
                 return
+
             self.consumer.consume(callback)
             self.assertEqual(self.consumer._consumer_callback, callback)
             connection.ioloop.start.assert_called_once()
             # Callback is a class
             self.consumer.consume(mock.Mock)
-            self.assertTrue(isinstance(
-                self.consumer._consumer_callback, mock.Mock))
+            self.assertTrue(isinstance(self.consumer._consumer_callback, mock.Mock))
             # Configuration defaults
             self.consumer.consume(callback)
-            self.assertEqual(
-                self.consumer._bindings, config.conf["bindings"])
-            self.assertEqual(
-                self.consumer._queues, config.conf["queues"])
-            self.assertEqual(
-                self.consumer._exchanges, config.conf["exchanges"])
+            self.assertEqual(self.consumer._bindings, config.conf["bindings"])
+            self.assertEqual(self.consumer._queues, config.conf["queues"])
+            self.assertEqual(self.consumer._exchanges, config.conf["exchanges"])
             # Configuration overrides
             test_value = [{"test": "test"}]
             self.consumer.consume(
-                callback,
-                bindings=test_value,
-                queues=test_value,
-                exchanges=test_value,
+                callback, bindings=test_value, queues=test_value, exchanges=test_value
             )
             self.assertEqual(self.consumer._bindings, test_value)
             self.assertEqual(self.consumer._queues, test_value)
@@ -295,13 +295,15 @@ class ConsumerSessionTests(unittest.TestCase):
                 "auto_delete": "auto_delete",
                 "exclusive": "exclusive",
                 "arguments": "arguments",
-            },
+            }
         }
-        self.consumer._bindings = [{
-            "queue": "testqueue",
-            "exchange": "testexchange",
-            "routing_keys": ["testrk"],
-        }]
+        self.consumer._bindings = [
+            {
+                "queue": "testqueue",
+                "exchange": "testexchange",
+                "routing_keys": ["testrk"],
+            }
+        ]
         # Declare exchanges and queues
         self.consumer._on_qosok(None)
         self.consumer._channel.exchange_declare.assert_called_with(
@@ -330,20 +332,17 @@ class ConsumerSessionTests(unittest.TestCase):
             routing_key="testrk",
             callback=None,
         )
-        if pkg_resources.get_distribution('pika').version.startswith('0.12.'):
+        if pkg_resources.get_distribution("pika").version.startswith("0.12."):
             self.consumer._channel.basic_consume.assert_called_with(
-                consumer_callback=self.consumer._on_message,
-                queue="testqueue",
+                consumer_callback=self.consumer._on_message, queue="testqueue"
             )
         else:
             self.consumer._channel.basic_consume.assert_called_with(
-                on_message_callback=self.consumer._on_message,
-                queue="testqueue",
+                on_message_callback=self.consumer._on_message, queue="testqueue"
             )
 
 
 class ConsumerSessionMessageTests(unittest.TestCase):
-
     def setUp(self):
         self.consumer = _session.ConsumerSession()
         self.callback = self.consumer._consumer_callback = mock.Mock()
@@ -356,8 +355,7 @@ class ConsumerSessionMessageTests(unittest.TestCase):
         self.properties = mock.Mock()
         self.properties.headers = {}
         self.properties.content_encoding = "utf-8"
-        self.validate_patch = mock.patch(
-            "fedora_messaging.message.Message.validate")
+        self.validate_patch = mock.patch("fedora_messaging.message.Message.validate")
         self.validate_mock = self.validate_patch.start()
 
     def tearDown(self):
@@ -384,57 +382,53 @@ class ConsumerSessionMessageTests(unittest.TestCase):
     def test_message_wrong_encoding(self):
         body = '"test body unicode é à ç"'.encode("utf-8")
         self.properties.content_encoding = "ascii"
-        self.consumer._on_message(
-            self.channel, self.frame, self.properties, body)
+        self.consumer._on_message(self.channel, self.frame, self.properties, body)
         self.channel.basic_nack.assert_called_with(
-            delivery_tag="testtag", requeue=False)
+            delivery_tag="testtag", requeue=False
+        )
         self.consumer._consumer_callback.assert_not_called()
 
     def test_message_not_json(self):
         body = b"plain string"
-        self.consumer._on_message(
-            self.channel, self.frame, self.properties, body)
+        self.consumer._on_message(self.channel, self.frame, self.properties, body)
         self.channel.basic_nack.assert_called_with(
-            delivery_tag="testtag", requeue=False)
+            delivery_tag="testtag", requeue=False
+        )
         self.consumer._consumer_callback.assert_not_called()
 
     def test_message_not_object(self):
         body = b"'json string'"
-        self.consumer._on_message(
-            self.channel, self.frame, self.properties, body)
+        self.consumer._on_message(self.channel, self.frame, self.properties, body)
         self.channel.basic_nack.assert_called_with(
-            delivery_tag="testtag", requeue=False)
+            delivery_tag="testtag", requeue=False
+        )
         self.consumer._consumer_callback.assert_not_called()
 
     def test_message_validation_failed(self):
         body = b'"test body"'
         self.validate_mock.side_effect = JSONValidationError(None)
-        self.consumer._on_message(
-            self.channel, self.frame, self.properties, body)
+        self.consumer._on_message(self.channel, self.frame, self.properties, body)
         self.channel.basic_nack.assert_called_with(
-            delivery_tag="testtag", requeue=False)
+            delivery_tag="testtag", requeue=False
+        )
         self.consumer._consumer_callback.assert_not_called()
 
     def test_message_nack(self):
         self.consumer._consumer_callback.side_effect = Nack()
-        self.consumer._on_message(
-            self.channel, self.frame, self.properties, b'"body"')
-        self.channel.basic_nack.assert_called_with(
-            delivery_tag="testtag", requeue=True)
+        self.consumer._on_message(self.channel, self.frame, self.properties, b'"body"')
+        self.channel.basic_nack.assert_called_with(delivery_tag="testtag", requeue=True)
 
     def test_message_drop(self):
         self.consumer._consumer_callback.side_effect = Drop()
-        self.consumer._on_message(
-            self.channel, self.frame, self.properties, b'"body"')
+        self.consumer._on_message(self.channel, self.frame, self.properties, b'"body"')
         self.channel.basic_nack.assert_called_with(
-            delivery_tag="testtag", requeue=False)
+            delivery_tag="testtag", requeue=False
+        )
 
     def test_message_halt(self):
         self.consumer._consumer_callback.side_effect = HaltConsumer()
-        self.consumer._on_message(
-            self.channel, self.frame, self.properties, b'"body"')
-        self.channel.basic_nack.assert_called_with(
-            delivery_tag="testtag", requeue=True)
+        self.consumer._on_message(self.channel, self.frame, self.properties, b'"body"')
+        self.channel.basic_nack.assert_called_with(delivery_tag="testtag", requeue=True)
         self.assertFalse(self.consumer._running)
         self.consumer._connection.close.assert_called_once()
 
@@ -443,12 +437,13 @@ class ConsumerSessionMessageTests(unittest.TestCase):
         self.consumer._consumer_callback.side_effect = error
         with self.assertRaises(HaltConsumer) as cm:
             self.consumer._on_message(
-                self.channel, self.frame, self.properties, b'"body"',
+                self.channel, self.frame, self.properties, b'"body"'
             )
         self.assertEqual(cm.exception.exit_code, 1)
         self.assertEqual(cm.exception.reason, error)
         self.channel.basic_nack.assert_called_with(
-            delivery_tag=0, multiple=True, requeue=True)
+            delivery_tag=0, multiple=True, requeue=True
+        )
         self.assertFalse(self.consumer._running)
         self.consumer._connection.close.assert_called_once()
 
@@ -456,116 +451,122 @@ class ConsumerSessionMessageTests(unittest.TestCase):
 class ConfigureTlsParameters(unittest.TestCase):
     """Tests for :func:`fedora_messaging._session._configure_tls_parameters`"""
 
-    @unittest.skipIf(_session.SSLOptions is not None, 'Pika supports SSLContext')
+    @unittest.skipIf(_session.SSLOptions is not None, "Pika supports SSLContext")
     def test_old_pika_approach(self):
         """Assert if pika is pre-1.0.0, the TLS settings are applied."""
-        params = URLParameters('amqps://')
+        params = URLParameters("amqps://")
         tls_conf = {
-            'keyfile': 'key.pem',
-            'certfile': 'cert.pem',
-            'ca_cert': 'custom_ca_bundle.pem',
+            "keyfile": "key.pem",
+            "certfile": "cert.pem",
+            "ca_cert": "custom_ca_bundle.pem",
         }
         expected_options = {
-            'keyfile': 'key.pem',
-            'certfile': 'cert.pem',
-            'ca_certs': 'custom_ca_bundle.pem',
-            'cert_reqs': ssl.CERT_REQUIRED,
-            'ssl_version': ssl.PROTOCOL_TLSv1_2,
+            "keyfile": "key.pem",
+            "certfile": "cert.pem",
+            "ca_certs": "custom_ca_bundle.pem",
+            "cert_reqs": ssl.CERT_REQUIRED,
+            "ssl_version": ssl.PROTOCOL_TLSv1_2,
         }
 
-        with mock.patch.dict(config.conf, {'tls': tls_conf}):
+        with mock.patch.dict(config.conf, {"tls": tls_conf}):
             _session._configure_tls_parameters(params)
 
         self.assertTrue(params.ssl)
         self.assertEqual(params.ssl_options, expected_options)
 
-    @unittest.skipIf(_session.SSLOptions is not None, 'Pika supports SSLContext')
+    @unittest.skipIf(_session.SSLOptions is not None, "Pika supports SSLContext")
     def test_old_pika_approach_no_key(self):
         """Assert if no key is provided, no cert is passed to pika either."""
-        params = URLParameters('amqps://')
+        params = URLParameters("amqps://")
         tls_conf = {
-            'keyfile': None,
-            'certfile': 'cert.pem',
-            'ca_cert': 'custom_ca_bundle.pem',
+            "keyfile": None,
+            "certfile": "cert.pem",
+            "ca_cert": "custom_ca_bundle.pem",
         }
         expected_options = {
-            'keyfile': None,
-            'certfile': None,
-            'ca_certs': 'custom_ca_bundle.pem',
-            'cert_reqs': ssl.CERT_REQUIRED,
-            'ssl_version': ssl.PROTOCOL_TLSv1_2,
+            "keyfile": None,
+            "certfile": None,
+            "ca_certs": "custom_ca_bundle.pem",
+            "cert_reqs": ssl.CERT_REQUIRED,
+            "ssl_version": ssl.PROTOCOL_TLSv1_2,
         }
 
-        with mock.patch.dict(config.conf, {'tls': tls_conf}):
+        with mock.patch.dict(config.conf, {"tls": tls_conf}):
             _session._configure_tls_parameters(params)
 
         self.assertTrue(params.ssl)
         self.assertEqual(params.ssl_options, expected_options)
 
-    @unittest.skipIf(_session.SSLOptions is not None, 'Pika supports SSLContext')
+    @unittest.skipIf(_session.SSLOptions is not None, "Pika supports SSLContext")
     def test_old_pika_approach_no_cert(self):
         """Assert if no cert is provided, no key is passed to pika either."""
-        params = URLParameters('amqps://')
-        tls_conf = {
-            'keyfile': 'key.pem',
-            'certfile': None,
-            'ca_cert': 'ca_bundle.pem',
-        }
+        params = URLParameters("amqps://")
+        tls_conf = {"keyfile": "key.pem", "certfile": None, "ca_cert": "ca_bundle.pem"}
         expected_options = {
-            'keyfile': None,
-            'certfile': None,
-            'ca_certs': 'ca_bundle.pem',
-            'cert_reqs': ssl.CERT_REQUIRED,
-            'ssl_version': ssl.PROTOCOL_TLSv1_2,
+            "keyfile": None,
+            "certfile": None,
+            "ca_certs": "ca_bundle.pem",
+            "cert_reqs": ssl.CERT_REQUIRED,
+            "ssl_version": ssl.PROTOCOL_TLSv1_2,
         }
 
-        with mock.patch.dict(config.conf, {'tls': tls_conf}):
+        with mock.patch.dict(config.conf, {"tls": tls_conf}):
             _session._configure_tls_parameters(params)
 
         self.assertTrue(params.ssl)
         self.assertEqual(params.ssl_options, expected_options)
 
-    @unittest.skipIf(_session.SSLOptions is None, 'Pika version does not support SSLContext')
+    @unittest.skipIf(
+        _session.SSLOptions is None, "Pika version does not support SSLContext"
+    )
     def test_new_pika(self):
         """Assert configuring a cert and key results in a TLS connection with new pika versions."""
-        params = URLParameters('amqps://myhost')
+        params = URLParameters("amqps://myhost")
         tls_conf = {
-            'keyfile': os.path.join(FIXTURES_DIR, 'key.pem'),
-            'certfile': os.path.join(FIXTURES_DIR, 'cert.pem'),
-            'ca_cert': os.path.join(FIXTURES_DIR, 'ca_bundle.pem'),
+            "keyfile": os.path.join(FIXTURES_DIR, "key.pem"),
+            "certfile": os.path.join(FIXTURES_DIR, "cert.pem"),
+            "ca_cert": os.path.join(FIXTURES_DIR, "ca_bundle.pem"),
         }
 
-        with mock.patch.dict(config.conf, {'tls': tls_conf}):
+        with mock.patch.dict(config.conf, {"tls": tls_conf}):
             _session._configure_tls_parameters(params)
 
         self.assertTrue(isinstance(params.ssl_options, _session.SSLOptions))
 
-    @unittest.skipIf(_session.SSLOptions is None, 'Pika version does not support SSLContext')
+    @unittest.skipIf(
+        _session.SSLOptions is None, "Pika version does not support SSLContext"
+    )
     def test_new_pika_invalid_key(self):
         """Assert a ConfigurationException is raised when the key can't be opened."""
-        params = URLParameters('amqps://myhost')
+        params = URLParameters("amqps://myhost")
         tls_conf = {
-            'keyfile': os.path.join(FIXTURES_DIR, 'invalid_key.pem'),
-            'certfile': os.path.join(FIXTURES_DIR, 'cert.pem'),
-            'ca_cert': os.path.join(FIXTURES_DIR, 'ca_bundle.pem'),
+            "keyfile": os.path.join(FIXTURES_DIR, "invalid_key.pem"),
+            "certfile": os.path.join(FIXTURES_DIR, "cert.pem"),
+            "ca_cert": os.path.join(FIXTURES_DIR, "ca_bundle.pem"),
         }
 
-        with mock.patch.dict(config.conf, {'tls': tls_conf}):
-            self.assertRaises(ConfigurationException, _session._configure_tls_parameters, params)
+        with mock.patch.dict(config.conf, {"tls": tls_conf}):
+            self.assertRaises(
+                ConfigurationException, _session._configure_tls_parameters, params
+            )
 
         self.assertTrue(isinstance(params.ssl_options, _session.SSLOptions))
 
-    @unittest.skipIf(_session.SSLOptions is None, 'Pika version does not support SSLContext')
+    @unittest.skipIf(
+        _session.SSLOptions is None, "Pika version does not support SSLContext"
+    )
     def test_new_pika_invalid_ca_cert(self):
         """Assert a ConfigurationException is raised when the CA can't be opened."""
-        params = URLParameters('amqps://myhost')
+        params = URLParameters("amqps://myhost")
         tls_conf = {
-            'keyfile': os.path.join(FIXTURES_DIR, 'key.pem'),
-            'certfile': os.path.join(FIXTURES_DIR, 'cert.pem'),
-            'ca_cert': os.path.join(FIXTURES_DIR, 'invalid_ca.pem'),
+            "keyfile": os.path.join(FIXTURES_DIR, "key.pem"),
+            "certfile": os.path.join(FIXTURES_DIR, "cert.pem"),
+            "ca_cert": os.path.join(FIXTURES_DIR, "invalid_ca.pem"),
         }
 
-        with mock.patch.dict(config.conf, {'tls': tls_conf}):
-            self.assertRaises(ConfigurationException, _session._configure_tls_parameters, params)
+        with mock.patch.dict(config.conf, {"tls": tls_conf}):
+            self.assertRaises(
+                ConfigurationException, _session._configure_tls_parameters, params
+            )
 
         self.assertTrue(isinstance(params.ssl_options, _session.SSLOptions))

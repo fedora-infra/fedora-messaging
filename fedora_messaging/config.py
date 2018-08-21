@@ -238,94 +238,83 @@ from . import exceptions
 
 _log = logging.getLogger(__name__)
 
-_fedora_version = pkg_resources.get_distribution('fedora_messaging').version
-_pika_version = pkg_resources.get_distribution('pika').version
+_fedora_version = pkg_resources.get_distribution("fedora_messaging").version
+_pika_version = pkg_resources.get_distribution("pika").version
 
 # A default, auto-deleted queue for consumers
 _default_queue_name = str(uuid.uuid4())
 
 #: A dictionary of application configuration defaults.
 DEFAULTS = dict(
-    amqp_url='amqp://?connection_attempts=3&retry_delay=5',
+    amqp_url="amqp://?connection_attempts=3&retry_delay=5",
     #: The default client properties reported to the AMQP broker in the "start-ok"
     #: method of the connection negotiation. This allows the broker administrators
     #: to easily identify what a connection is being used for and the client's
     #: capabilities.
     client_properties={
-        'app': 'Unknown',
-        'product': 'Fedora Messaging with Pika',
-        'information': 'https://fedora-messaging.readthedocs.io/en/stable/',
-        'version': 'fedora_messaging-{} with pika-{}'.format(_fedora_version, _pika_version),
+        "app": "Unknown",
+        "product": "Fedora Messaging with Pika",
+        "information": "https://fedora-messaging.readthedocs.io/en/stable/",
+        "version": "fedora_messaging-{} with pika-{}".format(
+            _fedora_version, _pika_version
+        ),
     },
-    publish_exchange='amq.topic',
+    publish_exchange="amq.topic",
     exchanges={
-        'amq.topic': {
-            'type': 'topic',
-            'durable': True,
-            'auto_delete': False,
-            'arguments': {},
-        },
+        "amq.topic": {
+            "type": "topic",
+            "durable": True,
+            "auto_delete": False,
+            "arguments": {},
+        }
     },
     queues={
         _default_queue_name: {
-            'durable': False,
-            'auto_delete': True,
-            'exclusive': False,
-            'arguments': {},
-        },
+            "durable": False,
+            "auto_delete": True,
+            "exclusive": False,
+            "arguments": {},
+        }
     },
     bindings=[
-        {
-            'queue': _default_queue_name,
-            'exchange': 'amq.topic',
-            'routing_keys': ['#'],
-        },
+        {"queue": _default_queue_name, "exchange": "amq.topic", "routing_keys": ["#"]}
     ],
-    qos={
-        'prefetch_size': 0,
-        'prefetch_count': 10,
-    },
+    qos={"prefetch_size": 0, "prefetch_count": 10},
     callback=None,
     consumer_config={},
     tls={
-        'ca_cert': '/etc/pki/tls/certs/ca-bundle.crt',
-        'certfile': None,
-        'keyfile': None,
+        "ca_cert": "/etc/pki/tls/certs/ca-bundle.crt",
+        "certfile": None,
+        "keyfile": None,
     },
     log_config={
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {
-            'simple': {
-                'format': '[%(name)s %(levelname)s] %(message)s',
-            },
-        },
-        'handlers': {
-            'console': {
-                'class': 'logging.StreamHandler',
-                'formatter': 'simple',
-                'stream': 'ext://sys.stdout',
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {"simple": {"format": "[%(name)s %(levelname)s] %(message)s"}},
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "formatter": "simple",
+                "stream": "ext://sys.stdout",
             }
         },
-        'loggers': {
-            'fedora_messaging': {
-                'level': 'INFO',
-                'propagate': False,
-                'handlers': ['console'],
-            },
+        "loggers": {
+            "fedora_messaging": {
+                "level": "INFO",
+                "propagate": False,
+                "handlers": ["console"],
+            }
         },
         # The root logger configuration; this is a catch-all configuration
         # that applies to all log messages not handled by a different logger
-        'root': {
-            'level': 'WARNING',
-            'handlers': ['console'],
-        },
+        "root": {"level": "WARNING", "handlers": ["console"]},
     },
 )
 
 
 class LazyConfig(dict):
     """This class lazy-loads the configuration file."""
+
     loaded = False
 
     def __getitem__(self, *args, **kw):
@@ -339,7 +328,7 @@ class LazyConfig(dict):
         return super(LazyConfig, self).get(*args, **kw)
 
     def pop(self, *args, **kw):
-        raise exceptions.ConfigurationException('Configuration keys cannot be removed!')
+        raise exceptions.ConfigurationException("Configuration keys cannot be removed!")
 
     def copy(self, *args, **kw):
         if not self.loaded:
@@ -354,7 +343,7 @@ class LazyConfig(dict):
     def setup_logging(self):
         if not self.loaded:
             self.load_config()
-        logging.config.dictConfig(self['log_config'])
+        logging.config.dictConfig(self["log_config"])
 
     def _validate(self):
         """
@@ -367,16 +356,18 @@ class LazyConfig(dict):
             if key not in DEFAULTS:
                 raise exceptions.ConfigurationException(
                     'Unknown configuration key "{}"! Valid configuration keys are'
-                    ' {}'.format(key, list(DEFAULTS.keys())))
+                    " {}".format(key, list(DEFAULTS.keys()))
+                )
 
-        for key in ('version', 'information', 'product'):
+        for key in ("version", "information", "product"):
             # Nested dictionaries are not merged so key can be missing
-            if key not in self['client_properties']:
-                self['client_properties'][key] = DEFAULTS['client_properties'][key]
+            if key not in self["client_properties"]:
+                self["client_properties"][key] = DEFAULTS["client_properties"][key]
             # Don't let users override these as they identify this library in AMQP
-            if self['client_properties'][key] != DEFAULTS['client_properties'][key]:
+            if self["client_properties"][key] != DEFAULTS["client_properties"][key]:
                 raise exceptions.ConfigurationException(
-                    '"{}" is a reserved keyword in client_properties'.format(key))
+                    '"{}" is a reserved keyword in client_properties'.format(key)
+                )
 
     def load_config(self, config_path=None):
         """
@@ -391,24 +382,25 @@ class LazyConfig(dict):
         config = DEFAULTS.copy()
 
         if config_path is None:
-            if 'FEDORA_MESSAGING_CONF' in os.environ:
-                config_path = os.environ['FEDORA_MESSAGING_CONF']
+            if "FEDORA_MESSAGING_CONF" in os.environ:
+                config_path = os.environ["FEDORA_MESSAGING_CONF"]
             else:
-                config_path = '/etc/fedora-messaging/config.toml'
+                config_path = "/etc/fedora-messaging/config.toml"
 
         if os.path.exists(config_path):
-            _log.info('Loading configuration from {}'.format(config_path))
+            _log.info("Loading configuration from {}".format(config_path))
             with open(config_path) as fd:
                 try:
                     file_config = pytoml.loads(fd.read())
                     for key in file_config:
                         config[key.lower()] = file_config[key]
                 except pytoml.core.TomlError as e:
-                    msg = 'Failed to parse {}: error at line {}, column {}'.format(
-                            config_path, e.line, e.col)
+                    msg = "Failed to parse {}: error at line {}, column {}".format(
+                        config_path, e.line, e.col
+                    )
                     raise exceptions.ConfigurationException(msg)
         else:
-            _log.info('The configuration file, {}, does not exist.'.format(config_path))
+            _log.info("The configuration file, {}, does not exist.".format(config_path))
 
         self.update(config)
         self._validate()
