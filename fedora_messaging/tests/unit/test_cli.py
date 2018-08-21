@@ -24,9 +24,9 @@ import mock
 
 from fedora_messaging import cli
 
-FIXTURES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../fixtures/'))
-GOOD_CONF = os.path.join(FIXTURES_DIR, 'good_conf.toml')
-BAD_CONF = os.path.join(FIXTURES_DIR, 'bad_conf.toml')
+FIXTURES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../fixtures/"))
+GOOD_CONF = os.path.join(FIXTURES_DIR, "good_conf.toml")
+BAD_CONF = os.path.join(FIXTURES_DIR, "bad_conf.toml")
 
 
 def echo(message):
@@ -47,41 +47,46 @@ class BaseCliTests(unittest.TestCase):
 class ConsumeCliTests(unittest.TestCase):
     """Unit tests for the 'consume' command of the CLI."""
 
-    @mock.patch('fedora_messaging.cli.api.consume')
+    @mock.patch("fedora_messaging.cli.api.consume")
     def test_good_conf(self, mock_consume):
         """Assert providing a configuration file via the CLI works."""
         runner = CliRunner()
-        result = runner.invoke(cli.cli, ['--conf=' + GOOD_CONF, 'consume'])
+        result = runner.invoke(cli.cli, ["--conf=" + GOOD_CONF, "consume"])
         mock_consume.assert_called_with(
-                echo,
-                [{'exchange': 'e', 'queue_name': 'q', 'routing_key': '#'}])
+            echo, [{"exchange": "e", "queue_name": "q", "routing_key": "#"}]
+        )
         self.assertEqual(0, result.exit_code)
 
-    @mock.patch('fedora_messaging.cli.api.consume')
+    @mock.patch("fedora_messaging.cli.api.consume")
     def test_conf_env_support(self, mock_consume):
         """Assert FEDORA_MESSAGING_CONF environment variable is supported."""
         runner = CliRunner()
         result = runner.invoke(
-            cli.cli, ['consume'], env={'FEDORA_MESSAGING_CONF': GOOD_CONF})
+            cli.cli, ["consume"], env={"FEDORA_MESSAGING_CONF": GOOD_CONF}
+        )
         mock_consume.assert_called_with(
-                echo,
-                [{'exchange': 'e', 'queue_name': 'q', 'routing_key': '#'}])
+            echo, [{"exchange": "e", "queue_name": "q", "routing_key": "#"}]
+        )
         self.assertEqual(0, result.exit_code)
 
-    @mock.patch('fedora_messaging.cli.api.consume')
+    @mock.patch("fedora_messaging.cli.api.consume")
     def test_bad_conf(self, mock_consume):
         """Assert a bad configuration file is reported."""
-        expected_err = ('Error: Invalid value: Configuration error: Failed to parse'
-                        ' {}: error at line 1, column 1'.format(BAD_CONF))
+        expected_err = (
+            "Error: Invalid value: Configuration error: Failed to parse"
+            " {}: error at line 1, column 1".format(BAD_CONF)
+        )
         runner = CliRunner()
-        result = runner.invoke(cli.cli, ['--conf=' + BAD_CONF, 'consume'])
+        result = runner.invoke(cli.cli, ["--conf=" + BAD_CONF, "consume"])
         self.assertEqual(2, result.exit_code)
         self.assertIn(expected_err, result.output)
 
-    @mock.patch('fedora_messaging.cli.api.consume')
+    @mock.patch("fedora_messaging.cli.api.consume")
     def test_missing_conf(self, mock_consume):
         """Assert a missing configuration file is reported."""
         runner = CliRunner()
-        result = runner.invoke(cli.cli, ['--conf=thispathdoesnotexist', 'consume'])
+        result = runner.invoke(cli.cli, ["--conf=thispathdoesnotexist", "consume"])
         self.assertEqual(2, result.exit_code)
-        self.assertIn('Error: Invalid value: thispathdoesnotexist is not a file', result.output)
+        self.assertIn(
+            "Error: Invalid value: thispathdoesnotexist is not a file", result.output
+        )

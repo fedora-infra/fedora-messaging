@@ -16,4 +16,4 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 import os
 
-FIXTURES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), 'fixtures/'))
+FIXTURES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "fixtures/"))

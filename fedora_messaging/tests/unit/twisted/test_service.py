@@ -27,28 +27,25 @@ from fedora_messaging.twisted.service import FedoraMessagingService
 
 
 class ServiceTests(unittest.TestCase):
-
     def test_init(self):
         callback = mock.Mock()
         service = FedoraMessagingService(
-            callback,
-            "amqp://example.com:4242",
-            {"binding": "value"}
+            callback, "amqp://example.com:4242", {"binding": "value"}
         )
         self.assertTrue(isinstance(service._parameters, pika.URLParameters))
         self.assertEqual(service._parameters.host, "example.com")
         self.assertEqual(service._parameters.port, 4242)
         self.assertEqual(getattr(service._parameters, "ssl", False), False)
-        self.assertEqual(service._parameters.client_properties,
-                         config.conf["client_properties"])
+        self.assertEqual(
+            service._parameters.client_properties, config.conf["client_properties"]
+        )
         self.assertEqual(service._bindings, {"binding": "value"})
         self.assertTrue(service._on_message is callback)
 
     def test_init_client_props_override(self):
         callback = mock.Mock()
         service = FedoraMessagingService(
-            callback,
-            "amqp://?client_properties={'foo':'bar'}",
+            callback, "amqp://?client_properties={'foo':'bar'}"
         )
         self.assertEqual(service._parameters.client_properties, {"foo": "bar"})
 
@@ -59,7 +56,8 @@ class ServiceTests(unittest.TestCase):
         service.factoryClass = mock.Mock(side_effect=lambda *a: factory)
         service.connect()
         service.factoryClass.assert_called_once_with(
-            service._parameters, service._bindings)
+            service._parameters, service._bindings
+        )
         self.assertEqual(len(service.services), 1)
         serv = service.services[0]
         self.assertTrue(serv.factory is factory)
@@ -94,8 +92,7 @@ class ServiceTests(unittest.TestCase):
 
     def test_stopService_no_factory(self):
         service = FedoraMessagingService(None)
-        ss_path = ("fedora_messaging.twisted.service.service."
-                   "MultiService.stopService")
+        ss_path = "fedora_messaging.twisted.service.service." "MultiService.stopService"
         with mock.patch(ss_path) as stopService:
             service.stopService()
             stopService.assert_not_called()

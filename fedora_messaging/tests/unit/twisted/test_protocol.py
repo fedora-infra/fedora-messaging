@@ -44,18 +44,23 @@ class MockChannel(mock.Mock):
     def __init__(self, *args, **kwargs):
         super(MockChannel, self).__init__(*args, **kwargs)
         deferred_methods = (
-            "basic_qos", "confirm_delivery", "exchange_declare", "queue_bind",
-            "basic_ack", "basic_nack", "basic_publish",
+            "basic_qos",
+            "confirm_delivery",
+            "exchange_declare",
+            "queue_bind",
+            "basic_ack",
+            "basic_nack",
+            "basic_publish",
         )
         for method in deferred_methods:
-            setattr(self, method, mock.Mock(
-                side_effect=lambda *a, **kw: defer.succeed(None)
-            ))
+            setattr(
+                self,
+                method,
+                mock.Mock(side_effect=lambda *a, **kw: defer.succeed(None)),
+            )
         self.queue_declare = mock.Mock(
             side_effect=lambda **kw: defer.succeed(
-                pika.frame.Method(0, pika.spec.Queue.DeclareOk(
-                    queue=kw["queue"]
-                ))
+                pika.frame.Method(0, pika.spec.Queue.DeclareOk(queue=kw["queue"]))
             )
         )
         self.basic_consume = mock.Mock(
@@ -74,14 +79,12 @@ class MockProtocol(FedoraMessagingProtocol):
         self._impl.is_closed = True
         self._channel = MockChannel(name="_channel")
         self.channel = mock.Mock(
-            name="channel",
-            side_effect=lambda: defer.succeed(self._channel)
+            name="channel", side_effect=lambda: defer.succeed(self._channel)
         )
         self._running = False
 
 
 class ProtocolTests(unittest.TestCase):
-
     def setUp(self):
         self.protocol = MockProtocol(None)
         self.factory = mock.Mock()
@@ -97,6 +100,7 @@ class ProtocolTests(unittest.TestCase):
             )
             if _pika_version >= pkg_resources.parse_version("1.0.0b1"):
                 self.protocol._channel.confirm_delivery.assert_called()
+
         d = self.protocol.ready
         d.addCallback(_check)
 
@@ -114,7 +118,8 @@ class ProtocolTests(unittest.TestCase):
                 "exchange": "testexchange1",
                 "queue_name": "testqueue1",
                 "routing_key": "#",
-            }, {
+            },
+            {
                 "exchange": "testexchange2",
                 "queue_name": "testqueue2",
                 "queue_auto_delete": True,
@@ -124,8 +129,7 @@ class ProtocolTests(unittest.TestCase):
                 "exchange": "testexchange3",
                 "queue_name": "testqueue3",
                 "routing_key": "#",
-                "queue_arguments": {
-                },
+                "queue_arguments": {},
             },
         ]
         callback = mock.Mock()
@@ -133,60 +137,100 @@ class ProtocolTests(unittest.TestCase):
 
         def _check(_):
             self.assertTrue(self.protocol._message_callback is callback)
-            self.assertEqual(self.protocol._queues, set([
-                "testqueue1", "testqueue2", "testqueue3",
-            ]))
+            self.assertEqual(
+                self.protocol._queues, set(["testqueue1", "testqueue2", "testqueue3"])
+            )
             self.assertEqual(
                 self.protocol._channel.exchange_declare.call_args_list,
                 [
-                    ((), dict(
-                        exchange='testexchange1', exchange_type='topic',
-                        durable=True,
-                    )),
-                    ((), dict(
-                        exchange='testexchange2', exchange_type='topic',
-                        durable=True,
-                    )),
-                    ((), dict(
-                        exchange='testexchange3', exchange_type='topic',
-                        durable=True,
-                    )),
-                ]
+                    (
+                        (),
+                        dict(
+                            exchange="testexchange1",
+                            exchange_type="topic",
+                            durable=True,
+                        ),
+                    ),
+                    (
+                        (),
+                        dict(
+                            exchange="testexchange2",
+                            exchange_type="topic",
+                            durable=True,
+                        ),
+                    ),
+                    (
+                        (),
+                        dict(
+                            exchange="testexchange3",
+                            exchange_type="topic",
+                            durable=True,
+                        ),
+                    ),
+                ],
             )
             self.assertEqual(
                 self.protocol._channel.queue_declare.call_args_list,
                 [
-                    ((), dict(
-                        queue='testqueue1', arguments=None, auto_delete=False,
-                        durable=True,
-                    )),
-                    ((), dict(
-                        queue='testqueue2', arguments=None, auto_delete=True,
-                        durable=True,
-                    )),
-                    ((), dict(
-                        queue='testqueue3', arguments={}, auto_delete=False,
-                        durable=True,
-                    )),
-                ]
+                    (
+                        (),
+                        dict(
+                            queue="testqueue1",
+                            arguments=None,
+                            auto_delete=False,
+                            durable=True,
+                        ),
+                    ),
+                    (
+                        (),
+                        dict(
+                            queue="testqueue2",
+                            arguments=None,
+                            auto_delete=True,
+                            durable=True,
+                        ),
+                    ),
+                    (
+                        (),
+                        dict(
+                            queue="testqueue3",
+                            arguments={},
+                            auto_delete=False,
+                            durable=True,
+                        ),
+                    ),
+                ],
             )
             self.assertEqual(
                 self.protocol._channel.queue_bind.call_args_list,
                 [
-                    ((), dict(
-                        exchange='testexchange1', queue='testqueue1',
-                        routing_key='#',
-                    )),
-                    ((), dict(
-                        exchange='testexchange2', queue='testqueue2',
-                        routing_key='testrk',
-                    )),
-                    ((), dict(
-                        exchange='testexchange3', queue='testqueue3',
-                        routing_key='#',
-                    )),
-                ]
+                    (
+                        (),
+                        dict(
+                            exchange="testexchange1",
+                            queue="testqueue1",
+                            routing_key="#",
+                        ),
+                    ),
+                    (
+                        (),
+                        dict(
+                            exchange="testexchange2",
+                            queue="testqueue2",
+                            routing_key="testrk",
+                        ),
+                    ),
+                    (
+                        (),
+                        dict(
+                            exchange="testexchange3",
+                            queue="testqueue3",
+                            routing_key="#",
+                        ),
+                    ),
+                ],
             )
+
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
 
@@ -202,6 +246,7 @@ class ProtocolTests(unittest.TestCase):
             self.protocol._channel.exchange_declare.assert_not_called()
             self.protocol._channel.queue_declare.assert_not_called()
             self.protocol._channel.queue_bind.assert_not_called()
+
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
 
@@ -223,15 +268,14 @@ class ProtocolTests(unittest.TestCase):
             self.assertEqual(props.content_encoding, "utf-8")
             self.assertEqual(props.content_type, "application/json")
             self.assertEqual(props.delivery_mode, 2)
+
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
 
     def test_resumeProducing(self):
         # Check the resumeProducing method.
         self.protocol._running = False
-        self.protocol._queues = set([
-            "testqueue1", "testqueue2", "testqueue3",
-        ])
+        self.protocol._queues = set(["testqueue1", "testqueue2", "testqueue3"])
         self.protocol._read = mock.Mock(side_effect=lambda _: defer.succeed(None))
         d = self.protocol.resumeProducing()
 
@@ -239,11 +283,12 @@ class ProtocolTests(unittest.TestCase):
             self.assertTrue(self.protocol._running)
             self.assertEqual(self.protocol._channel.basic_consume.call_count, 3)
             called_queues = [
-                kw["queue"] for arg, kw in
-                self.protocol._channel.basic_consume.call_args_list
+                kw["queue"]
+                for arg, kw in self.protocol._channel.basic_consume.call_args_list
             ]
             self.assertEqual(set(called_queues), self.protocol._queues)
             self.assertEqual(self.protocol._read.call_count, 3)
+
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
 
@@ -257,10 +302,10 @@ class ProtocolTests(unittest.TestCase):
             self.assertFalse(self.protocol._running)
             self.assertEqual(self.protocol._channel.basic_cancel.call_count, 2)
             called_cts = [
-                arg[0] for arg, kw in
-                self.protocol._channel.basic_cancel.call_args_list
+                arg[0] for arg, kw in self.protocol._channel.basic_cancel.call_args_list
             ]
             self.assertEqual(called_cts, ["ct1", "ct2"])
+
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
 
@@ -273,6 +318,7 @@ class ProtocolTests(unittest.TestCase):
 
         def _check(_):
             self.protocol._channel.basic_cancel.assert_not_called()
+
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
 
@@ -295,6 +341,7 @@ class ProtocolTests(unittest.TestCase):
             self.assertFalse(self.protocol._running)
             self.protocol.close.assert_called()
             self.assertIsNone(self.protocol._channel)
+
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
 
@@ -307,6 +354,7 @@ class ProtocolTests(unittest.TestCase):
 
         def _check(_):
             self.protocol.close.assert_not_called()
+
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
 
@@ -329,6 +377,7 @@ class ProtocolReadTests(unittest.TestCase):
 
         def _check(_):
             self.queue.get.assert_not_called()
+
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
 
@@ -348,8 +397,9 @@ class ProtocolReadTests(unittest.TestCase):
                     (("df1", "prop1", "body1"), {}),
                     (("df2", "prop2", "body2"), {}),
                     (("df3", "prop3", "body3"), {}),
-                ]
+                ],
             )
+
         d = self.protocol._read(self.queue)
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
@@ -364,6 +414,7 @@ class ProtocolReadTests(unittest.TestCase):
 
         def _check(_):
             self.protocol._on_message.assert_not_called()
+
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
 
@@ -386,6 +437,7 @@ class ProtocolReadTests(unittest.TestCase):
 
         def _check(_):
             self.protocol._on_message.assert_not_called()
+
         d = defer.DeferredList(deferreds)
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
@@ -401,15 +453,10 @@ class ProtocolOnMessageTests(unittest.TestCase):
 
     def _call_on_message(self, topic, headers, body):
         """Prepare arguments for the _on_message() method and call it."""
-        full_headers = {
-            "fedora_messaging_schema": "fedora_messaging.message:Message",
-        }
+        full_headers = {"fedora_messaging_schema": "fedora_messaging.message:Message"}
         full_headers.update(headers)
         return self.protocol._on_message(
-            pika.spec.Basic.Deliver(
-                routing_key=topic,
-                delivery_tag="delivery_tag",
-            ),
+            pika.spec.Basic.Deliver(routing_key=topic, delivery_tag="delivery_tag"),
             pika.spec.BasicProperties(headers=full_headers),
             json.dumps(body).encode("utf-8"),
         )
@@ -421,7 +468,9 @@ class ProtocolOnMessageTests(unittest.TestCase):
         def _check(_):
             self.protocol._message_callback.assert_called()
             self.protocol._channel.basic_ack.assert_called_with(
-                delivery_tag="delivery_tag")
+                delivery_tag="delivery_tag"
+            )
+
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
 
@@ -432,7 +481,9 @@ class ProtocolOnMessageTests(unittest.TestCase):
         def _check(_):
             self.protocol._message_callback.assert_not_called()
             self.protocol._channel.basic_nack.assert_called_with(
-                delivery_tag="delivery_tag", requeue=False)
+                delivery_tag="delivery_tag", requeue=False
+            )
+
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
 
@@ -444,7 +495,9 @@ class ProtocolOnMessageTests(unittest.TestCase):
         def _check(_):
             self.protocol._message_callback.assert_called()
             self.protocol._channel.basic_nack.assert_called_with(
-                delivery_tag="delivery_tag", requeue=True)
+                delivery_tag="delivery_tag", requeue=True
+            )
+
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
 
@@ -456,7 +509,9 @@ class ProtocolOnMessageTests(unittest.TestCase):
         def _check(_):
             self.protocol._message_callback.assert_called()
             self.protocol._channel.basic_nack.assert_called_with(
-                delivery_tag="delivery_tag", requeue=False)
+                delivery_tag="delivery_tag", requeue=False
+            )
+
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
 
@@ -470,11 +525,11 @@ class ProtocolOnMessageTests(unittest.TestCase):
 
         def _check(_):
             self.protocol._message_callback.assert_called()
-            channel.basic_ack.assert_called_with(
-                delivery_tag="delivery_tag")
+            channel.basic_ack.assert_called_with(delivery_tag="delivery_tag")
             self.assertFalse(self.protocol._running)
             self.protocol.close.assert_called()
             self.assertIsNone(self.protocol._channel)
+
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
 
@@ -489,9 +544,11 @@ class ProtocolOnMessageTests(unittest.TestCase):
         def _check(_):
             self.protocol._message_callback.assert_called()
             channel.basic_nack.assert_called_with(
-                delivery_tag=0, multiple=True, requeue=True)
+                delivery_tag=0, multiple=True, requeue=True
+            )
             self.assertFalse(self.protocol._running)
             self.protocol.close.assert_called()
             self.assertIsNone(self.protocol._channel)
+
         d.addCallback(_check)
         return pytest_twisted.blockon(d)

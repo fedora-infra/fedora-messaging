@@ -39,7 +39,7 @@ from .factory import FedoraMessagingFactory
 class FedoraMessagingService(service.MultiService):
     """A Twisted service to connect to the Fedora Messaging broker."""
 
-    name = 'fedora-messaging'
+    name = "fedora-messaging"
     factoryClass = FedoraMessagingFactory
 
     def __init__(self, on_message, amqp_url=None, bindings=None):
@@ -55,13 +55,12 @@ class FedoraMessagingService(service.MultiService):
                 configuration documentation for details.
         """
         service.MultiService.__init__(self)
-        amqp_url = amqp_url or config.conf['amqp_url']
+        amqp_url = amqp_url or config.conf["amqp_url"]
         self._parameters = pika.URLParameters(amqp_url)
-        if amqp_url.startswith('amqps'):
+        if amqp_url.startswith("amqps"):
             _configure_tls_parameters(self._parameters)
         if self._parameters.client_properties is None:
-            self._parameters.client_properties = \
-                config.conf['client_properties']
+            self._parameters.client_properties = config.conf["client_properties"]
         self._bindings = bindings or config.conf["bindings"]
         self._on_message = on_message
 
@@ -94,13 +93,11 @@ class FedoraMessagingService(service.MultiService):
             )
         else:
             serv = TCPClient(
-                host=self._parameters.host,
-                port=self._parameters.port,
-                factory=factory,
+                host=self._parameters.host, port=self._parameters.port, factory=factory
             )
         serv.factory = factory
-        name = '{}{}:{}'.format(
-            'ssl:' if self._parameters.ssl_options else '',
+        name = "{}{}:{}".format(
+            "ssl:" if self._parameters.ssl_options else "",
             self._parameters.host,
             self._parameters.port,
         )

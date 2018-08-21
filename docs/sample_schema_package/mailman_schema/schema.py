@@ -29,8 +29,7 @@ class BaseMessage(message.Message):
 
     def __str__(self):
         """Return a complete human-readable representation of the message."""
-        return 'Subject: {subj}\n{body}\n'.format(
-            subj=self.subject, body=self.body)
+        return "Subject: {subj}\n{body}\n".format(subj=self.subject, body=self.body)
 
     @property
     def summary(self):
@@ -54,13 +53,13 @@ class BaseMessage(message.Message):
         Returns:
             str or None: A relevant URL.
         """
-        base_url = 'https://lists.fedoraproject.org/archives'
+        base_url = "https://lists.fedoraproject.org/archives"
         archived_at = self._get_archived_at()
-        if archived_at and archived_at.startswith('<'):
+        if archived_at and archived_at.startswith("<"):
             archived_at = archived_at[1:]
-        if archived_at and archived_at.endswith('>'):
+        if archived_at and archived_at.endswith(">"):
             archived_at = archived_at[:-1]
-        if archived_at and archived_at.startswith('http'):
+        if archived_at and archived_at.startswith("http"):
             return archived_at
         elif archived_at:
             return base_url + archived_at
@@ -88,63 +87,64 @@ class MessageV1(BaseMessage):
     A sub-class of a Fedora message that defines a message schema for messages
     published by Mailman when it receives mail to send out.
     """
+
     body_schema = {
-        'id': 'http://fedoraproject.org/message-schema/mailman#',
-        '$schema': 'http://json-schema.org/draft-04/schema#',
-        'description': 'Schema for message sent to mailman',
-        'type': 'object',
-        'properties': {
-            'mlist': {
-                'type': 'object',
-                'properties': {
-                    'list_name': {
-                        'type': 'string',
-                        'description': 'The name of the mailing list',
-                    },
-                }
-            },
-            'msg': {
-                'description': 'An object representing the email',
-                'type': 'object',
-                'properties': {
-                    'delivered-to': {'type': 'string'},
-                    'from': {'type': 'string'},
-                    'cc': {'type': 'string'},
-                    'to': {'type': 'string'},
-                    'x-mailman-rule-hits': {'type': 'string'},
-                    'x-mailman-rule-misses': {'type': 'string'},
-                    'x-message-id-hash': {'type': 'string'},
-                    'references': {'type': 'string'},
-                    'in-reply-to': {'type': 'string'},
-                    'message-id': {'type': 'string'},
-                    'archived-at': {'type': 'string'},
-                    'subject': {'type': 'string'},
-                    'body': {'type': 'string'},
+        "id": "http://fedoraproject.org/message-schema/mailman#",
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "description": "Schema for message sent to mailman",
+        "type": "object",
+        "properties": {
+            "mlist": {
+                "type": "object",
+                "properties": {
+                    "list_name": {
+                        "type": "string",
+                        "description": "The name of the mailing list",
+                    }
                 },
-                'required': ['from', 'to', 'subject', 'body'],
+            },
+            "msg": {
+                "description": "An object representing the email",
+                "type": "object",
+                "properties": {
+                    "delivered-to": {"type": "string"},
+                    "from": {"type": "string"},
+                    "cc": {"type": "string"},
+                    "to": {"type": "string"},
+                    "x-mailman-rule-hits": {"type": "string"},
+                    "x-mailman-rule-misses": {"type": "string"},
+                    "x-message-id-hash": {"type": "string"},
+                    "references": {"type": "string"},
+                    "in-reply-to": {"type": "string"},
+                    "message-id": {"type": "string"},
+                    "archived-at": {"type": "string"},
+                    "subject": {"type": "string"},
+                    "body": {"type": "string"},
+                },
+                "required": ["from", "to", "subject", "body"],
             },
         },
-        'required': ['mlist', 'msg'],
+        "required": ["mlist", "msg"],
     }
 
     @property
     def subject(self):
         """The email's subject."""
-        return self._body['msg']['subject']
+        return self._body["msg"]["subject"]
 
     @property
     def body(self):
         """The email message body."""
-        return self._body['msg']['body']
+        return self._body["msg"]["body"]
 
     @property
     def agent_avatar(self):
         """An URL to the avatar of the user who caused the action."""
-        from_header = self._body['msg']['from']
+        from_header = self._body["msg"]["from"]
         return get_avatar(from_header)
 
     def _get_archived_at(self):
-        return self._body['msg']['archived-at']
+        return self._body["msg"]["archived-at"]
 
 
 class MessageV2(BaseMessage):
@@ -155,47 +155,47 @@ class MessageV2(BaseMessage):
     """
 
     body_schema = {
-        'id': 'http://fedoraproject.org/message-schema/mailman#',
-        '$schema': 'http://json-schema.org/draft-04/schema#',
-        'description': 'Schema for message sent to mailman',
-        'type': 'object',
-        'required': ['mailing_list', 'from', 'to', 'subject', 'body'],
-        'properties': {
-            'mailing_list': {
-                    'type': 'string',
-                    'description': 'The name of the mailing list',
+        "id": "http://fedoraproject.org/message-schema/mailman#",
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "description": "Schema for message sent to mailman",
+        "type": "object",
+        "required": ["mailing_list", "from", "to", "subject", "body"],
+        "properties": {
+            "mailing_list": {
+                "type": "string",
+                "description": "The name of the mailing list",
             },
-            'delivered-to': {'type': 'string'},
-            'from': {'type': 'string'},
-            'cc': {'type': 'string'},
-            'to': {'type': 'string'},
-            'x-mailman-rule-hits': {'type': 'string'},
-            'x-mailman-rule-misses': {'type': 'string'},
-            'x-message-id-hash': {'type': 'string'},
-            'references': {'type': 'string'},
-            'in-reply-to': {'type': 'string'},
-            'message-id': {'type': 'string'},
-            'archived-at': {'type': 'string'},
-            'subject': {'type': 'string'},
-            'body': {'type': 'string'},
+            "delivered-to": {"type": "string"},
+            "from": {"type": "string"},
+            "cc": {"type": "string"},
+            "to": {"type": "string"},
+            "x-mailman-rule-hits": {"type": "string"},
+            "x-mailman-rule-misses": {"type": "string"},
+            "x-message-id-hash": {"type": "string"},
+            "references": {"type": "string"},
+            "in-reply-to": {"type": "string"},
+            "message-id": {"type": "string"},
+            "archived-at": {"type": "string"},
+            "subject": {"type": "string"},
+            "body": {"type": "string"},
         },
     }
 
     @property
     def subject(self):
         """The email's subject."""
-        return self._body['subject']
+        return self._body["subject"]
 
     @property
     def body(self):
         """The email message body."""
-        return self._body['body']
+        return self._body["body"]
 
     @property
     def agent_avatar(self):
         """An URL to the avatar of the user who caused the action."""
-        from_header = self._body['from']
+        from_header = self._body["from"]
         return get_avatar(from_header)
 
     def _get_archived_at(self):
-        return self._body['archived-at']
+        return self._body["archived-at"]
