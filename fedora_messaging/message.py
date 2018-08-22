@@ -229,7 +229,7 @@ class Message(object):
         return self._properties.headers
 
     @_headers.setter
-    def _headers_setter(self, value):
+    def _headers(self, value):
         self._properties.headers = value
 
     @property
@@ -237,7 +237,7 @@ class Message(object):
         return self._properties.message_id
 
     @id.setter
-    def id_setter(self, value):
+    def id(self, value):
         self._properties.message_id = value
 
     @property
