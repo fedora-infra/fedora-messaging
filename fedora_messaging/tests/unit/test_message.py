@@ -35,7 +35,9 @@ class MessageTests(unittest.TestCase):
     def test_str(self):
         """Assert calling str on a message produces a human-readable result."""
         msg = message.Message(topic="test.topic", body={"my": "key"})
-        expected_headers = json.dumps(msg._headers, sort_keys=True, indent=4)
+        expected_headers = json.dumps(
+            msg._headers, sort_keys=True, indent=4, separators=(",", ": ")
+        )
         expected = (
             "Id: {}\nTopic: test.topic\n"
             "Headers: {}"

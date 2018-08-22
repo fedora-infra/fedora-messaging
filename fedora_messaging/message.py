@@ -325,8 +325,10 @@ class Message(object):
         return "Id: {i}\nTopic: {t}\nHeaders: {h}\nBody: {b}".format(
             i=self.id,
             t=self.topic,
-            h=json.dumps(self._headers, sort_keys=True, indent=4),
-            b=json.dumps(self._body, sort_keys=True, indent=4),
+            h=json.dumps(
+                self._headers, sort_keys=True, indent=4, separators=(",", ": ")
+            ),
+            b=json.dumps(self._body, sort_keys=True, indent=4, separators=(",", ": ")),
         )
 
     @property
