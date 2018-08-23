@@ -26,6 +26,7 @@ import logging
 import logging.config
 import os
 import sys
+import errno
 
 from twisted.python import log as legacy_twisted_log
 from twisted.internet import reactor, error
@@ -33,6 +34,7 @@ import click
 import pkg_resources
 
 from . import config, api, exceptions
+from .message import loads
 
 _log = logging.getLogger(__name__)
 
@@ -72,6 +74,10 @@ _exchange_help = (
     "The name of the exchange to bind the queue to. Can contain ASCII letters, "
     "digits, hyphen, underscore, period, or colon. If one is not specified, the "
     "default is the ``amq.topic`` exchange."
+)
+_publish_exchange_help = (
+    "The name of the exchange to publish to. Can contain ASCII letters, "
+    "digits, hyphen, underscore, period, or colon."
 )
 
 
@@ -344,3 +350,31 @@ def _consume_callback(consumers):
                     pass
 
         consumer.result.addCallbacks(callback, errback)
+
+
+@cli.command()
+@click.option("--exchange", help=_publish_exchange_help)
+@click.argument("file", type=click.File("r"))
+def publish(exchange, file):
+    """Publish messages to an AMQP exchange from a file."""
+    for msgs_json_str in file:
+        try:
+            messages = loads(msgs_json_str)
+        except exceptions.ValidationError as e:
+            raise click.BadArgumentUsage(
+                "Unable to validate message: {}".format(str(e))
+            )
+
+        for msg in messages:
+            click.echo("Publishing message with topic {}".format(msg.topic))
+            try:
+                api.publish(msg, exchange)
+            except exceptions.PublishReturned as e:
+                click.echo("Unable to publish message: {}".format(str(e)))
+                sys.exit(errno.EREMOTEIO)
+            except exceptions.PublishTimeout as e:
+                click.echo("Unable to connect to the message broker: {}".format(str(e)))
+                sys.exit(errno.ECONNREFUSED)
+            except exceptions.PublishException as e:
+                click.echo("A general publish exception occurred: {}".format(str(e)))
+                sys.exit(1)

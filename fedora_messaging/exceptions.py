@@ -81,6 +81,9 @@ class PublishException(BaseException):
         super(PublishException, self).__init__(**kwargs)
         self.reason = reason
 
+    def __str__(self):
+        return str(self.reason)
+
 
 class PublishReturned(PublishException):
     """
