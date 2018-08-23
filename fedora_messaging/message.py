@@ -29,6 +29,7 @@ import uuid
 import jsonschema
 import pika
 import pkg_resources
+import pytz
 
 from .exceptions import ValidationError
 
@@ -206,7 +207,7 @@ class Message(object):
         # Consumers use this to determine what schema to use and if they're out
         # of date.
         headers["fedora_messaging_schema"] = _schema_name(self.__class__)
-        now = datetime.datetime.now().replace(microsecond=0)
+        now = datetime.datetime.utcnow().replace(microsecond=0, tzinfo=pytz.utc)
         headers["sent-at"] = now.isoformat()
         # message_id = "{}.{}".format(now.year, uuid.uuid4())
         message_id = str(uuid.uuid4())
