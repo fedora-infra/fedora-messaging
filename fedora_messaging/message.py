@@ -29,6 +29,7 @@ import uuid
 import jsonschema
 import pika
 import pkg_resources
+import pytz
 
 from .exceptions import ValidationError
 
@@ -206,7 +207,7 @@ class Message(object):
         # Consumers use this to determine what schema to use and if they're out
         # of date.
         headers["fedora_messaging_schema"] = _schema_name(self.__class__)
-        now = datetime.datetime.now().replace(microsecond=0)
+        now = datetime.datetime.utcnow().replace(microsecond=0, tzinfo=pytz.utc)
         headers["sent-at"] = now.isoformat()
         # message_id = "{}.{}".format(now.year, uuid.uuid4())
         message_id = str(uuid.uuid4())
@@ -229,7 +230,7 @@ class Message(object):
         return self._properties.headers
 
     @_headers.setter
-    def _headers_setter(self, value):
+    def _headers(self, value):
         self._properties.headers = value
 
     @property
@@ -237,7 +238,7 @@ class Message(object):
         return self._properties.message_id
 
     @id.setter
-    def id_setter(self, value):
+    def id(self, value):
         self._properties.message_id = value
 
     @property
@@ -325,8 +326,10 @@ class Message(object):
         return "Id: {i}\nTopic: {t}\nHeaders: {h}\nBody: {b}".format(
             i=self.id,
             t=self.topic,
-            h=json.dumps(self._headers, sort_keys=True, indent=4),
-            b=json.dumps(self._body, sort_keys=True, indent=4),
+            h=json.dumps(
+                self._headers, sort_keys=True, indent=4, separators=(",", ": ")
+            ),
+            b=json.dumps(self._body, sort_keys=True, indent=4, separators=(",", ": ")),
         )
 
     @property

@@ -15,6 +15,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+import datetime
 import json
 import unittest
 
@@ -35,7 +36,9 @@ class MessageTests(unittest.TestCase):
     def test_str(self):
         """Assert calling str on a message produces a human-readable result."""
         msg = message.Message(topic="test.topic", body={"my": "key"})
-        expected_headers = json.dumps(msg._headers, sort_keys=True, indent=4)
+        expected_headers = json.dumps(
+            msg._headers, sort_keys=True, indent=4, separators=(",", ": ")
+        )
         expected = (
             "Id: {}\nTopic: test.topic\n"
             "Headers: {}"
@@ -95,6 +98,16 @@ class MessageTests(unittest.TestCase):
             msg._properties.headers["fedora_messaging_schema"],
             "fedora_messaging.message:Message",
         )
+
+    def test_sent_at(self):
+        """Assert a timestamp is inserted and contains explicit timezone information."""
+        mock_datetime = mock.Mock()
+        mock_datetime.utcnow.return_value = datetime.datetime(1970, 1, 1, 0, 0, 0)
+
+        with mock.patch("datetime.datetime", mock_datetime):
+            msg = message.Message()
+
+        self.assertEqual("1970-01-01T00:00:00+00:00", msg._headers["sent-at"])
 
     def test_properties(self):
         properties = object()
