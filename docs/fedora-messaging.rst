@@ -33,13 +33,18 @@ Options
 Commands
 ========
 
-There is a single sub-command, ``consume``, described in detail in its ow
-section below.
+There are two sub-commands, ``consume`` and ``publish``, described in detail in
+their own sections below.
 
 ``fedora-messaging consume [OPTIONS]``
 
     Starts a consumer process with a user-provided callback function to execute
     when a message arrives.
+
+``fedora-messaging publish [OPTIONS]``
+
+    Loads serialized messages from stdin and publishes them to the specified
+    exchange.
 
 
 consume
@@ -96,6 +101,15 @@ configuration file and no options on the command line.
 
     Setting this option is equivalent to setting the ``exchange`` setting
     in *all* ``bindings`` entries in the configuration file.
+
+
+publish
+-------
+
+``--exchange``
+
+    The name of the exchange to publish to. Can contain ASCII letters,
+    digits, hyphen, underscore, period, or colon.
 
 
 Exit codes

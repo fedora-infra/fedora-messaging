@@ -19,13 +19,14 @@ from __future__ import absolute_import
 
 import os
 import unittest
+import errno
 
 from click.testing import CliRunner
 from twisted.internet import error
 from twisted.python import failure
 import mock
 
-from fedora_messaging import cli, config, exceptions
+from fedora_messaging import cli, config, exceptions, message
 from fedora_messaging.tests import FIXTURES_DIR
 from fedora_messaging.twisted import consumer
 
@@ -444,3 +445,137 @@ class ConsumeErrbackTests(unittest.TestCase):
         cli._consume_errback(f)
 
         self.assertEqual(11, cli._exit_code)
+
+
+class PublishCliTests(unittest.TestCase):
+    """Unit tests for the 'publish' command of the CLI."""
+
+    def setUp(self):
+        self.runner = CliRunner()
+
+    @mock.patch("fedora_messaging.cli.api.publish")
+    def test_correct_msg_in_stdin(self, mock_publish):
+        """Assert providing correct message json via stdin works."""
+        cli_options = {"exchange": "test_pe"}
+        serialized_msg = (
+            '{"body": {"test_key1": "test_value1"}, "headers": {"fedora_messaging_'
+            'schema": "base.message", "fedora_messaging_severity": 20, "sent-at": "2018-11-18T10'
+            ':11:41+00:00"}, "id": "273ed91d-b8b5-487a-9576-95b9fbdf3eec", "queue": "test_queue"'
+            ', "topic": "test_topic"}'
+        )
+        result = self.runner.invoke(
+            cli.cli,
+            ["--conf=" + GOOD_CONF, "publish", "--exchange=" + cli_options["exchange"]],
+            input=serialized_msg,
+        )
+        self.assertIn("Sending message with topic test_topic", result.output)
+        mock_publish.assert_called_once()
+
+        sent_msg = mock_publish.call_args_list[0][0][0]
+
+        # Prepare expected message
+        expected_msg = message.Message(
+            body={"test_key1": "test_value1"}, topic="test_topic", severity=message.INFO
+        )
+
+        self.assertEqual(sent_msg.queue, "test_queue")
+        self.assertEqual(expected_msg, sent_msg)
+        self.assertEqual(mock_publish.call_args_list[0][0][1], cli_options["exchange"])
+        self.assertEqual(0, result.exit_code)
+
+    @mock.patch("fedora_messaging.cli.api.publish")
+    def test_file_with_corrupted_json(self, mock_publish):
+        """Assert providing corrupted message json via stdin works."""
+        cli_options = {"exchange": "test_pe"}
+        serialized_msg = "["
+        result = self.runner.invoke(
+            cli.cli,
+            ["--conf=" + GOOD_CONF, "publish", "--exchange=" + cli_options["exchange"]],
+            input=serialized_msg,
+        )
+        self.assertIn("Unable to load serialized message: ", result.output)
+        mock_publish.assert_not_called()
+        self.assertEqual(2, result.exit_code)
+
+    @mock.patch("fedora_messaging.cli.api.publish")
+    def test_file_with_msg_without_id(self, mock_publish):
+        """Assert providing incorrect message json via stdin works."""
+        cli_options = {"exchange": "test_pe"}
+        serialized_msg = ('{"body": {"test_key1": "test_value1"}, "headers": {"fedora_messaging_sc'
+            'hema": "base.message", "fedora_messaging_severity": 20, "sent-at": "2018-11-18T10:11:'
+            '41+00:00"}, "queue": "test_queue", "topic": "test_topic"}'
+        )
+        result = self.runner.invoke(
+            cli.cli,
+            ["--conf=" + GOOD_CONF, "publish", "--exchange=" + cli_options["exchange"]],
+            input=serialized_msg,
+        )
+        self.assertIn("Unable to create message. Missing attribute 'id'", result.output)
+        mock_publish.assert_not_called()
+        self.assertEqual(2, result.exit_code)
+
+    @mock.patch("fedora_messaging.cli.api.publish")
+    def test_file_with_invalid_msg(self, mock_publish):
+        """Assert providing incorrect message json via stdin works."""
+        cli_options = {"exchange": "test_pe"}
+        serialized_msg = ('{"body": [], "headers": {"fedora_messaging_schema": "base.message", "fe'
+            'dora_messaging_severity": 21, "sent-at": "2018-11-18T10:11:41+00:00"}, "id": "273ed91'
+            'd-b8b5-487a-9576-95b9fbdf3eec", "queue": "test_queue", "topic": "test_topic"}'
+        )
+        result = self.runner.invoke(
+            cli.cli,
+            ["--conf=" + GOOD_CONF, "publish", "--exchange=" + cli_options["exchange"]],
+            input=serialized_msg,
+        )
+        self.assertIn(
+            "Unable to validate message: 21 is not one of [10, 20, 30, 40]\n\nFailed validating "
+            "'enum' in schema['properties']['fedora_messaging_severity']:\n    {'enum': [10, 20, "
+            "30, 40], 'type': 'number'}\n\nOn instance['fedora_messaging_severity']:\n    21\n",
+            result.output,
+        )
+        mock_publish.assert_not_called()
+        self.assertEqual(2, result.exit_code)
+
+    @mock.patch("fedora_messaging.cli.api.publish")
+    def test_publish_rejected_message(self, mock_publish):
+        """Assert a rejected message is reported."""
+        cli_options = {"exchange": "test_pe"}
+        error_message = "Message rejected"
+        serialized_msg = (
+            '{"body": {"test_key1": "test_value1"}, "headers": {"fedora_messaging_'
+            'schema": "base.message", "fedora_messaging_severity": 20, "sent-at": "2018-11-18T10'
+            ':11:41+00:00"}, "id": "273ed91d-b8b5-487a-9576-95b9fbdf3eec", "queue": "test_queue"'
+            ', "topic": "test_topic"}'
+        )
+        mock_publish.side_effect = exceptions.PublishReturned(error_message)
+        result = self.runner.invoke(
+            cli.cli,
+            ["--conf=" + GOOD_CONF, "publish", "--exchange=" + cli_options["exchange"]],
+            input=serialized_msg,
+        )
+        self.assertIn("Unable to publish message: " + error_message, result.output)
+        mock_publish.assert_called_once()
+        self.assertEqual(errno.EREMOTEIO, result.exit_code)
+
+    @mock.patch("fedora_messaging.cli.api.publish")
+    def test_publish_connection_failed(self, mock_publish):
+        """Assert a connection problem is reported."""
+        cli_options = {"exchange": "test_pe"}
+        error_message = "Connection failure"
+        mock_publish.side_effect = exceptions.ConnectionException(reason=error_message)
+        serialized_msg = (
+            '{"body": {"test_key1": "test_value1"}, "headers": {"fedora_messaging_'
+            'schema": "base.message", "fedora_messaging_severity": 20, "sent-at": "2018-11-18T10'
+            ':11:41+00:00"}, "id": "273ed91d-b8b5-487a-9576-95b9fbdf3eec", "queue": "test_queue"'
+            ', "topic": "test_topic"}'
+        )
+        result = self.runner.invoke(
+            cli.cli,
+            ["--conf=" + GOOD_CONF, "publish", "--exchange=" + cli_options["exchange"]],
+            input=serialized_msg,
+        )
+        self.assertIn(
+            "Unable to connect to the message broker: " + error_message, result.output
+        )
+        mock_publish.assert_called_once()
+        self.assertEqual(errno.ECONNREFUSED, result.exit_code)

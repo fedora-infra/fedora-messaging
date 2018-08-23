@@ -26,6 +26,7 @@ import logging
 import logging.config
 import os
 import sys
+import errno
 
 from twisted.python import log as legacy_twisted_log
 from twisted.internet import reactor, error
@@ -33,6 +34,7 @@ import click
 import pkg_resources
 
 from . import config, api, exceptions
+from .message import loads
 
 _log = logging.getLogger(__name__)
 
@@ -65,6 +67,10 @@ _exchange_help = (
     "The name of the exchange to bind the queue to. Can contain ASCII letters, "
     "digits, hyphen, underscore, period, or colon. If one is not specified, the "
     "default is the ``amq.topic`` exchange."
+)
+_publish_exchange_help = (
+    "The name of the exchange to publish to. Can contain ASCII letters, "
+    "digits, hyphen, underscore, period, or colon."
 )
 
 
@@ -266,3 +272,37 @@ def _consume_callback(consumers):
                     pass
 
         consumer.result.addCallbacks(callback, errback)
+
+
+@cli.command()
+@click.option("--exchange", help=_publish_exchange_help)
+def publish(exchange):
+    """
+    Send messages from stdin to an AMQP queue.
+    """
+    for line in sys.stdin:
+        try:
+            messages = loads(line)
+        except exceptions.ValidationError as e:
+            raise click.BadArgumentUsage("Unable to validate message: {}".format(str(e)))
+        except KeyError as e:
+            raise click.BadArgumentUsage(
+                "Unable to create message. Missing attribute {}".format(str(e))
+            )
+        except ValueError as e:
+            raise click.BadArgumentUsage(
+                "Unable to load serialized message: {}".format(str(e))
+            )
+
+        for msg in messages:
+            click.echo("Sending message with topic {}".format(msg.topic))
+            try:
+                api.publish(msg, exchange)
+            except exceptions.PublishReturned as e:
+                click.echo("Unable to publish message: {}".format(str(e.reason)))
+                sys.exit(errno.EREMOTEIO)
+            except exceptions.ConnectionException as e:
+                click.echo(
+                    "Unable to connect to the message broker: {}".format(str(e.reason))
+                )
+                sys.exit(errno.ECONNREFUSED)
