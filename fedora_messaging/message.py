@@ -34,6 +34,25 @@ import pytz
 from .exceptions import ValidationError
 
 
+#: Indicates the message is for debugging or is otherwise very low priority. Users
+#: will not be notified unless they've explicitly requested DEBUG level messages.
+DEBUG = 10
+
+#: Indicates the message is informational. End users will not receive notifications
+#: for these messages by default. For example, automated tests passed for their
+#: package.
+INFO = 20
+
+#: Indicates a problem or an otherwise important problem. Users are notified of
+#: these messages when they pertain to packages they are associated with by default.
+#: For example, one or more automated tests failed against their package.
+WARNING = 30
+
+#: Indicates a critically important message that users should act upon as soon as
+#: possible. For example, their package no longer builds.
+ERROR = 40
+
+
 _log = logging.getLogger(__name__)
 
 # Maps regular expressions to message classes
@@ -122,6 +141,17 @@ def get_message(routing_key, properties, body):
         )
         MessageClass = Message
 
+    try:
+        severity = properties.headers["fedora_messaging_severity"]
+    except KeyError:
+        _log.error(
+            "Message (headers=%r, body=%r) arrived without a severity."
+            " A publisher is misbehaving! Defaulting to INFO.",
+            properties.headers,
+            body,
+        )
+        severity = INFO
+
     if properties.content_encoding is None:
         _log.error("Message arrived without a content encoding")
         properties.content_encoding = "utf-8"
@@ -141,7 +171,9 @@ def get_message(routing_key, properties, body):
         _log.error("Failed to load message body %r, %r", body, e)
         raise ValidationError(e)
 
-    message = MessageClass(body=body, topic=routing_key, properties=properties)
+    message = MessageClass(
+        body=body, topic=routing_key, properties=properties, severity=severity
+    )
     try:
         message.validate()
         _log.debug("Successfully validated message %r", message)
@@ -172,6 +204,9 @@ class Message(object):
             :func:`jsonschema.validate` to validate the message headers.
         body_schema (dict): A `JSON schema <http://json-schema.org/>`_ to be used with
             :func:`jsonschema.validate` to validate the message headers.
+        severity (int): An integer that indicates the severity of the message. This is
+            used to determine what messages to notify end users about and should be
+            :data:`DEBUG`, :data:`INFO`, :data:`WARNING`, or :data:`ERROR`.
 
     Args:
         headers (dict): A set of message headers. Consult the headers schema for
@@ -184,11 +219,20 @@ class Message(object):
             provided, they will be generated.
     """
 
+    severity = INFO
     topic = ""
     headers_schema = {
         "$schema": "http://json-schema.org/draft-04/schema#",
         "description": "Schema for message headers",
         "type": "object",
+        "properties": {
+            "fedora_messaging_severity": {
+                "type": "number",
+                "enum": [DEBUG, INFO, WARNING, ERROR],
+            },
+            "fedora_messaging_schema": {"type": "string"},
+            "sent-at": {"type": "string"},
+        },
     }
     body_schema = {
         "$schema": "http://json-schema.org/draft-04/schema#",
@@ -196,11 +240,15 @@ class Message(object):
         "type": "object",
     }
 
-    def __init__(self, body=None, headers=None, topic=None, properties=None):
+    def __init__(
+        self, body=None, headers=None, topic=None, properties=None, severity=None
+    ):
         self._body = body or {}
         if topic:
             self.topic = topic
         headers = headers or {}
+        if severity:
+            self.severity = severity
         self._properties = properties or self._build_properties(headers)
 
     def _build_properties(self, headers):
@@ -209,7 +257,7 @@ class Message(object):
         headers["fedora_messaging_schema"] = _schema_name(self.__class__)
         now = datetime.datetime.utcnow().replace(microsecond=0, tzinfo=pytz.utc)
         headers["sent-at"] = now.isoformat()
-        # message_id = "{}.{}".format(now.year, uuid.uuid4())
+        headers["fedora_messaging_severity"] = self.severity
         message_id = str(uuid.uuid4())
         return pika.BasicProperties(
             content_type="application/json",
@@ -280,6 +328,10 @@ class Message(object):
         """
         Validate the headers and body with the message schema, if any.
 
+        In addition to the user-provided schema, all messages are checked against
+        the base schema which requires certain message headers and the that body
+        be a JSON object.
+
         .. warning:: This method should not be overridden by sub-classes.
 
         Raises:
@@ -288,18 +340,18 @@ class Message(object):
             jsonschema.SchemaError: If either the message header schema or the message body
                 schema are invalid.
         """
-        _log.debug(
-            'Validating message headers "%r" with schema "%r"',
-            self._headers,
-            self.headers_schema,
-        )
-        jsonschema.validate(self._headers, self.headers_schema)
-        _log.debug(
-            'Validating message body "%r" with schema "%r"',
-            self._body,
-            self.body_schema,
-        )
-        jsonschema.validate(self._body, self.body_schema)
+        for schema in (self.headers_schema, Message.headers_schema):
+            _log.debug(
+                'Validating message headers "%r" with schema "%r"',
+                self._headers,
+                schema,
+            )
+            jsonschema.validate(self._headers, schema)
+        for schema in (self.body_schema, Message.body_schema):
+            _log.debug(
+                'Validating message body "%r" with schema "%r"', self._body, schema
+            )
+            jsonschema.validate(self._body, schema)
 
     @property
     def summary(self):

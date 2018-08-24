@@ -46,6 +46,18 @@ Message Schemas
 .. automodule:: fedora_messaging.message
    :members: Message, get_class
 
+Message Severity
+----------------
+
+Each message can have a severity associated with it. The severity is used by
+applications like the notification service to determine what messages to send
+to users. The severity can be set at the class level, or on a message-by-message
+basis. The following are valid severity levels:
+
+.. autodata:: fedora_messaging.message.DEBUG
+.. autodata:: fedora_messaging.message.INFO
+.. autodata:: fedora_messaging.message.WARNING
+.. autodata:: fedora_messaging.message.ERROR
 
 .. _exceptions-api:
 

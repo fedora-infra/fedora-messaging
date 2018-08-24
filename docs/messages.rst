@@ -5,8 +5,8 @@ Messages
 ========
 
 Before you release your application, you should create a subclass of
-:class:`fedora_messaging.message.Message`, define a schema, and implement
-some methods.
+:class:`fedora_messaging.message.Message`, define a schema, define a default
+severity, and implement some methods.
 
 Schema
 ======
@@ -33,9 +33,10 @@ Message schema are defined using `JSON Schema`_.
 Header Schema
 -------------
 
-The default header schema simply declares that the header field must be a JSON
-object. You can leave the schema as-is when you define your own message, or
-refine it.
+The default header schema declares that the header field must be a JSON object
+with several expected keys. You can leave the schema as-is when you define your
+own message, or you can refine it. The base schema will always be enforced in
+addition to your custom schema.
 
 
 .. _body-schema:

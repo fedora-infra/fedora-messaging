@@ -22,11 +22,44 @@ import unittest
 import jsonschema
 import mock
 
-from fedora_messaging import message
+from fedora_messaging import message, exceptions
+
+
+class GetMessageTests(unittest.TestCase):
+    """Tests for the :func:`fedora_messaging.message.get_message` function."""
+
+    def test_missing_severity(self):
+        """Assert the default severity is INFO if it's not in the headers."""
+        msg = message.Message(severity=message.ERROR)
+        del msg._headers["fedora_messaging_severity"]
+
+        recv_msg = message.get_message("", msg._properties, b"{}")
+        self.assertEqual(recv_msg.severity, message.INFO)
+
+    def test_invalid_severity(self):
+        """Assert the invalid severity fails validation."""
+        msg = message.Message()
+        msg._headers["fedora_messaging_severity"] = 42
+
+        self.assertRaises(
+            exceptions.ValidationError, message.get_message, "", msg._properties, b"{}"
+        )
+
+    def test_missing_headers(self):
+        """Assert missing headers results in a default message."""
+        msg = message.Message()
+        msg._headers = None
+        expected_message = message.Message()
+        expected_message.id = msg.id
+
+        received_msg = message.get_message(
+            msg._encoded_routing_key, msg._properties, msg._encoded_body
+        )
+        self.assertIsInstance(received_msg, message.Message)
 
 
 class MessageTests(unittest.TestCase):
-    """Tests for the :mod:`fedora_messaging.message` module."""
+    """Tests for the :class:`fedora_messaging.message.Message` class."""
 
     def test_summary(self):
         """Assert message summaries default to the message topic."""
@@ -98,6 +131,18 @@ class MessageTests(unittest.TestCase):
             msg._properties.headers["fedora_messaging_schema"],
             "fedora_messaging.message:Message",
         )
+
+    def test_severity_default_header_set(self):
+        """Assert the default severity is placed in the header if unspecified."""
+        self.assertEqual(message.Message.severity, message.INFO)
+        msg = message.Message()
+        self.assertEqual(msg._headers["fedora_messaging_severity"], message.INFO)
+
+    def test_severity_custom_header_set(self):
+        """Assert custom severity setting is placed in the header."""
+        self.assertEqual(message.Message.severity, message.INFO)
+        msg = message.Message(severity=message.ERROR)
+        self.assertEqual(msg._headers["fedora_messaging_severity"], message.ERROR)
 
     def test_sent_at(self):
         """Assert a timestamp is inserted and contains explicit timezone information."""
