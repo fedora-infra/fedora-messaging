@@ -425,10 +425,21 @@ class ConsumerSessionMessageTests(unittest.TestCase):
             delivery_tag="testtag", requeue=False
         )
 
-    def test_message_halt(self):
-        self.consumer._consumer_callback.side_effect = HaltConsumer()
+    def test_message_halt_requeue(self):
+        """Assert messages are requeued when the HaltConsumer exception is raised with requeue"""
+        self.consumer._consumer_callback.side_effect = HaltConsumer(requeue=True)
         self.consumer._on_message(self.channel, self.frame, self.properties, b'"body"')
         self.channel.basic_nack.assert_called_with(delivery_tag="testtag", requeue=True)
+        self.assertFalse(self.consumer._running)
+        self.consumer._connection.close.assert_called_once()
+
+    def test_message_halt_no_requeue(self):
+        """Assert messages are not requeued by default with HaltConsumer"""
+        self.consumer._consumer_callback.side_effect = HaltConsumer()
+        self.consumer._on_message(self.channel, self.frame, self.properties, b'"body"')
+        self.channel.basic_nack.assert_called_with(
+            delivery_tag="testtag", requeue=False
+        )
         self.assertFalse(self.consumer._running)
         self.consumer._connection.close.assert_called_once()
 

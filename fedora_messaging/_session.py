@@ -547,8 +547,14 @@ class ConsumerSession(object):
             _log.info("Dropping message id %s", properties.message_id)
             channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=False)
         except HaltConsumer as e:
-            _log.info("Consumer requested halt, returning messages to queue")
-            channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=True)
+            _log.info(
+                "Consumer requested halt on message id %s with requeue=%s",
+                properties.message_id,
+                e.requeue,
+            )
+            channel.basic_nack(
+                delivery_tag=delivery_frame.delivery_tag, requeue=e.requeue
+            )
             self._shutdown()
             if e.exit_code != 0:
                 raise
@@ -556,4 +562,4 @@ class ConsumerSession(object):
             _log.exception("Received unexpected exception from consumer callback")
             channel.basic_nack(delivery_tag=0, multiple=True, requeue=True)
             self._shutdown()
-            raise HaltConsumer(exit_code=1, reason=e)
+            raise HaltConsumer(exit_code=1, reason=e, requeue=True)
