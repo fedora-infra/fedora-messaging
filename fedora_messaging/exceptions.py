@@ -76,12 +76,15 @@ class HaltConsumer(ConsumeException):
 
     Args:
         exit_code (int): The exit code to use when halting.
+        reason (str): A reason for halting, presented to the user.
+        requeue (bool): If true, the message is re-queued for later processing.
     """
 
-    def __init__(self, exit_code=0, reason=None, **kwargs):
+    def __init__(self, exit_code=0, reason=None, requeue=False, **kwargs):
         super(HaltConsumer, self).__init__(**kwargs)
         self.exit_code = exit_code
         self.reason = reason
+        self.requeue = requeue
 
 
 class ValidationError(BaseException):

@@ -90,6 +90,16 @@ timeouts on any blocking calls (less than 30 seconds). If timeouts occur,
 simply raise the :class:`fedora_messaging.exceptions.Nack` and try again later.
 
 
+Halting
+=======
+
+Consumers can signal that they would like to stop consuming messages by raising
+the :class:`fedora_messaging.exceptions.HaltConsumer` exception. When stopping
+the message can either be re-queued for reprocessing at a later time, or marked
+as successfully processed. Consult the API documentation of ``HaltConsumer`` for
+details.
+
+
 Consumer Configuration
 ======================
 
