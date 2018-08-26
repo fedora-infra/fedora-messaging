@@ -122,7 +122,7 @@ def consume(amqp_url, exchange, queue_name, routing_key, callback, app_name):
         raise click.ClickException(
             "Unable to parse the callback path ({}); the "
             'expected format is "my_package.module:'
-            'callable_object"'.format(str(e))
+            'callable_object"'.format(callback_path)
         )
     try:
         module = importlib.import_module(module)
