@@ -48,6 +48,8 @@ def consume(callback, bindings=None):
     Raises:
         fedora_messaging.exceptions.HaltConsumer: If the consumer requests that
             it be stopped.
+        ValueError: If the consumer provide callback that is not a class that
+            implements __call__ and is not a function.
     """
     if isinstance(bindings, dict):
         bindings = [bindings]
