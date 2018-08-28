@@ -73,11 +73,6 @@ consume
     digits, hyphen, underscore, period, or colon. If one is not specified, the
     default is the ``amq.topic`` exchange.
 
-``--amqp-url``
-
-    The AMQP URL to connect to, in the format
-    ``scheme://username:password@host:port/virtual_host?key=value&key=value``.
-    Consult the `pika`_ documentation for the supported query string parameters.
 
 Help
 ====

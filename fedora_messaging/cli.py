@@ -63,11 +63,6 @@ _exchange_help = (
     "digits, hyphen, underscore, period, or colon. If one is not specified, the "
     "default is the ``amq.topic`` exchange."
 )
-_amqp_url_help = (
-    "The AMQP URL to connect to, in the format "
-    "scheme://user:pass@host:port/virtual_host?key=value&key=value. Consult "
-    "the pika documentation for the supported query string parameters."
-)
 
 
 @click.group()
@@ -90,10 +85,8 @@ def cli(conf):
 @click.option("--routing-key", help=_routing_key_help)
 @click.option("--queue-name", help=_queue_name_help)
 @click.option("--exchange", help=_exchange_help)
-@click.option("--amqp-url", help=_amqp_url_help)
-def consume(amqp_url, exchange, queue_name, routing_key, callback, app_name):
+def consume(exchange, queue_name, routing_key, callback, app_name):
     """Consume messages from an AMQP queue using a Python callback."""
-    amqp_url = amqp_url or config.conf["amqp_url"]
     if exchange and queue_name and routing_key:
         bindings = [
             {"exchange": exchange, "queue_name": queue_name, "routing_key": routing_key}

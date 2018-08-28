@@ -91,8 +91,7 @@ class ConsumeCliTests(unittest.TestCase):
         )
 
     @mock.patch.dict(
-        "fedora_messaging.config.conf",
-        {"amqp_url": "a", "bindings": None, "callback": "mod:callable"},
+        "fedora_messaging.config.conf", {"bindings": None, "callback": "mod:callable"}
     )
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.consume")
@@ -124,8 +123,7 @@ class ConsumeCliTests(unittest.TestCase):
         self.assertEqual(0, result.exit_code)
 
     @mock.patch.dict(
-        "fedora_messaging.config.conf",
-        {"amqp_url": "a", "bindings": "b", "callback": "mod:callable"},
+        "fedora_messaging.config.conf", {"bindings": "b", "callback": "mod:callable"}
     )
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.consume")
@@ -139,8 +137,7 @@ class ConsumeCliTests(unittest.TestCase):
         self.assertEqual(0, result.exit_code)
 
     @mock.patch.dict(
-        "fedora_messaging.config.conf",
-        {"amqp_url": "a", "bindings": None, "callback": "mod:callable"},
+        "fedora_messaging.config.conf", {"bindings": None, "callback": "mod:callable"}
     )
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.consume")
@@ -167,8 +164,7 @@ class ConsumeCliTests(unittest.TestCase):
         self.assertEqual(1, result.exit_code)
 
     @mock.patch.dict(
-        "fedora_messaging.config.conf",
-        {"amqp_url": "a", "bindings": None, "callback": "mod:callable"},
+        "fedora_messaging.config.conf", {"bindings": None, "callback": "mod:callable"}
     )
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.consume")
@@ -186,7 +182,7 @@ class ConsumeCliTests(unittest.TestCase):
         )
         self.assertEqual(1, result.exit_code)
 
-    @mock.patch.dict("fedora_messaging.config.conf", {"amqp_url": "a", "bindings": "b"})
+    @mock.patch.dict("fedora_messaging.config.conf", {"bindings": "b"})
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.consume")
     def test_good_cli_callable(self, mock_consume, mock_importlib):
@@ -202,8 +198,7 @@ class ConsumeCliTests(unittest.TestCase):
         self.assertEqual(0, result.exit_code)
 
     @mock.patch.dict(
-        "fedora_messaging.config.conf",
-        {"amqp_url": "a", "bindings": "b", "callback": None},
+        "fedora_messaging.config.conf", {"bindings": "b", "callback": None}
     )
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.consume")
@@ -220,7 +215,7 @@ class ConsumeCliTests(unittest.TestCase):
         )
         self.assertEqual(1, result.exit_code)
 
-    @mock.patch.dict("fedora_messaging.config.conf", {"amqp_url": "a", "bindings": "b"})
+    @mock.patch.dict("fedora_messaging.config.conf", {"bindings": "b"})
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.consume")
     def test_cli_callable_wrong_format(self, mock_consume, mock_importlib):
@@ -241,7 +236,7 @@ class ConsumeCliTests(unittest.TestCase):
         )
         self.assertEqual(1, result.exit_code)
 
-    @mock.patch.dict("fedora_messaging.config.conf", {"amqp_url": "a", "bindings": "b"})
+    @mock.patch.dict("fedora_messaging.config.conf", {"bindings": "b"})
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.consume")
     def test_cli_callable_import_failure(self, mock_consume, mock_importlib):
@@ -261,7 +256,7 @@ class ConsumeCliTests(unittest.TestCase):
         self.assertEqual(1, result.exit_code)
 
     @mock.patch("fedora_messaging.cli.getattr")
-    @mock.patch.dict("fedora_messaging.config.conf", {"amqp_url": "a", "bindings": "b"})
+    @mock.patch.dict("fedora_messaging.config.conf", {"bindings": "b"})
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.consume")
     def test_callable_getattr_failure(self, mock_consume, mock_importlib, mock_getattr):
@@ -285,7 +280,7 @@ class ConsumeCliTests(unittest.TestCase):
         )
         self.assertEqual(1, result.exit_code)
 
-    @mock.patch.dict("fedora_messaging.config.conf", {"amqp_url": "a", "bindings": "b"})
+    @mock.patch.dict("fedora_messaging.config.conf", {"bindings": "b"})
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.consume")
     def test_consume_improper_callback_object(self, mock_consume, mock_importlib):
@@ -305,7 +300,7 @@ class ConsumeCliTests(unittest.TestCase):
         self.assertIn(error_message, result.output)
         self.assertEqual(2, result.exit_code)
 
-    @mock.patch.dict("fedora_messaging.config.conf", {"amqp_url": "a", "bindings": "b"})
+    @mock.patch.dict("fedora_messaging.config.conf", {"bindings": "b"})
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.consume")
     def test_consume_halt_with_exitcode(self, mock_consume, mock_importlib):
@@ -331,7 +326,7 @@ class ConsumeCliTests(unittest.TestCase):
         )
         self.assertEqual(halt_exit_code, result.exit_code)
 
-    @mock.patch.dict("fedora_messaging.config.conf", {"amqp_url": "a", "bindings": "b"})
+    @mock.patch.dict("fedora_messaging.config.conf", {"bindings": "b"})
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.consume")
     def test_consume_halt_without_exitcode(self, mock_consume, mock_importlib):
