@@ -68,19 +68,18 @@ class PublisherSessionTests(unittest.TestCase):
         """Assert a custom URL can be provided to the publisher session."""
         with mock.patch.dict(config.conf, {"tls": self.tls_conf}):
             publisher = _session.PublisherSession(
-                "amqps://username:password@rabbit.example.com/vhost", "test_exchange"
+                "amqps://username:password@rabbit.example.com/vhost"
             )
         self.assertEqual(publisher._parameters.host, "rabbit.example.com")
         self.assertEqual(publisher._parameters.port, 5671)
         self.assertEqual(publisher._parameters.virtual_host, "vhost")
         self.assertIsNotNone(publisher._parameters.ssl_options)
-        self.assertEqual(publisher._exchange, "test_exchange")
 
     def test_plain_auth(self):
         """Assert when there's no key or certfile, plain authentication is used"""
         with mock.patch.dict(config.conf, {"tls": self.tls_conf}):
             publisher = _session.PublisherSession(
-                "amqps://username:password@rabbit.example.com/vhost", "test_exchange"
+                "amqps://username:password@rabbit.example.com/vhost"
             )
         self.assertIsInstance(
             publisher._parameters.credentials, credentials.PlainCredentials
@@ -95,7 +94,7 @@ class PublisherSessionTests(unittest.TestCase):
         }
         with mock.patch.dict(config.conf, {"tls": tls_conf}):
             publisher = _session.PublisherSession(
-                "amqps://username:password@rabbit.example.com/vhost", "test_exchange"
+                "amqps://username:password@rabbit.example.com/vhost"
             )
         self.assertIsInstance(
             publisher._parameters.credentials, credentials.ExternalCredentials
