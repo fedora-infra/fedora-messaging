@@ -117,8 +117,7 @@ def _configure_tls_parameters(parameters):
 class PublisherSession(object):
     """A session with blocking APIs for publishing to an AMQP broker."""
 
-    def __init__(self, amqp_url=None, exchange=None, confirms=True):
-        self._exchange = exchange or config.conf["publish_exchange"]
+    def __init__(self, amqp_url=None, confirms=True):
         amqp_url = amqp_url or config.conf["amqp_url"]
         self._parameters = pika.URLParameters(amqp_url)
         if amqp_url.startswith("amqps"):
