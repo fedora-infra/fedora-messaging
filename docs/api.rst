@@ -46,6 +46,8 @@ Message Schemas
 .. automodule:: fedora_messaging.message
    :members: Message, get_class
 
+.. _message-severity:
+
 Message Severity
 ----------------
 

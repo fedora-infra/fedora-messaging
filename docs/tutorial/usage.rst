@@ -15,10 +15,10 @@ To publish on the Fedora Messaging bus, you just need to use the
 instance of the :py:class:`fedora_messaging.message.Message` class
 that represents the message you want to publish.
 
-A message has a schema, a topic, a body and a set of headers. We'll cover the
-schema later in this tutorial. The headers and the body are Python
-dictionnaries with JSON-serializable values. The topic is a string containing
-elements separated by dots that will be used to route messages.
+A message has a schema, a topic, a severity, a body, and a set of headers.
+We'll cover the schema later in this tutorial. The headers and the body are
+Python dictionaries with JSON-serializable values. The topic is a string
+containing elements separated by dots that will be used to route messages.
 
 Create a publishing script called ``publish.py``::
 
