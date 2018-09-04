@@ -75,6 +75,18 @@ class PublisherSessionTests(unittest.TestCase):
         self.assertEqual(publisher._parameters.virtual_host, "vhost")
         self.assertIsNotNone(publisher._parameters.ssl_options)
 
+    def test_publish_init_custom_url_with_client_params(self):
+        """Assert a custom URL with client props can be provided to the publisher session."""
+        with mock.patch.dict(config.conf, {"tls": self.tls_conf}):
+            publisher = _session.PublisherSession(
+                "amqps://username:password@rabbit.example.com/vhost?client_properties={'k':'v'}"
+            )
+        self.assertEqual(publisher._parameters.host, "rabbit.example.com")
+        self.assertEqual(publisher._parameters.port, 5671)
+        self.assertEqual(publisher._parameters.virtual_host, "vhost")
+        self.assertEqual(publisher._parameters.client_properties, {"k": "v"})
+        self.assertIsNotNone(publisher._parameters.ssl_options)
+
     def test_plain_auth(self):
         """Assert when there's no key or certfile, plain authentication is used"""
         with mock.patch.dict(config.conf, {"tls": self.tls_conf}):
@@ -105,6 +117,28 @@ class PublisherSessionTests(unittest.TestCase):
         self.publisher.publish(self.message)
         self.message.validate.assert_called_once()
         self.publisher._channel.publish.assert_called_once()
+        publish_call = self.publisher._channel.publish.call_args_list[0][1]
+        self.assertEqual(publish_call["exchange"], None)
+        self.assertEqual(publish_call["routing_key"], b"test.topic")
+        self.assertEqual(publish_call["body"], b'"test body"')
+
+    def test_publish_without_delivery_confirmation(self):
+        """Check that the publication without delivery confirmation works properly."""
+        self.publisher._confirms = False
+        self.publisher._connection = None
+        self.publisher._channel = None
+        connection_class_mock = mock.Mock()
+        connection_mock = mock.Mock()
+        channel_mock = mock.Mock()
+        connection_class_mock.return_value = connection_mock
+        connection_mock.channel.return_value = channel_mock
+        with mock.patch(
+            "fedora_messaging._session.pika.BlockingConnection", connection_class_mock
+        ):
+            self.publisher.publish(self.message)
+        self.message.validate.assert_called_once()
+        self.publisher._channel.publish.assert_called_once()
+        self.publisher._channel.confirm_delivery.assert_not_called()
         publish_call = self.publisher._channel.publish.call_args_list[0][1]
         self.assertEqual(publish_call["exchange"], None)
         self.assertEqual(publish_call["routing_key"], b"test.topic")
