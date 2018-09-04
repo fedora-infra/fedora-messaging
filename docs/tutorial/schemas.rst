@@ -126,6 +126,16 @@ Change the ``__str__()`` method to use the expected items from the message body.
 Also edit the ``summary`` property to return something relevant.
 
 
+Severity
+~~~~~~~~
+
+Messages can also have a severity level. This is used by consumers to determine
+the importance of a message to an end user. The possibly severity levels are
+defined in the :ref:`message-severity` API documentation.
+
+You should set a reasonable default for your messages.
+
+
 Testing it
 ----------
 
