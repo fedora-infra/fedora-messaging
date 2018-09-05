@@ -52,6 +52,9 @@ WARNING = 30
 #: possible. For example, their package no longer builds.
 ERROR = 40
 
+#: A tuple of all valid severity levels
+SEVERITIES = (DEBUG, INFO, WARNING, ERROR)
+
 
 _log = logging.getLogger(__name__)
 

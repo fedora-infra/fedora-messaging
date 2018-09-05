@@ -4,7 +4,7 @@ import threading
 
 from . import _session, exceptions, config
 from .signals import pre_publish_signal, publish_signal, publish_failed_signal
-from .message import Message
+from .message import Message, SEVERITIES  # noqa: F401
 
 
 __all__ = (
