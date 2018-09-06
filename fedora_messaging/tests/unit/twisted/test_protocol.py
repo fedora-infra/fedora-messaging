@@ -116,20 +116,24 @@ class ProtocolTests(unittest.TestCase):
         self.factory.bindings = [
             {
                 "exchange": "testexchange1",
+                "exchange_type": "topic",
                 "queue_name": "testqueue1",
                 "routing_key": "#",
             },
             {
                 "exchange": "testexchange2",
+                "exchange_type": "topic",
                 "queue_name": "testqueue2",
                 "queue_auto_delete": True,
                 "routing_key": "testrk",
             },
             {
                 "exchange": "testexchange3",
+                "exchange_type": "headers",
                 "queue_name": "testqueue3",
                 "routing_key": "#",
                 "queue_arguments": {},
+                "binding_arguments": {"x-match": "all"},
             },
         ]
         callback = mock.Mock()
@@ -163,7 +167,7 @@ class ProtocolTests(unittest.TestCase):
                         (),
                         dict(
                             exchange="testexchange3",
-                            exchange_type="topic",
+                            exchange_type="headers",
                             durable=True,
                         ),
                     ),
@@ -210,6 +214,7 @@ class ProtocolTests(unittest.TestCase):
                             exchange="testexchange1",
                             queue="testqueue1",
                             routing_key="#",
+                            arguments=None,
                         ),
                     ),
                     (
@@ -218,6 +223,7 @@ class ProtocolTests(unittest.TestCase):
                             exchange="testexchange2",
                             queue="testqueue2",
                             routing_key="testrk",
+                            arguments=None,
                         ),
                     ),
                     (
@@ -226,6 +232,7 @@ class ProtocolTests(unittest.TestCase):
                             exchange="testexchange3",
                             queue="testqueue3",
                             routing_key="#",
+                            arguments={"x-match": "all"},
                         ),
                     ),
                 ],

@@ -37,23 +37,30 @@ from .factory import FedoraMessagingFactory
 
 
 class FedoraMessagingService(service.MultiService):
-    """A Twisted service to connect to the Fedora Messaging broker."""
+    """
+    A Twisted service to connect to the Fedora Messaging broker.
+
+    Args:
+        on_message (callable|None): Callback that will be passed each
+            incoming messages. If None, no message consuming is setup.
+        amqp_url (str): URL to use for the AMQP server.
+        bindings (list(dict)): A list of dictionaries that define queue
+            bindings to exchanges. This parameter can be used to override the
+            bindings declared in the configuration. See the configuration
+            documentation for details. Each dictionary should contain the
+            following keys: "exchange", "exchange_type", "queue_name",
+            "routing_key", "queue_auto_delete", "queue_arguments", and
+            "binding_arguments" (which are passed to
+            :meth:`pika.channel.Channel.queue_declare` and
+            :meth:`pika.channel.Channel.queue_bind` respectively as the
+            ``arguments`` key.
+    """
 
     name = "fedora-messaging"
     factoryClass = FedoraMessagingFactory
 
     def __init__(self, on_message, amqp_url=None, bindings=None):
-        """Initialize the service.
-
-        Args:
-            on_message (callable|None): Callback that will be passed each
-                incoming messages. If None, no message consuming is setup.
-            amqp_url (str): URL to use for the AMQP server.
-            bindings (list(dict)): A list of dictionaries that define queue
-                bindings to exchanges. This parameter can be used to override
-                the bindings declared in the configuration. See the
-                configuration documentation for details.
-        """
+        """Initialize the service."""
         service.MultiService.__init__(self)
         amqp_url = amqp_url or config.conf["amqp_url"]
         self._parameters = pika.URLParameters(amqp_url)

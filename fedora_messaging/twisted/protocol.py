@@ -109,7 +109,9 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         self._message_callback = message_callback
         for binding in self.factory.bindings:
             yield self._channel.exchange_declare(
-                exchange=binding["exchange"], exchange_type="topic", durable=True
+                exchange=binding["exchange"],
+                exchange_type=binding["exchange_type"],
+                durable=True,
             )
             result = yield self._channel.queue_declare(
                 queue=binding["queue_name"],
@@ -122,6 +124,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
                 queue=queue_name,
                 exchange=binding["exchange"],
                 routing_key=binding["routing_key"],
+                arguments=binding.get("binding_arguments"),
             )
             self._queues.add(queue_name)
         log.msg("AMQP bindings declared", system=self.name, logLevel=logging.DEBUG)
