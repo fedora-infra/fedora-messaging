@@ -77,6 +77,8 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         self._running = False
         self._queues = set()
         self._message_callback = None
+        # Map consumer tags to queue names
+        self._consumers = {}
         self.factory = None
 
     @defer.inlineCallbacks
@@ -192,6 +194,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         )
         try:
             message = get_message(delivery_frame.routing_key, properties, body)
+            message.queue = self._consumers[delivery_frame.consumer_tag]
         except ValidationError:
             log.msg(
                 "Message id {msgid} did not pass validation.".format(
@@ -289,6 +292,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
             queue_object, _consumer_tag = yield self._channel.basic_consume(
                 queue=queue_name
             )
+            self._consumers[_consumer_tag] = queue_name
             self._read(queue_object).addErrback(log.err, system=self.name)
         log.msg("AMQP consumer is ready", system=self.name, logLevel=logging.DEBUG)
 
@@ -310,6 +314,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         self._running = False
         for consumer_tag in self._channel.consumer_tags:
             yield self._channel.basic_cancel(consumer_tag=consumer_tag)
+        self._consumers = {}
         log.msg(
             "Paused retrieval of messages for the server queue",
             system=self.name,

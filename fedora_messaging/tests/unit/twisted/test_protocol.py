@@ -458,13 +458,16 @@ class ProtocolOnMessageTests(unittest.TestCase):
         self.protocol = MockProtocol(None)
         self.protocol._message_callback = mock.Mock()
         self.protocol._impl.is_closed = False
+        self.protocol._consumers["consumer1"] = "my_queue_name"
 
     def _call_on_message(self, topic, headers, body):
         """Prepare arguments for the _on_message() method and call it."""
         full_headers = {"fedora_messaging_schema": "fedora_messaging.message:Message"}
         full_headers.update(headers)
         return self.protocol._on_message(
-            pika.spec.Basic.Deliver(routing_key=topic, delivery_tag="delivery_tag"),
+            pika.spec.Basic.Deliver(
+                routing_key=topic, delivery_tag="delivery_tag", consumer_tag="consumer1"
+            ),
             pika.spec.BasicProperties(headers=full_headers),
             json.dumps(body).encode("utf-8"),
         )
