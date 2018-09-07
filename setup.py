@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import re
 
 from setuptools import setup, find_packages
 
@@ -8,6 +9,10 @@ from setuptools import setup, find_packages
 here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, "README.rst")) as fd:
     README = fd.read()
+
+with open(os.path.join(here, "fedora_messaging", "__init__.py")) as fd:
+    match = re.search('^__version__ = "([^"]+)"$', fd.read(), re.MULTILINE)
+    VERSION = match.group(1)
 
 
 def get_requirements(requirements_file="requirements.txt"):
@@ -45,7 +50,7 @@ def get_requirements(requirements_file="requirements.txt"):
 
 setup(
     name="fedora_messaging",
-    version="1.0.0b1",
+    version=VERSION,
     description="A set of tools for using Fedora's messaging infrastructure",
     long_description=README,
     url="https://github.com/fedora-infra/fedora-messaging",
