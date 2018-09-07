@@ -210,6 +210,7 @@ class Message(object):
         severity (int): An integer that indicates the severity of the message. This is
             used to determine what messages to notify end users about and should be
             :data:`DEBUG`, :data:`INFO`, :data:`WARNING`, or :data:`ERROR`.
+        queue (str): The name of the queue this message arrived through.
 
     Args:
         headers (dict): A set of message headers. Consult the headers schema for
@@ -253,6 +254,7 @@ class Message(object):
         if severity:
             self.severity = severity
         self._properties = properties or self._build_properties(headers)
+        self.queue = None
 
     def _build_properties(self, headers):
         # Consumers use this to determine what schema to use and if they're out
