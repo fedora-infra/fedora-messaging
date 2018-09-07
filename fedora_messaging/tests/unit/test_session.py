@@ -293,7 +293,8 @@ class ConsumerSessionTests(unittest.TestCase):
         )
 
     def test_consume(self):
-        # Test the consume function.
+        """Test the consume function with callable callback."""
+
         def stop_consumer():
             # Necessary to exit the while loop
             self.consumer._running = False
@@ -311,7 +312,7 @@ class ConsumerSessionTests(unittest.TestCase):
             self.consumer.consume(callback)
             self.assertEqual(self.consumer._consumer_callback, callback)
             connection.ioloop.start.assert_called_once()
-            # Callback is a class
+            # Callback is a callable class
             self.consumer.consume(mock.Mock)
             self.assertTrue(isinstance(self.consumer._consumer_callback, mock.Mock))
             # Configuration defaults
@@ -327,6 +328,19 @@ class ConsumerSessionTests(unittest.TestCase):
             self.assertEqual(self.consumer._bindings, test_value)
             self.assertEqual(self.consumer._queues, test_value)
             self.assertEqual(self.consumer._exchanges, test_value)
+
+    def test_consume_uncallable_callback(self):
+        """Test the consume function with not callable callback."""
+
+        class NotCallableClass:
+            pass
+
+        # Callback is a not callable class
+        self.assertRaises(ValueError, self.consumer.consume, NotCallableClass)
+        self.assertFalse(hasattr(self.consumer, "_consumer_callback"))
+        # Callback is a not callable
+        self.assertRaises(ValueError, self.consumer.consume, "not_callable")
+        self.assertFalse(hasattr(self.consumer, "_consumer_callback"))
 
     def test_declare(self):
         # Test that the exchanges, queues and bindings are properly
