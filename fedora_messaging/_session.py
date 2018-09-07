@@ -203,6 +203,7 @@ class ConsumerSession(object):
         self._channel = None
         self._bindings = []
         self._running = False
+        self._consumers = {}
 
         def _signal_handler(signum, frame):
             """
@@ -408,7 +409,8 @@ class ConsumerSession(object):
                     bc_args["consumer_callback"] = self._on_message
                 else:
                     bc_args["on_message_callback"] = self._on_message
-                self._channel.basic_consume(**bc_args)
+                tag = self._channel.basic_consume(**bc_args)
+                self._consumers[tag] = binding["queue"]
 
     def _on_cancel(self, cancel_frame):
         """
@@ -530,6 +532,7 @@ class ConsumerSession(object):
 
         try:
             message = get_message(delivery_frame.routing_key, properties, body)
+            message.queue = self._consumers[delivery_frame.consumer_tag]
         except ValidationError:
             channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=False)
             return
