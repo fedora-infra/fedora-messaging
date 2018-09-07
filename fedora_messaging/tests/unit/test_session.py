@@ -366,7 +366,9 @@ class ConsumerSessionMessageTests(unittest.TestCase):
         self.channel = mock.Mock()
         self.consumer._connection = mock.Mock()
         self.consumer._running = True
+        self.consumer._consumers["consumer1"] = "my_queue"
         self.frame = mock.Mock()
+        self.frame.consumer_tag = "consumer1"
         self.frame.delivery_tag = "testtag"
         self.frame.routing_key = "test.topic"
         self.properties = mock.Mock()
@@ -387,6 +389,12 @@ class ConsumerSessionMessageTests(unittest.TestCase):
         msg.validate.assert_called_once()
         self.channel.basic_ack.assert_called_with(delivery_tag="testtag")
         self.assertEqual(msg._body, "test body")
+
+    def test_message_queue_set(self):
+        """Assert the queue attribute is set on messages."""
+        self.consumer._on_message(self.channel, self.frame, self.properties, b"{}")
+        msg = self.consumer._consumer_callback.call_args_list[0][0][0]
+        self.assertEqual(msg.queue, "my_queue")
 
     def test_message_encoding(self):
         body = '"test body unicode é à ç"'.encode("utf-8")
