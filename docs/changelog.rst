@@ -2,6 +2,8 @@
 Release Notes
 =============
 
+.. towncrier release notes start
+
 v1.0.0b1
 ========
 

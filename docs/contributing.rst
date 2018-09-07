@@ -55,6 +55,31 @@ Your pull request should contain tests for your new feature or bug fix. If
 you're not certain how to write tests, we will be happy to help you.
 
 
+Release notes
+-------------
+To add entries to the release notes, create a file in the ``news`` directory
+with the ``source.type`` name format, where ``type`` is one of:
+
+* ``feature``: for new features
+* ``bug``: for bug fixes
+* ``api``: for API changes
+* ``dev``: for development-related changes
+* ``author``: for contributor names
+* ``other``: for other changes
+
+And where the ``source`` part of the filename is:
+
+* ``42`` when the change is described in issue ``42``
+* ``PR42`` when the change has been implemented in pull request ``42``, and
+  there is no associated issue
+* ``Cabcdef`` when the change has been implemented in changeset ``abcdef``, and
+  there is no associated issue or pull request.
+* ``username`` for contributors (``author`` extention). It should be the
+  username part of their commits' email address.
+
+A preview of the release notes can be generated with ``towncrier --draft``.
+
+
 Licensing
 ---------
 
@@ -101,3 +126,23 @@ address, indicating that you agree to the `Developer Certificate of Origin
 	    this project or the open source license(s) involved.
 
 Use ``git commit -s`` to add the Signed-off-by tag.
+
+
+Releasing
+---------
+
+When cutting a new release, follow these steps:
+
+* update the version in ``fedora_messaging/__init__.py``
+* update the version in ``docs/conf.py``
+* generate the changelog by running ``towncrier``
+* change the ``Development Status`` classifier in ``setup.py`` if necessary
+* commit the changes
+* tag the commit
+* push to GitHub
+* generate a tarball and push to PyPI with the commands:
+
+::
+
+    python setup.py sdist bdist_wheel
+    twine upload -s dist/*
