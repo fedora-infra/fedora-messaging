@@ -180,7 +180,7 @@ routing keys. For example::
 
     [
         {
-            'queue': 'name',
+            'queue': 'my_queue',
             'exchange': 'amq.topic',
             'routing_keys': ['topic1', 'topic2.#'],
         },

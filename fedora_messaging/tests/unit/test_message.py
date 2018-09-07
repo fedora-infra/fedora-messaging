@@ -49,8 +49,6 @@ class GetMessageTests(unittest.TestCase):
         """Assert missing headers results in a default message."""
         msg = message.Message()
         msg._headers = None
-        expected_message = message.Message()
-        expected_message.id = msg.id
 
         received_msg = message.get_message(
             msg._encoded_routing_key, msg._properties, msg._encoded_body
