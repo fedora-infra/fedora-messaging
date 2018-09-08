@@ -502,6 +502,23 @@ class ConsumerSessionMessageTests(unittest.TestCase):
         self.assertFalse(self.consumer._running)
         self.consumer._connection.close.assert_called_once()
 
+    def test_message_halt_exitcode_not_0(self):
+        """Assert HaltConsumer exception is re-raised when exit code is not 0"""
+        self.consumer._consumer_callback.side_effect = HaltConsumer(exit_code=1)
+        self.assertRaises(
+            HaltConsumer,
+            self.consumer._on_message,
+            self.channel,
+            self.frame,
+            self.properties,
+            b'"body"',
+        )
+        self.channel.basic_nack.assert_called_with(
+            delivery_tag="testtag", requeue=False
+        )
+        self.assertFalse(self.consumer._running)
+        self.consumer._connection.close.assert_called_once()
+
     def test_message_exception(self):
         error = ValueError()
         self.consumer._consumer_callback.side_effect = error
