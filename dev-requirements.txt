@@ -4,3 +4,4 @@ mock
 twisted
 pytest-twisted
 pyOpenSSL
+towncrier
