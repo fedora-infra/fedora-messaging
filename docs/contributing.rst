@@ -134,7 +134,6 @@ Releasing
 When cutting a new release, follow these steps:
 
 * update the version in ``fedora_messaging/__init__.py``
-* update the version in ``docs/conf.py``
 * generate the changelog by running ``towncrier``
 * change the ``Development Status`` classifier in ``setup.py`` if necessary
 * commit the changes
