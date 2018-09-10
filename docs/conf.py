@@ -12,9 +12,12 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath("../"))  # NOQA
+
+import fedora_messaging
 
 
 # -- Project information -----------------------------------------------------
@@ -24,9 +27,9 @@ copyright = "2018, Red Hat, Inc"
 author = "Fedora Infrastructure"
 
 # The short X.Y version
-version = "1.0"
+version = ".".join(fedora_messaging.__version__.split(".")[:2])
 # The full version, including alpha/beta/rc tags
-release = "1.0.0b1"
+release = fedora_messaging.__version__
 
 
 # -- General configuration ---------------------------------------------------
