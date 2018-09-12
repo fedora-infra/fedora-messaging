@@ -46,3 +46,5 @@ matrix:
       env: TOXENV=lint
     - python: "3.6"
       env: TOXENV=format
+    - python: "3.6"
+      env: TOXENV=licenses
