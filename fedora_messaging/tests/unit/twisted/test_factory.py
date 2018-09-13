@@ -26,7 +26,7 @@ from twisted.internet import defer
 from twisted.python.failure import Failure
 
 from fedora_messaging.twisted.factory import FedoraMessagingFactory
-from fedora_messaging.exceptions import PublishReturned, ConnectionException
+from fedora_messaging.exceptions import ConnectionException
 
 
 try:
@@ -45,6 +45,101 @@ class FactoryTests(unittest.TestCase):
         )
         self.factory.protocol = protocol_class
 
+    def test_started_connection(self):
+        """Assert connection attempts are logged."""
+        with mock.patch("fedora_messaging.twisted.factory._log") as mock_log:
+            self.factory.startedConnecting(None)
+        mock_log.info.assert_called_once_with(
+            "Started new connection to the AMQP broker"
+        )
+
+    def test_on_client_ready_no_objects(self):
+        """Assert factories with no objects to create on startup work."""
+        factory = FedoraMessagingFactory(pika.URLParameters("amqp://"))
+        factory.buildProtocol(None)
+        mock_channel = mock.Mock()
+        factory.client._allocate_channel = mock.Mock(return_value=mock_channel)
+        d = factory._on_client_ready()
+
+        d.addCallback(lambda _: self.assertTrue(factory._client_ready.called))
+
+        return pytest_twisted.blockon(d)
+
+    def test_on_client_ready_queues(self):
+        """Assert factories with queues to create on startup work."""
+        factory = FedoraMessagingFactory(None, queues=[{"queue": "my_queue"}])
+        factory.buildProtocol(None)
+        mock_channel = mock.Mock()
+        factory.client._allocate_channel = mock.Mock(return_value=mock_channel)
+
+        d = factory._on_client_ready()
+
+        def _check(_):
+            mock_channel.queue_declare.assert_called_once_with(queue="my_queue")
+            self.assertTrue(factory._client_ready.called)
+
+        d.addCallback(_check)
+
+        return pytest_twisted.blockon(d)
+
+    def test_on_client_ready_exchanges(self):
+        """Assert factories with exchanges to create on startup work."""
+        factory = FedoraMessagingFactory(None, exchanges=[{"exchange": "my_exchange"}])
+        factory.buildProtocol(None)
+        mock_channel = mock.Mock()
+        factory.client._allocate_channel = mock.Mock(return_value=mock_channel)
+
+        d = factory._on_client_ready()
+
+        def _check(_):
+            mock_channel.exchange_declare.assert_called_once_with(
+                exchange="my_exchange"
+            )
+            self.assertTrue(factory._client_ready.called)
+
+        d.addCallback(_check)
+
+        return pytest_twisted.blockon(d)
+
+    def test_on_client_ready_consumers(self):
+        """Assert factories with bindings to create on startup work."""
+        factory = FedoraMessagingFactory(None)
+        factory.buildProtocol(None)
+        factory.consume(lambda x: x, "my_queue")
+        mock_channel = mock.Mock()
+        mock_channel.basic_consume.return_value = mock.Mock(), None
+        factory.client._allocate_channel = mock.Mock(return_value=mock_channel)
+
+        d = factory._on_client_ready()
+
+        def _check(_):
+            mock_channel.basic_consume.assert_called()
+            self.assertIn("my_queue", factory.client._consumers)
+            self.assertTrue(factory._client_ready.called)
+
+        d.addCallback(_check)
+
+        return pytest_twisted.blockon(d)
+
+    def test_on_client_ready_bindings(self):
+        """Assert factories with bindings to create on startup work."""
+        factory = FedoraMessagingFactory(
+            None, bindings=[{"queue": "my_queue", "exchange": "my_exchange"}]
+        )
+        factory.buildProtocol(None)
+        mock_channel = mock.Mock()
+        factory.client._allocate_channel = mock.Mock(return_value=mock_channel)
+
+        d = factory._on_client_ready()
+
+        def _check(_):
+            mock_channel.queue_bind.assert_called_once_with("my_queue", "my_exchange")
+            self.assertTrue(factory._client_ready.called)
+
+        d.addCallback(_check)
+
+        return pytest_twisted.blockon(d)
+
     def test_buildProtocol(self):
         # Check the buildProtocol method.
         protocol = self.factory.buildProtocol(None)
@@ -54,23 +149,25 @@ class FactoryTests(unittest.TestCase):
         self.protocol.ready.callback(None)
         self.assertTrue(self.factory._client_ready.called)
 
-    def test_buildProtocol_already_consuming(self):
-        # When a message callback has been previously set, new calls to
-        # buildProtocol should setup the reading process.
-        self.protocol.setupRead.side_effect = lambda _: defer.succeed(None)
-        self.protocol.resumeProducing.side_effect = lambda: defer.succeed(None)
-        self.factory._message_callback = mock.Mock(name="callback")
-        self.factory.buildProtocol(None)
-        self.protocol.ready.callback(None)
-        self.protocol.setupRead.assert_called_once_with(self.factory._message_callback)
-        self.protocol.resumeProducing.assert_called_once()
-
     def test_clientConnectionLost(self):
         # The _client_ready deferred must be renewed when the connection is
         # lost.
         self.factory._client_ready.callback(None)
         self.factory.clientConnectionLost(mock.Mock(), Failure(RuntimeError()))
         self.assertFalse(self.factory._client_ready.called)
+
+    @mock.patch(
+        "fedora_messaging.twisted.factory.protocol.ReconnectingClientFactory."
+        "clientConnectionFailed",
+        mock.Mock(),
+    )
+    def test_connection_failed(self):
+        """Assert when the connection fails it is logged."""
+        with mock.patch("fedora_messaging.twisted.factory._log") as mock_log:
+            self.factory.clientConnectionFailed(None, mock.Mock(value="something"))
+        mock_log.warn.assert_called_once_with(
+            "Connection to the AMQP broker failed ({reason})", reason="something"
+        )
 
     def test_stopTrying(self):
         # The _client_ready deferred must errback when we stop trying to
@@ -94,40 +191,71 @@ class FactoryTests(unittest.TestCase):
         return pytest_twisted.blockon(d)
 
     def test_consume(self):
-        # Check the consume method
+        """Assert when there is an active protocol, consume calls are forwarded to it."""
         callback = mock.Mock()
-        self.protocol.setupRead.side_effect = lambda _: defer.succeed(None)
-        self.protocol.resumeProducing.side_effect = lambda: defer.succeed(None)
+        self.protocol.consume.side_effect = lambda cb, queue: defer.succeed(None)
         self.factory.client = self.protocol
         # Pretend the factory is ready to trigger protocol setup.
         self.factory._client_ready.callback(None)
-        d = self.factory.consume(callback)
+        d = self.factory.consume(callback, "my_queue")
 
         def _check(_):
-            self.assertTrue(self.factory._message_callback is callback)
-            self.protocol.setupRead.assert_called_once_with(callback)
-            self.protocol.resumeProducing.assert_called_once()
+            self.assertEqual({"my_queue": callback}, self.factory.consumers)
 
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
 
     def test_consume_not_ready(self):
+        """Assert when a client isn't ready, consume doesn't return a deferred."""
         # Check the consume method
         callback = mock.Mock()
         self.factory.client = self.protocol
-        d = self.factory.consume(callback)
+        result = self.factory.consume(callback, "my_queue")
+        self.assertIsNone(result)
 
-        def _check(_):
-            self.assertTrue(self.factory._message_callback is callback)
-            self.protocol.setupRead.assert_not_called()
-            self.protocol.resumeProducing.assert_not_called()
+    def test_cancel_not_ready(self):
+        """Assert when a client isn't ready, cancel happens immediately."""
+        self.factory.consume(mock.Mock(), "my_queue")
 
-        d.addCallback(_check)
+        result = self.factory.cancel("my_queue")
+
+        self.assertIsNone(result)
+        self.assertEqual({}, self.factory.consumers)
+
+    def test_cancel_invalid(self):
+        """Assert when a client isn't ready, cancel happens immediately."""
+        cb = mock.Mock()
+        self.factory.consume(cb, "my_queue")
+
+        result = self.factory.cancel("my_other_queue")
+
+        self.assertIsNone(result)
+        self.assertEqual({"my_queue": cb}, self.factory.consumers)
+
+    def test_cancel_with_client(self):
+        """Assert when a client isn't ready, cancel happens immediately."""
+        cb = mock.Mock()
+        self.factory.consume(cb, "my_queue")
+        self.factory.client = mock.Mock()
+
+        self.factory.cancel("my_queue")
+
+        self.factory.client.cancel.assert_called_once_with("my_queue")
+        self.assertEqual({}, self.factory.consumers)
+
+    def test_when_connected(self):
+        """Assert whenConnected returns the current client once _client_ready fires"""
+        self.factory.client = mock.Mock()
+        self.factory._client_ready.callback(None)
+        d = self.factory.whenConnected()
+        d.addCallback(lambda client: self.assertEqual(self.factory.client, client))
         return pytest_twisted.blockon(d)
 
     def test_publish(self):
-        self.factory.client = self.protocol
-        self.factory._client_ready.callback(None)
+        """Assert publish forwards to the next available protocol instance."""
+        self.factory.whenConnected = mock.Mock(
+            return_value=defer.succeed(self.protocol)
+        )
         self.protocol.publish.side_effect = lambda *a: defer.succeed(None)
         d = self.factory.publish("test-message", "test-exchange")
 
@@ -140,68 +268,21 @@ class FactoryTests(unittest.TestCase):
         return pytest_twisted.blockon(d)
 
     def test_publish_connection_closed(self):
-        self.factory.client = self.protocol
-        self.factory._client_ready.callback(None)
-        self.protocol.publish.side_effect = [
-            pika.exceptions.ConnectionClosed(42, "testing"),
-            defer.succeed(None),
-        ]
-        d = self.factory.publish("test-message", "test-exchange")
-
-        def _check(_):
-            self.assertEqual(
-                [call[0] for call in self.protocol.publish.call_args_list],
-                [("test-message", "test-exchange"), ("test-message", "test-exchange")],
-            )
-
-        d.addCallback(_check)
-        return pytest_twisted.blockon(d)
-
-    def test_publish_channel_closed(self):
-        self.factory.client = self.protocol
-        self.factory._client_ready.callback(None)
-        self.protocol.publish.side_effect = [
-            pika.exceptions.ChannelClosed(42, "testing"),
-            defer.succeed(None),
-        ]
-        d = self.factory.publish("test-message", "test-exchange")
-
-        def _check(_):
-            self.assertEqual(
-                [call[0] for call in self.protocol.publish.call_args_list],
-                [("test-message", "test-exchange"), ("test-message", "test-exchange")],
-            )
-
-        d.addCallback(_check)
-        return pytest_twisted.blockon(d)
-
-    def test_publish_nack_unroutable(self):
-        self.factory.client = self.protocol
-        self.factory._client_ready.callback(None)
-        self.protocol.publish.side_effect = [
-            pika.exceptions.NackError(messages=[]),
-            pika.exceptions.UnroutableError(messages=[]),
-        ]
-        d1 = self.factory.publish("test-message", "test-exchange")
-        d1.addCallbacks(self.fail, lambda f: f.trap(PublishReturned))
-        d2 = self.factory.publish("test-message", "test-exchange")
-        d2.addCallbacks(self.fail, lambda f: f.trap(PublishReturned))
-        return pytest_twisted.blockon(
-            defer.DeferredList([d1, d2], fireOnOneErrback=True)
+        """Assert publish retries when a connection error occurs."""
+        self.factory.whenConnected = mock.Mock(
+            side_effect=[defer.succeed(self.protocol), defer.succeed(self.protocol)]
         )
-
-    def test_publish_amqp_error(self):
-        self.factory.client = self.protocol
-        self.factory._client_ready.callback(None)
-        self.protocol.publish.side_effect = pika.exceptions.AMQPError()
-        self.protocol.close.side_effect = lambda: defer.succeed(None)
-        self.factory.stopTrying = mock.Mock()
+        self.protocol.publish.side_effect = [
+            ConnectionException(reason="I wanted to"),
+            defer.succeed(None),
+        ]
         d = self.factory.publish("test-message", "test-exchange")
 
-        def _check(f):
-            self.factory.stopTrying.assert_called_once()
-            self.protocol.close.assert_called_once()
-            f.trap(ConnectionException)
+        def _check(_):
+            self.assertEqual(
+                [call[0] for call in self.protocol.publish.call_args_list],
+                [("test-message", "test-exchange"), ("test-message", "test-exchange")],
+            )
 
-        d.addCallbacks(self.fail, _check)
+        d.addCallback(_check)
         return pytest_twisted.blockon(d)

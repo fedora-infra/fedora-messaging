@@ -1,0 +1,3 @@
+The ``setupRead`` API in the Twisted protocol has been removed and replaced with
+``consume`` and ``cancel`` APIs which allow for multiple consumers with multiple
+callbacks.

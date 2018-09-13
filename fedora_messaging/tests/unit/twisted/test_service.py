@@ -34,9 +34,8 @@ from fedora_messaging.tests import FIXTURES_DIR
 
 class ServiceTests(unittest.TestCase):
     def test_init(self):
-        callback = mock.Mock()
         service = FedoraMessagingService(
-            callback, "amqp://example.com:4242", {"binding": "value"}
+            "amqp://example.com:4242", queues=[{"queue": "my_queue"}]
         )
         self.assertTrue(isinstance(service._parameters, pika.URLParameters))
         self.assertEqual(service._parameters.host, "example.com")
@@ -45,24 +44,19 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(
             service._parameters.client_properties, config.conf["client_properties"]
         )
-        self.assertEqual(service._bindings, {"binding": "value"})
-        self.assertTrue(service._on_message is callback)
+        self.assertEqual(service._queues, [{"queue": "my_queue"}])
 
     def test_init_client_props_override(self):
-        callback = mock.Mock()
-        service = FedoraMessagingService(
-            callback, "amqp://?client_properties={'foo':'bar'}"
-        )
+        service = FedoraMessagingService("amqp://?client_properties={'foo':'bar'}")
         self.assertEqual(service._parameters.client_properties, {"foo": "bar"})
 
     def test_connect(self):
-        callback = mock.Mock()
-        service = FedoraMessagingService(callback)
+        service = FedoraMessagingService()
         factory = mock.Mock()
-        service.factoryClass = mock.Mock(side_effect=lambda *a: factory)
+        service.factoryClass = mock.Mock(side_effect=lambda *a, **kw: factory)
         service.connect()
         service.factoryClass.assert_called_once_with(
-            service._parameters, service._bindings
+            service._parameters, exchanges=[], queues=[], bindings=[]
         )
         self.assertEqual(len(service.services), 1)
         serv = service.services[0]
@@ -70,27 +64,15 @@ class ServiceTests(unittest.TestCase):
         self.assertTrue(serv.parent is service)
 
     def test_startService(self):
-        callback = mock.Mock()
-        service = FedoraMessagingService(callback)
+        service = FedoraMessagingService()
         serv = mock.Mock()
         service.addService(serv)
         service.connect = mock.Mock()
         service.startService()
         service.connect.assert_called_once()
-        serv.factory.consume.assert_called_once_with(callback)
-
-    def test_startService_no_consume(self):
-        service = FedoraMessagingService(None)
-        serv = mock.Mock()
-        service.addService(serv)
-        service.connect = mock.Mock()
-        service.startService()
-        service.connect.assert_called_once()
-        serv.factory.consume.assert_not_called()
 
     def test_stopService(self):
-        callback = mock.Mock()
-        service = FedoraMessagingService(callback)
+        service = FedoraMessagingService()
         serv = mock.Mock()
         service.addService(serv)
         service.stopService()
