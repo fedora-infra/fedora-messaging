@@ -21,16 +21,10 @@ import logging
 import signal
 import ssl
 
-from pika import exceptions as pika_errs
+from pika import exceptions as pika_errs, SSLOptions
 import pika
 import pkg_resources
 
-try:
-    # Versions of pika greater than the 0.11 series uses SSLOptions to configure
-    # a TLS connection.
-    from pika import SSLOptions
-except ImportError:
-    SSLOptions = None
 
 from . import config
 from .message import get_message
@@ -50,7 +44,7 @@ _log = logging.getLogger(__name__)
 # same API that 1.0.0 has. Additionally, the connection parameters still expect
 # the old dictionary, so mark SSLOptions as None if this is 0.12
 if pkg_resources.get_distribution("pika").version.startswith("0.12."):
-    SSLOptions = None
+    SSLOptions = None  # noqa: F811
 
 
 def _configure_tls_parameters(parameters):
