@@ -59,7 +59,7 @@ class FedoraMessagingService(service.MultiService):
     name = "fedora-messaging"
     factoryClass = FedoraMessagingFactory
 
-    def __init__(self, on_message, amqp_url=None, bindings=None):
+    def __init__(self, amqp_url=None, exchanges=None, queues=None, bindings=None):
         """Initialize the service."""
         service.MultiService.__init__(self)
         amqp_url = amqp_url or config.conf["amqp_url"]
@@ -68,13 +68,12 @@ class FedoraMessagingService(service.MultiService):
             _configure_tls_parameters(self._parameters)
         if self._parameters.client_properties is None:
             self._parameters.client_properties = config.conf["client_properties"]
-        self._bindings = bindings or config.conf["bindings"]
-        self._on_message = on_message
+        self._exchanges = exchanges or []
+        self._queues = queues or []
+        self._bindings = bindings or []
 
     def startService(self):
         self.connect()
-        if self._on_message:
-            self.getFactory().consume(self._on_message)
         service.MultiService.startService(self)
 
     def stopService(self):
@@ -90,7 +89,12 @@ class FedoraMessagingService(service.MultiService):
         return None
 
     def connect(self):
-        factory = self.factoryClass(self._parameters, self._bindings)
+        factory = self.factoryClass(
+            self._parameters,
+            exchanges=self._exchanges,
+            queues=self._queues,
+            bindings=self._bindings,
+        )
         if self._parameters.ssl_options:
             serv = SSLClient(
                 host=self._parameters.host,

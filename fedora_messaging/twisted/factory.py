@@ -15,23 +15,28 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """
-Twisted Factory to create the Fedora Messaging Twisted Protocol instance.
+A Twisted Factory for creating and configuring instances of the
+:class:`.FedoraMessagingProtocol`.
 
-See https://twistedmatrix.com/documents/current/core/howto/clients.html#clientfactory
+A factory is used to implement automatic re-connections by producing protocol
+instances (connections) on demand. Twisted uses factories for its services APIs.
+
+See the `Twisted client
+<https://twistedmatrix.com/documents/current/core/howto/clients.html#clientfactory>`_
+documentation for more information.
 """
 
 from __future__ import absolute_import
 
-import logging
-
 import pika
 from twisted.internet import defer, protocol, error
 
-# twisted.logger is available with Twisted 15+
-from twisted.python import log
+from twisted.logger import Logger
 
-from ..exceptions import PublishReturned, ConnectionException
+from ..exceptions import ConnectionException
 from .protocol import FedoraMessagingProtocol
+
+_log = Logger(__name__)
 
 
 class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
@@ -40,16 +45,37 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
     name = u"FedoraMessaging:Factory"
     protocol = FedoraMessagingProtocol
 
-    def __init__(self, parameters, bindings):
-        """Initialize the protocol.
+    def __init__(
+        self, parameters, confirms=True, exchanges=None, queues=None, bindings=None
+    ):
+        """
+        Create a new factory for protocol objects.
+
+        Any exchanges, queues, bindings, or consumers provided here will be
+        declared and set up each time a new protocol instance is created. In
+        other words, each time a new connection is set up to the broker, it
+        will start with the declaration of these objects.
 
         Args:
             parameters (pika.ConnectionParameters): The connection parameters.
-            bindings (list of dict): which bindings to setup on connect.
+            confirms (bool): If true, attempt to turn on publish confirms extension.
+            exchanges (list of dicts): List of exchanges to declare. Each dictionary is
+                passed to :meth:`pika.channel.Channel.exchange_declare` as keyword arguments,
+                so any parameter to that method is a valid key.
+            queues (list of dicts): List of queues to declare each dictionary is
+                passed to :meth:`pika.channel.Channel.queue_declare` as keyword arguments,
+                so any parameter to that method is a valid key.
+            bindings (list of dicts): A list of bindings to be created between
+                queues and exchanges. Each dictionary is passed to
+                :meth:`pika.channel.Channel.queue_bind`. The "queue" and "exchange" keys
+                are required.
         """
-        self.bindings = bindings
         self._parameters = parameters
-        self._message_callback = None
+        self.confirms = confirms
+        self.exchanges = exchanges or []
+        self.queues = queues or []
+        self.bindings = bindings or []
+        self.consumers = {}
         self.client = None
         self._client_ready = defer.Deferred()
 
@@ -59,11 +85,7 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
         See the documentation of
         `twisted.internet.protocol.ReconnectingClientFactory` for details.
         """
-        log.msg(
-            "Connecting to the Fedora Messaging broker",
-            system=self.name,
-            logLevel=logging.DEBUG,
-        )
+        _log.info("Started new connection to the AMQP broker")
 
     def buildProtocol(self, addr):
         """Create the Protocol instance.
@@ -72,7 +94,6 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
         `twisted.internet.protocol.ReconnectingClientFactory` for details.
         """
         self.resetDelay()
-        log.msg("Connected to the Fedora Messaging broker", system=self.name)
         self.client = self.protocol(self._parameters)
         self.client.factory = self
         self.client.ready.addCallback(lambda _: self._on_client_ready())
@@ -81,11 +102,16 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
     @defer.inlineCallbacks
     def _on_client_ready(self):
         """Called when the client is ready to send and receive messages."""
-        # Setup read (on connect and reconnect).
-        if self._message_callback is not None:
-            yield self.client.setupRead(self._message_callback)
-            yield self.client.resumeProducing()
-        # Run ready callbacks.
+        _log.info("Successfully connected to the AMQP broker.")
+        yield self.client.resumeProducing()
+
+        yield self.client.declare_exchanges(self.exchanges)
+        yield self.client.declare_queues(self.queues)
+        yield self.client.bind_queues(self.bindings)
+        for queue, callback in self.consumers.items():
+            yield self.client.consume(callback, queue)
+
+        _log.info("Successfully declared all AMQP objects.")
         self._client_ready.callback(None)
 
     def clientConnectionLost(self, connector, reason):
@@ -95,10 +121,8 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
         `twisted.internet.protocol.ReconnectingClientFactory` for details.
         """
         if not isinstance(reason.value, error.ConnectionDone):
-            log.msg(
-                "Lost connection. Reason: {}".format(reason.value),
-                system=self.name,
-                logLevel=logging.WARNING,
+            _log.warn(
+                "Lost connection to the AMQP broker ({reason})", reason=reason.value
             )
         if self._client_ready.called:
             # Renew the ready deferred, it will callback when the
@@ -112,10 +136,8 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
         See the documentation of
         `twisted.internet.protocol.ReconnectingClientFactory` for details.
         """
-        log.msg(
-            "Connection failed. Reason: {}".format(reason.value),
-            system=self.name,
-            logLevel=logging.WARNING,
+        _log.warn(
+            "Connection to the AMQP broker failed ({reason})", reason=reason.value
         )
         protocol.ReconnectingClientFactory.clientConnectionFailed(
             self, connector, reason
@@ -146,58 +168,82 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
             yield self.client.stopProducing()
         protocol.ReconnectingClientFactory.stopFactory(self)
 
-    @defer.inlineCallbacks
-    def consume(self, message_callback):
-        """Pass incoming messages to the provided callback.
+    def consume(self, callback, queue):
+        """
+        Register a new consumer.
+
+        This consumer will be configured for every protocol this factory
+        produces so it will be reconfigured on network failures. If a connection
+        is already active, the consumer will be added to it.
 
         Args:
-            message_callback (callable): The callable to pass the message to
-                when one arrives.
+            callback (callable): The callback to invoke when a message arrives.
+            queue (str): The name of the queue to consume from.
         """
-        log.msg("Setup messages consumption.", system=self.name, logLevel=logging.DEBUG)
-        new_setup = self._message_callback is None
-        self._message_callback = message_callback
-        if self._client_ready.called and new_setup:
-            # If consume() is called after the client is ready (and we did
-            # not setup before), do it now.
-            yield self.client.setupRead(self._message_callback)
-            yield self.client.resumeProducing()
+        self.consumers[queue] = callback
+        if self._client_ready.called:
+            return self.client.consume(callback, queue)
+
+    def cancel(self, queue):
+        """
+        Cancel the consumer for a queue.
+
+        This removes the consumer from the list of consumers to be configured for
+        every connection.
+
+        Args:
+            queue (str): The name of the queue the consumer is subscribed to.
+        Returns:
+            defer.Deferred or None: Either a Deferred that fires when the consumer
+                is canceled, or None if the consumer was already canceled. Wrap
+                the call in :func:`defer.maybeDeferred` to always receive a Deferred.
+        """
+        try:
+            del self.consumers[queue]
+        except KeyError:
+            pass
+        if self.client:
+            return self.client.cancel(queue)
+
+    @defer.inlineCallbacks
+    def whenConnected(self):
+        """
+        Get the next connected protocol instance.
+
+        Returns:
+            defer.Deferred: A deferred that results in a connected
+                :class:`FedoraMessagingProtocol`.
+        """
+        yield self._client_ready
+        defer.returnValue(self.client)
 
     @defer.inlineCallbacks
     def publish(self, message, exchange=None):
         """
         Publish a :class:`fedora_messaging.message.Message` to an `exchange`_
-        on the message broker.
+        on the message broker. This call will survive connection failures and try
+        until it succeeds or is canceled.
 
         Args:
             message (message.Message): The message to publish.
             exchange (str): The name of the AMQP exchange to publish to; defaults
                 to :ref:`conf-publish-exchange`
 
+        returns:
+            defer.Deferred: A deferred that fires when the message is published.
+
         Raises:
             PublishReturned: If the published message is rejected by the broker.
-            ConnectionException: If a connection error occurs while publishing.
+            ConnectionException: If a connection error occurs while publishing. Calling
+                this method again will wait for the next connection and publish when it
+                is available.
 
         .. _exchange: https://www.rabbitmq.com/tutorials/amqp-concepts.html#exchanges
         """
-        yield self._client_ready
-        try:
-            yield self.client.publish(message, exchange)
-        except (pika.exceptions.ConnectionClosed, pika.exceptions.ChannelClosed) as e:
-            log.msg(
-                "Connection lost while publishing, retrying.",
-                system=self.name,
-                logLevel=logging.WARNING,
-            )
-            yield self.publish(message, exchange)
-        except (pika.exceptions.NackError, pika.exceptions.UnroutableError) as e:
-            log.msg(
-                "Message was rejected by the broker ({})".format(e),
-                system=self.name,
-                logLevel=logging.WARNING,
-            )
-            raise PublishReturned(reason=e)
-        except pika.exceptions.AMQPError as e:
-            self.stopTrying()
-            yield self.client.close()
-            raise ConnectionException(reason=e)
+        while True:
+            client = yield self.whenConnected()
+            try:
+                yield client.publish(message, exchange)
+                break
+            except ConnectionException:
+                continue

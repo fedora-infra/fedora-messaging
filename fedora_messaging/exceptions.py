@@ -5,6 +5,27 @@ class BaseException(Exception):
     """The base class for all exceptions raised by fedora_messaging."""
 
 
+class NoFreeChannels(BaseException):
+    """Raised when a connection has reached its channel limit"""
+
+
+class BadDeclaration(BaseException):
+    """
+    Raised when declaring an object in AMQP fails.
+
+    Args:
+        obj_type (str): The type of object being declared. One of "binding",
+            "queue", or "exchange".
+        description (dict): The description of the object.
+        reason (str): The reason the server gave for rejecting the declaration.
+    """
+
+    def __init__(self, obj_type, description, reason):
+        self.obj_type = obj_type
+        self.description = description
+        self.reason = reason
+
+
 class ConfigurationException(BaseException):
     """
     Raised when there's an invalid configuration setting

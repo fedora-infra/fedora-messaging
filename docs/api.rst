@@ -75,11 +75,14 @@ Exceptions
 Twisted
 =======
 
+In addition to the synchronous API, a Twisted API is provided for applications
+that need an asynchronous API. This API requires Twisted 16.1.0 or greater.
+
 Protocol
 --------
 
 .. automodule:: fedora_messaging.twisted.protocol
-   :members:
+   :members: FedoraMessagingProtocol, Consumer
 
 Factory
 -------
