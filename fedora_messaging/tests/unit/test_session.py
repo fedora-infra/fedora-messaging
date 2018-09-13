@@ -75,6 +75,18 @@ class PublisherSessionTests(unittest.TestCase):
         self.assertEqual(publisher._parameters.virtual_host, "vhost")
         self.assertIsNotNone(publisher._parameters.ssl_options)
 
+    def test_publish_init_custom_url_with_client_params(self):
+        """Assert a custom URL with client props can be provided to the publisher session."""
+        with mock.patch.dict(config.conf, {"tls": self.tls_conf}):
+            publisher = _session.PublisherSession(
+                "amqps://username:password@rabbit.example.com/vhost?client_properties={'k':'v'}"
+            )
+        self.assertEqual(publisher._parameters.host, "rabbit.example.com")
+        self.assertEqual(publisher._parameters.port, 5671)
+        self.assertEqual(publisher._parameters.virtual_host, "vhost")
+        self.assertEqual(publisher._parameters.client_properties, {"k": "v"})
+        self.assertIsNotNone(publisher._parameters.ssl_options)
+
     def test_plain_auth(self):
         """Assert when there's no key or certfile, plain authentication is used"""
         with mock.patch.dict(config.conf, {"tls": self.tls_conf}):
@@ -105,6 +117,28 @@ class PublisherSessionTests(unittest.TestCase):
         self.publisher.publish(self.message)
         self.message.validate.assert_called_once()
         self.publisher._channel.publish.assert_called_once()
+        publish_call = self.publisher._channel.publish.call_args_list[0][1]
+        self.assertEqual(publish_call["exchange"], None)
+        self.assertEqual(publish_call["routing_key"], b"test.topic")
+        self.assertEqual(publish_call["body"], b'"test body"')
+
+    def test_publish_without_delivery_confirmation(self):
+        """Check that the publication without delivery confirmation works properly."""
+        self.publisher._confirms = False
+        self.publisher._connection = None
+        self.publisher._channel = None
+        connection_class_mock = mock.Mock()
+        connection_mock = mock.Mock()
+        channel_mock = mock.Mock()
+        connection_class_mock.return_value = connection_mock
+        connection_mock.channel.return_value = channel_mock
+        with mock.patch(
+            "fedora_messaging._session.pika.BlockingConnection", connection_class_mock
+        ):
+            self.publisher.publish(self.message)
+        self.message.validate.assert_called_once()
+        self.publisher._channel.publish.assert_called_once()
+        self.publisher._channel.confirm_delivery.assert_not_called()
         publish_call = self.publisher._channel.publish.call_args_list[0][1]
         self.assertEqual(publish_call["exchange"], None)
         self.assertEqual(publish_call["routing_key"], b"test.topic")
@@ -259,7 +293,8 @@ class ConsumerSessionTests(unittest.TestCase):
         )
 
     def test_consume(self):
-        # Test the consume function.
+        """Test the consume function with callable callback."""
+
         def stop_consumer():
             # Necessary to exit the while loop
             self.consumer._running = False
@@ -277,7 +312,7 @@ class ConsumerSessionTests(unittest.TestCase):
             self.consumer.consume(callback)
             self.assertEqual(self.consumer._consumer_callback, callback)
             connection.ioloop.start.assert_called_once()
-            # Callback is a class
+            # Callback is a callable class
             self.consumer.consume(mock.Mock)
             self.assertTrue(isinstance(self.consumer._consumer_callback, mock.Mock))
             # Configuration defaults
@@ -293,6 +328,19 @@ class ConsumerSessionTests(unittest.TestCase):
             self.assertEqual(self.consumer._bindings, test_value)
             self.assertEqual(self.consumer._queues, test_value)
             self.assertEqual(self.consumer._exchanges, test_value)
+
+    def test_consume_uncallable_callback(self):
+        """Test the consume function with not callable callback."""
+
+        class NotCallableClass:
+            pass
+
+        # Callback is a not callable class
+        self.assertRaises(ValueError, self.consumer.consume, NotCallableClass)
+        self.assertFalse(hasattr(self.consumer, "_consumer_callback"))
+        # Callback is a not callable
+        self.assertRaises(ValueError, self.consumer.consume, "not_callable")
+        self.assertFalse(hasattr(self.consumer, "_consumer_callback"))
 
     def test_declare(self):
         # Test that the exchanges, queues and bindings are properly
@@ -462,6 +510,23 @@ class ConsumerSessionMessageTests(unittest.TestCase):
         """Assert messages are not requeued by default with HaltConsumer"""
         self.consumer._consumer_callback.side_effect = HaltConsumer()
         self.consumer._on_message(self.channel, self.frame, self.properties, b'"body"')
+        self.channel.basic_nack.assert_called_with(
+            delivery_tag="testtag", requeue=False
+        )
+        self.assertFalse(self.consumer._running)
+        self.consumer._connection.close.assert_called_once()
+
+    def test_message_halt_exitcode_not_0(self):
+        """Assert HaltConsumer exception is re-raised when exit code is not 0"""
+        self.consumer._consumer_callback.side_effect = HaltConsumer(exit_code=1)
+        self.assertRaises(
+            HaltConsumer,
+            self.consumer._on_message,
+            self.channel,
+            self.frame,
+            self.properties,
+            b'"body"',
+        )
         self.channel.basic_nack.assert_called_with(
             delivery_tag="testtag", requeue=False
         )

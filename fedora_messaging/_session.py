@@ -491,7 +491,13 @@ class ConsumerSession(object):
 
         # If the callback is a class, create an instance of it first
         if inspect.isclass(callback):
-            self._consumer_callback = callback()
+            cb_obj = callback()
+            if not callable(cb_obj):
+                raise ValueError(
+                    "Callback must be a class that implements __call__"
+                    " or a function."
+                )
+            self._consumer_callback = cb_obj
         elif inspect.isfunction(callback):
             self._consumer_callback = callback
         else:
