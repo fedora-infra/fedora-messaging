@@ -140,10 +140,11 @@ class ProtocolTests(unittest.TestCase):
         d = self.protocol.setupRead(callback)
 
         def _check(_):
-            self.assertTrue(self.protocol._message_callback is callback)
-            self.assertEqual(
-                self.protocol._queues, set(["testqueue1", "testqueue2", "testqueue3"])
-            )
+            for consumer in self.protocol._consumers.values():
+                self.assertTrue(consumer["callback"] is callback)
+
+            for queue in ["testqueue1", "testqueue2", "testqueue3"]:
+                self.assertIn(queue, self.protocol._consumers)
             self.assertEqual(
                 self.protocol._channel.exchange_declare.call_args_list,
                 [
@@ -249,7 +250,7 @@ class ProtocolTests(unittest.TestCase):
         d = self.protocol.setupRead(callback)
 
         def _check(_):
-            self.assertIsNone(self.protocol._message_callback)
+            self.assertEqual(self.protocol._consumers, {})
             self.protocol._channel.exchange_declare.assert_not_called()
             self.protocol._channel.queue_declare.assert_not_called()
             self.protocol._channel.queue_bind.assert_not_called()
@@ -282,8 +283,26 @@ class ProtocolTests(unittest.TestCase):
     def test_resumeProducing(self):
         # Check the resumeProducing method.
         self.protocol._running = False
+        callback = mock.Mock()
+        self.protocol._consumers = {
+            "testqueue1": {
+                "tag": "consumer1",
+                "callback": callback,
+                "queue": "testqueue1",
+            },
+            "testqueue2": {
+                "tag": "consumer2",
+                "callback": callback,
+                "queue": "testqueue2",
+            },
+            "testqueue3": {
+                "tag": "consumer3",
+                "callback": callback,
+                "queue": "testqueue3",
+            },
+        }
         self.protocol._queues = set(["testqueue1", "testqueue2", "testqueue3"])
-        self.protocol._read = mock.Mock(side_effect=lambda _: defer.succeed(None))
+        self.protocol._read = mock.Mock(side_effect=lambda _, __: defer.succeed(None))
         d = self.protocol.resumeProducing()
 
         def _check(_):
@@ -293,7 +312,9 @@ class ProtocolTests(unittest.TestCase):
                 kw["queue"]
                 for arg, kw in self.protocol._channel.basic_consume.call_args_list
             ]
-            self.assertEqual(set(called_queues), self.protocol._queues)
+            self.assertEqual(
+                sorted(called_queues), sorted(self.protocol._consumers.keys())
+            )
             self.assertEqual(self.protocol._read.call_count, 3)
 
         d.addCallback(_check)
@@ -381,7 +402,7 @@ class ProtocolReadTests(unittest.TestCase):
         # When not running, _read() should do nothing.
         self.queue.get.side_effect = lambda: defer.succeed(None)
         self.protocol._running = False
-        d = self.protocol._read(self.queue)
+        d = self.protocol._read(self.queue, {})
 
         def _check(_):
             self.queue.get.assert_not_called()
@@ -402,13 +423,13 @@ class ProtocolReadTests(unittest.TestCase):
             self.assertEqual(
                 self.protocol._on_message.call_args_list,
                 [
-                    (("df1", "prop1", "body1"), {}),
-                    (("df2", "prop2", "body2"), {}),
-                    (("df3", "prop3", "body3"), {}),
+                    (("df1", "prop1", "body1", {}), {}),
+                    (("df2", "prop2", "body2", {}), {}),
+                    (("df3", "prop3", "body3", {}), {}),
                 ],
             )
 
-        d = self.protocol._read(self.queue)
+        d = self.protocol._read(self.queue, {})
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
 
@@ -418,7 +439,7 @@ class ProtocolReadTests(unittest.TestCase):
             defer.succeed((None, None, None, None)),
             defer.succeed((None, None, None, "")),
         ]
-        d = self.protocol._read(self.queue)
+        d = self.protocol._read(self.queue, {})
 
         def _check(_):
             self.protocol._on_message.assert_not_called()
@@ -441,7 +462,7 @@ class ProtocolReadTests(unittest.TestCase):
         for exc in exceptions:
             queue = mock.Mock()
             queue.get.side_effect = exc
-            deferreds.append(self.protocol._read(queue))
+            deferreds.append(self.protocol._read(queue, {}))
 
         def _check(_):
             self.protocol._on_message.assert_not_called()
@@ -456,20 +477,23 @@ class ProtocolOnMessageTests(unittest.TestCase):
 
     def setUp(self):
         self.protocol = MockProtocol(None)
-        self.protocol._message_callback = mock.Mock()
+        self._message_callback = mock.Mock()
         self.protocol._impl.is_closed = False
-        self.protocol._consumers["consumer1"] = "my_queue_name"
+        self.protocol._consumers["my_queue_name"] = {
+            "tag": "consumer1",
+            "callback": self._message_callback,
+            "queue": "my_queue_name",
+        }
 
     def _call_on_message(self, topic, headers, body):
         """Prepare arguments for the _on_message() method and call it."""
         full_headers = {"fedora_messaging_schema": "fedora_messaging.message:Message"}
         full_headers.update(headers)
         return self.protocol._on_message(
-            pika.spec.Basic.Deliver(
-                routing_key=topic, delivery_tag="delivery_tag", consumer_tag="consumer1"
-            ),
+            pika.spec.Basic.Deliver(routing_key=topic, delivery_tag="delivery_tag"),
             pika.spec.BasicProperties(headers=full_headers),
             json.dumps(body).encode("utf-8"),
+            self.protocol._consumers["my_queue_name"],
         )
 
     def test_on_message(self):
@@ -477,7 +501,7 @@ class ProtocolOnMessageTests(unittest.TestCase):
         d = self._call_on_message("testing.topic", {}, {"key": "value"})
 
         def _check(_):
-            self.protocol._message_callback.assert_called()
+            self._message_callback.assert_called()
             self.protocol._channel.basic_ack.assert_called_with(
                 delivery_tag="delivery_tag"
             )
@@ -490,7 +514,7 @@ class ProtocolOnMessageTests(unittest.TestCase):
         d = self._call_on_message("testing.topic", {}, "testing")
 
         def _check(_):
-            self.protocol._message_callback.assert_not_called()
+            self._message_callback.assert_not_called()
             self.protocol._channel.basic_nack.assert_called_with(
                 delivery_tag="delivery_tag", requeue=False
             )
@@ -500,11 +524,11 @@ class ProtocolOnMessageTests(unittest.TestCase):
 
     def test_on_message_nack(self):
         # When the callback raises a Nack, the server should be notified.
-        self.protocol._message_callback.side_effect = Nack()
+        self._message_callback.side_effect = Nack()
         d = self._call_on_message("testing.topic", {}, {"key": "value"})
 
         def _check(_):
-            self.protocol._message_callback.assert_called()
+            self._message_callback.assert_called()
             self.protocol._channel.basic_nack.assert_called_with(
                 delivery_tag="delivery_tag", requeue=True
             )
@@ -514,11 +538,11 @@ class ProtocolOnMessageTests(unittest.TestCase):
 
     def test_on_message_drop(self):
         # When the callback raises a Drop, the server should be notified.
-        self.protocol._message_callback.side_effect = Drop()
+        self._message_callback.side_effect = Drop()
         d = self._call_on_message("testing.topic", {}, {"key": "value"})
 
         def _check(_):
-            self.protocol._message_callback.assert_called()
+            self._message_callback.assert_called()
             self.protocol._channel.basic_nack.assert_called_with(
                 delivery_tag="delivery_tag", requeue=False
             )
@@ -529,13 +553,13 @@ class ProtocolOnMessageTests(unittest.TestCase):
     def test_on_message_halt(self):
         # When the callback raises a HaltConsumer exception, the consumer
         # should stop.
-        self.protocol._message_callback.side_effect = HaltConsumer()
+        self._message_callback.side_effect = HaltConsumer()
         channel = self.protocol._channel
         self.protocol.close = mock.Mock()
         d = self._call_on_message("testing.topic", {}, {"key": "value"})
 
         def _check(_):
-            self.protocol._message_callback.assert_called()
+            self._message_callback.assert_called()
             channel.basic_ack.assert_called_with(delivery_tag="delivery_tag")
             self.assertFalse(self.protocol._running)
             self.protocol.close.assert_called()
@@ -547,13 +571,13 @@ class ProtocolOnMessageTests(unittest.TestCase):
     def test_on_message_exception(self):
         # On an unknown exception, the consumer should stop and all
         # unacknowledged messages should be requeued.
-        self.protocol._message_callback.side_effect = ValueError()
+        self._message_callback.side_effect = ValueError()
         channel = self.protocol._channel
         self.protocol.close = mock.Mock()
         d = self._call_on_message("testing.topic", {}, {"key": "value"})
 
         def _check(_):
-            self.protocol._message_callback.assert_called()
+            self._message_callback.assert_called()
             channel.basic_nack.assert_called_with(
                 delivery_tag=0, multiple=True, requeue=True
             )

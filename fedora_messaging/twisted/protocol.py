@@ -24,6 +24,7 @@ See https://twistedmatrix.com/documents/current/core/howto/clients.html#protocol
 from __future__ import absolute_import
 
 import logging
+import uuid
 
 import pika
 import pkg_resources
@@ -75,9 +76,8 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         self._confirms = confirms
         self._channel = None
         self._running = False
-        self._queues = set()
         self._message_callback = None
-        # Map consumer tags to queue names
+        # Map queue names to dictionaries representing consumers
         self._consumers = {}
         self.factory = None
 
@@ -128,11 +128,25 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
                 routing_key=binding["routing_key"],
                 arguments=binding.get("binding_arguments"),
             )
-            self._queues.add(queue_name)
+            consumer = {
+                "tag": str(uuid.uuid4()),
+                "queue": queue_name,
+                "callback": message_callback,
+            }
+            self._consumers[queue_name] = consumer
         log.msg("AMQP bindings declared", system=self.name, logLevel=logging.DEBUG)
 
     @defer.inlineCallbacks
-    def _read(self, queue_object):
+    def _read(self, queue_object, consumer):
+        """
+        The loop that reads from the message queue and calls the consumer callback
+        wrapper.
+
+        queue_object (pika.adapters.twisted_connection.ClosableDeferredQueue):
+            The AMQP queue the consumer is bound to.
+        consumer (dict): A dictionary describing the consumer for the given
+            queue_object.
+        """
         while self._running:
             try:
                 _channel, delivery_frame, properties, body = yield queue_object.get()
@@ -158,10 +172,10 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
                 log.err(e, system=self.name)
                 break
             if body:
-                yield self._on_message(delivery_frame, properties, body)
+                yield self._on_message(delivery_frame, properties, body, consumer)
 
     @defer.inlineCallbacks
-    def _on_message(self, delivery_frame, properties, body):
+    def _on_message(self, delivery_frame, properties, body, consumer):
         """
         Callback when a message is received from the server.
 
@@ -181,6 +195,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
             properties (pika.spec.BasicProperties): The message properties like
                 the message headers.
             body (bytes): The message payload.
+            consumer (dict): A dictionary describing the consumer of the message.
 
         Returns:
             Deferred: fired when the message has been handled.
@@ -194,7 +209,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         )
         try:
             message = get_message(delivery_frame.routing_key, properties, body)
-            message.queue = self._consumers[delivery_frame.consumer_tag]
+            message.queue = consumer["queue"]
         except ValidationError:
             log.msg(
                 "Message id {msgid} did not pass validation.".format(
@@ -216,7 +231,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
                 system=self.name,
                 logLevel=logging.DEBUG,
             )
-            yield defer.maybeDeferred(self._message_callback, message)
+            yield defer.maybeDeferred(consumer["callback"], message)
         except Nack:
             log.msg(
                 "Returning message id {msgid} to the queue".format(
@@ -288,12 +303,12 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         """
         # Start consuming
         self._running = True
-        for queue_name in self._queues:
-            queue_object, _consumer_tag = yield self._channel.basic_consume(
-                queue=queue_name
+        for consumer in self._consumers.values():
+            queue_object, _ = yield self._channel.basic_consume(
+                queue=consumer["queue"], consumer_tag=consumer["tag"]
             )
-            self._consumers[_consumer_tag] = queue_name
-            self._read(queue_object).addErrback(log.err, system=self.name)
+            deferred = self._read(queue_object, consumer)
+            deferred.addErrback(log.err, system=self.name)
         log.msg("AMQP consumer is ready", system=self.name, logLevel=logging.DEBUG)
 
     @defer.inlineCallbacks
@@ -314,7 +329,6 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         self._running = False
         for consumer_tag in self._channel.consumer_tags:
             yield self._channel.basic_cancel(consumer_tag=consumer_tag)
-        self._consumers = {}
         log.msg(
             "Paused retrieval of messages for the server queue",
             system=self.name,
