@@ -52,5 +52,10 @@ setup(
     zip_safe=False,
     install_requires=["fedora_messaging"],
     test_suite="mailman_schema.tests",
-    entry_points={"fedora.messages": ["mailman.message=mailman_schema.schema:Message"]},
+    entry_points={
+        "fedora.messages": [
+            "mailman.messageV1=mailman_schema.schema:MessageV1",
+            "mailman.messageV2=mailman_schema.schema:MessageV2",
+        ]
+    },
 )
