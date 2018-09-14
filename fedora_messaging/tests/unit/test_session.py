@@ -406,6 +406,115 @@ class ConsumerSessionTests(unittest.TestCase):
                 on_message_callback=self.consumer._on_message, queue="testqueue"
             )
 
+    @mock.patch("fedora_messaging._session.pika.SelectConnection")
+    def test_reconnect_not_running(self, mock_new_connection):
+        """Assert listening on old connection is terminated on reconnection."""
+        mock_old_connection = mock.Mock()
+        self.consumer._running = False
+        self.consumer._connection = mock_old_connection
+        self.consumer.reconnect()
+        mock_old_connection.ioloop.stop.assert_called_once_with()
+        mock_new_connection.assert_not_called()
+        mock_new_connection.ioloop.start.assert_not_called()
+
+    @mock.patch("fedora_messaging._session.pika.SelectConnection")
+    def test_reconnect_running(self, mock_new_connection):
+        """
+        Assert listening on old connection is terminated on reconnection,
+        and new connection is created.
+        """
+        mock_new_connection.return_value = mock_new_connection
+        self.consumer._running = True
+        mock_old_connection = mock.Mock()
+        self.consumer._connection = mock_old_connection
+        self.consumer.reconnect()
+        mock_old_connection.ioloop.stop.assert_called_once_with()
+        mock_new_connection.assert_called_once_with(
+            self.consumer._parameters,
+            on_open_callback=self.consumer._on_connection_open,
+            on_open_error_callback=self.consumer._on_connection_error,
+            on_close_callback=self.consumer._on_connection_close,
+        )
+        mock_new_connection.ioloop.start.assert_called_once_with()
+        self.assertIs(self.consumer._connection, mock_new_connection)
+
+    @mock.patch("fedora_messaging._session.pika.SelectConnection")
+    def test_connect(self, mock_connection):
+        """
+        Assert new connection of type pika.SelectConnection is created
+        and proper callbacks are registered.
+        """
+        mock_connection.return_value = mock_connection
+        self.consumer.connect()
+        mock_connection.assert_called_once_with(
+            self.consumer._parameters,
+            on_open_callback=self.consumer._on_connection_open,
+            on_open_error_callback=self.consumer._on_connection_error,
+            on_close_callback=self.consumer._on_connection_close,
+        )
+        self.assertIs(self.consumer._connection, mock_connection)
+
+    def test_schedule_callback_with_call_later(self):
+        """Assert callback is scheduled to run with method 'call_later'."""
+        delay = "test_delay"
+        callback = "test_callback"
+        mock_connection = mock.Mock()
+        self.consumer._connection = mock_connection
+        self.consumer.call_later(delay, callback)
+        mock_connection.ioloop.call_later.assert_called_once_with(delay, callback)
+
+    def test_schedule_callback_with_add_timeout(self):
+        """Assert callback is scheduled to run with method 'add_timeout'."""
+        delay = "test_delay"
+        callback = "test_callback"
+        mock_connection = mock.Mock()
+        del mock_connection.ioloop.call_later
+        self.consumer._connection = mock_connection
+        self.consumer.call_later(delay, callback)
+        mock_connection.ioloop.add_timeout.assert_called_once_with(delay, callback)
+
+    def test_on_cancel(self):
+        """Assert proper information is logged on callback _on_cancel call."""
+        with mock.patch("fedora_messaging._session._log") as mock_log:
+            self.consumer._on_cancel("cancel_frame")
+        mock_log.info.assert_called_once_with("Server canceled consumer")
+
+    def test_on_exchange_declareok(self):
+        """Assert proper information is logged on callback _on_exchange_declareok call."""
+        with mock.patch("fedora_messaging._session._log") as mock_log:
+            self.consumer._on_exchange_declareok("declare_frame")
+        mock_log.info.assert_called_once_with("Exchange declared successfully")
+
+    def test_connection_error_1(self):
+        """Assert callback is called on connection error."""
+        connection = "test_connection"
+        error_message = "test_err_msg"
+        mock_connection = mock.Mock()
+        self.consumer._connection = mock_connection
+        with mock.patch("fedora_messaging._session._log") as mock_log:
+            self.consumer._on_connection_error(connection, error_message)
+        mock_connection.ioloop.call_later.assert_called_once_with(
+            1, self.consumer.reconnect
+        )
+        self.assertEqual(self.consumer._channel, None)
+        mock_log.error.assert_called_once_with(error_message)
+
+    def test_connection_error_with_pika_exception_as_error(self):
+        """Assert callback is called on connection error."""
+        connection = "test_connection"
+        error_message = "test_err_msg"
+        mock_connection = mock.Mock()
+        self.consumer._connection = mock_connection
+        with mock.patch("fedora_messaging._session._log") as mock_log:
+            self.consumer._on_connection_error(
+                connection, pika_errs.AMQPConnectionError(error_message)
+            )
+        mock_connection.ioloop.call_later.assert_called_once_with(
+            1, self.consumer.reconnect
+        )
+        self.assertEqual(self.consumer._channel, None)
+        mock_log.error.assert_called_once_with(repr(error_message))
+
 
 class ConsumerSessionMessageTests(unittest.TestCase):
     def setUp(self):
