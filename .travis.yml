@@ -17,29 +17,69 @@ env:
 matrix:
   include:
     - python: "2.7"
-      env: TOXENV=py27
+      env: TOXENV=py27-pika1-unittest
     - python: "3.4"
-      env: TOXENV=py34
+      env: TOXENV=py34-pika1-unittest
     - python: "3.5"
-      env: TOXENV=py35
+      env: TOXENV=py35-pika1-unittest
     - python: "3.6"
-      env: TOXENV=py36
+      env: TOXENV=py36-pika1-unittest
     - python: "3.7"
-      env: TOXENV=py37
+      env: TOXENV=py37-pika1-unittest
       dist: xenial
       sudo: required  # Force Travis to use a Ubuntu 16.04 VM that can run 3.7
     - python: "2.7"
-      env: TOXENV=py27-integration
+      env: TOXENV=py27-pika012-unittest
+    - python: "3.4"
+      env: TOXENV=py34-pika012-unittest
+    - python: "3.5"
+      env: TOXENV=py35-pika012-unittest
+    - python: "3.6"
+      env: TOXENV=py36-pika012-unittest
+    - python: "3.7"
+      env: TOXENV=py37-pika012-unittest
+      dist: xenial
+      sudo: required  # Force Travis to use a Ubuntu 16.04 VM that can run 3.7
+    - python: "2.7"
+      env: TOXENV=py27-pika1-integration
+      sudo: required
+      services:
+        - rabbitmq
+    - python: "3.4"
+      env: TOXENV=py34-pika1-integration
+      sudo: required
+      services:
+        - rabbitmq
+    - python: "3.5"
+      env: TOXENV=py35-pika1-integration
       sudo: required
       services:
         - rabbitmq
     - python: "3.6"
-      env: TOXENV=py36-integration
+      env: TOXENV=py36-pika1-integration
+      sudo: required
+      services:
+        - rabbitmq
+    - python: "2.7"
+      env: TOXENV=py27-pika012-integration
+      sudo: required
+      services:
+        - rabbitmq
+    - python: "3.4"
+      env: TOXENV=py34-pika012-integration
+      sudo: required
+      services:
+        - rabbitmq
+    - python: "3.5"
+      env: TOXENV=py35-pika012-integration
       sudo: required
       services:
         - rabbitmq
     - python: "3.6"
-      env: TOXENV=pika_master
+      env: TOXENV=py36-pika012-integration
+      sudo: required
+      services:
+        - rabbitmq
     - python: "3.6"
       env: TOXENV=docs
     - python: "3.6"
