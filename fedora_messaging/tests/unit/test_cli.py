@@ -22,7 +22,7 @@ import unittest
 from click.testing import CliRunner
 import mock
 
-from fedora_messaging import cli, exceptions
+from fedora_messaging import cli, exceptions, config
 
 FIXTURES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../fixtures/"))
 GOOD_CONF = os.path.join(FIXTURES_DIR, "good_conf.toml")
@@ -192,6 +192,29 @@ class ConsumeCliTests(unittest.TestCase):
         mock_importlib.import_module.return_value = mock_mod_with_callable
         result = self.runner.invoke(
             cli.cli, ["consume", "--callback=" + cli_options["callback"]]
+        )
+        mock_importlib.import_module.called_once_with("mod")
+        mock_consume.assert_called_once_with(mock_mod_with_callable.callable, "b")
+        self.assertEqual(0, result.exit_code)
+
+    @mock.patch.dict("fedora_messaging.config.conf", {"bindings": "b"})
+    @mock.patch("fedora_messaging.cli.importlib")
+    @mock.patch("fedora_messaging.cli.api.consume")
+    def test_app_name(self, mock_consume, mock_importlib, *args, **kwargs):
+        """Assert provided app name is saved in config."""
+        cli_options = {"callback": "mod:callable", "app-name": "test_app_name"}
+        mock_mod_with_callable = mock.Mock(spec=["callable"])
+        mock_importlib.import_module.return_value = mock_mod_with_callable
+        result = self.runner.invoke(
+            cli.cli,
+            [
+                "consume",
+                "--callback=" + cli_options["callback"],
+                "--app-name=" + cli_options["app-name"],
+            ],
+        )
+        self.assertEqual(
+            config.conf["client_properties"]["app"], cli_options["app-name"]
         )
         mock_importlib.import_module.called_once_with("mod")
         mock_consume.assert_called_once_with(mock_mod_with_callable.callable, "b")
