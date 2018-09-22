@@ -53,6 +53,13 @@ class ConsumeTests(unittest.TestCase):
             "test_callback", [{"example": "binding"}]
         )
 
+    def test_bindings_is_None(self, mock_session):
+        """Assert consume is working(bindings type is None)"""
+        mock_session.return_value = mock_session
+        api.consume("test_callback")
+        mock_session.assert_called_once()
+        mock_session.consume.assert_called_once_with("test_callback", None)
+
 
 class PublishTests(unittest.TestCase):
     def setUp(self):
