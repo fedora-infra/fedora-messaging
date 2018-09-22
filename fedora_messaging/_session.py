@@ -301,28 +301,18 @@ class ConsumerSession(object):
         _log.info("Successfully opened connection to %s", connection.params.host)
         self._channel = connection.channel(on_open_callback=self._on_channel_open)
 
-    def _on_connection_close(self, connection, reply_code_or_reason, reply_text=None):
+    def _on_connection_close(self, connection, reply_code, reply_text=None):
         """
         Callback invoked when a previously-opened connection is closed.
 
         Args:
             connection (pika.connection.SelectConnection): The connection that
                 was just closed.
-            reply_code_or_reason (int|Exception): The reason why the channel
-                was closed. In older versions of pika, this is the AMQP code.
-            reply_text (str): The human-readable reason the connection was
-                closed (only in older versions of pika)
+            reply_code (int): The reason code why the connection was closed.
+            reply_text (str): The human-readable reason for the connection's
+                closure.
         """
         self._channel = None
-
-        if isinstance(reply_code_or_reason, pika_errs.ConnectionClosed):
-            reply_code = reply_code_or_reason.reply_code
-            reply_text = reply_code_or_reason.reply_text
-        elif isinstance(reply_code_or_reason, int):
-            reply_code = reply_code_or_reason
-        else:
-            reply_code = 0
-            reply_text = str(reply_code_or_reason)
 
         if reply_code == 200:
             # Normal shutdown, exit the consumer.
