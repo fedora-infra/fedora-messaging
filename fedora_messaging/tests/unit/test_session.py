@@ -21,6 +21,7 @@ from __future__ import absolute_import, unicode_literals
 import os
 import ssl
 import unittest
+import signal
 
 import mock
 import pkg_resources
@@ -292,6 +293,18 @@ class ConsumerSessionTests(unittest.TestCase):
             consumer._parameters.credentials, credentials.ExternalCredentials
         )
 
+    def test_url_with_client_properties(self):
+        """Assert when URL contains client props, values are not taken from config."""
+        test_url = "amqp://username:password@rabbit.example.com/vhost?client_properties={'k':'v'}"
+
+        with mock.patch.dict(config.conf, {"amqp_url": test_url}):
+            consumer = _session.ConsumerSession()
+
+        self.assertEqual(consumer._parameters.client_properties, {"k": "v"})
+        self.assertIsInstance(
+            consumer._parameters.credentials, credentials.PlainCredentials
+        )
+
     def test_consume(self):
         """Test the consume function with callable callback."""
 
@@ -485,7 +498,7 @@ class ConsumerSessionTests(unittest.TestCase):
             self.consumer._on_exchange_declareok("declare_frame")
         mock_log.info.assert_called_once_with("Exchange declared successfully")
 
-    def test_connection_error_1(self):
+    def test_connection_error_with_string_as_error(self):
         """Assert callback is called on connection error."""
         connection = "test_connection"
         error_message = "test_err_msg"
@@ -514,6 +527,185 @@ class ConsumerSessionTests(unittest.TestCase):
         )
         self.assertEqual(self.consumer._channel, None)
         mock_log.error.assert_called_once_with(repr(error_message))
+
+    def test_on_cancelok(self):
+        """Assert proper method is called to rejecet messages on channel."""
+        self.consumer._channel = mock.Mock()
+        with mock.patch("fedora_messaging._session._log") as mock_log:
+            self.consumer._on_cancelok("cancel_frame")
+        mock_log.info.assert_called_once_with(
+            "Consumer canceled; returning all unprocessed messages to the queue"
+        )
+        self.consumer._channel.basic_nack.assert_called_once_with(
+            delivery_tag=0, multiple=True, requeue=True
+        )
+
+    def test_on_channel_open(self):
+        """Assert proper callbacks are registered when channel is open."""
+        mock_channel = mock.Mock()
+        with mock.patch.dict(
+            config.conf, {"qos": {"test_arg_1": "t_a_1", "test_arg_2": "t_a_2"}}
+        ):
+            self.consumer._on_channel_open(mock_channel)
+        mock_channel.add_on_close_callback.assert_called_once_with(
+            self.consumer._on_channel_close
+        )
+        mock_channel.add_on_cancel_callback.assert_called_once_with(
+            self.consumer._on_cancel
+        )
+        mock_channel.basic_qos.assert_called_once_with(
+            callback=self.consumer._on_qosok, test_arg_1="t_a_1", test_arg_2="t_a_2"
+        )
+
+    def test_on_connection_open(self):
+        """Assert proper callback is registered when connection is open."""
+        host_name = "test_host"
+        mock_channel = mock.Mock()
+        conn_mock_attrs = {
+            "channel.return_value": mock_channel,
+            "params.host": host_name,
+        }
+        mock_connection = mock.Mock(**conn_mock_attrs)
+        with mock.patch("fedora_messaging._session._log") as mock_log:
+            self.consumer._on_connection_open(mock_connection)
+        mock_log.info.assert_called_once_with(
+            "Successfully opened connection to %s", host_name
+        )
+        mock_connection.channel.assert_called_once_with(
+            on_open_callback=self.consumer._on_channel_open
+        )
+        self.assertEqual(self.consumer._channel, mock_channel)
+
+    def test_on_channel_close_pass_int_and_str(self):
+        """Assert proper information is logged on callback _on_channel_close call."""
+        self.consumer._channel = mock.Mock()
+        reply_code_or_reason = 1
+        reply_text = "reply_text"
+        test_channel = "test_channel"
+        with mock.patch("fedora_messaging._session._log") as mock_log:
+            self.consumer._on_channel_close(
+                test_channel, reply_code_or_reason, reply_text
+            )
+        mock_log.info.assert_called_once_with(
+            "Channel %r closed (%d): %s", test_channel, reply_code_or_reason, reply_text
+        )
+        self.assertEqual(self.consumer._channel, None)
+
+    def test_on_channel_close_pass_str_and_str(self):
+        """Assert proper information is logged on callback _on_channel_close call."""
+        self.consumer._channel = mock.Mock()
+        reply_code_or_reason = "reply_code_or_reason"
+        reply_text = "reply_text"
+        test_channel = "test_channel"
+        with mock.patch("fedora_messaging._session._log") as mock_log:
+            self.consumer._on_channel_close(
+                test_channel, reply_code_or_reason, reply_text
+            )
+        mock_log.info.assert_called_once_with(
+            "Channel %r closed (%d): %s", test_channel, 0, reply_code_or_reason
+        )
+        self.assertEqual(self.consumer._channel, None)
+
+    def test_on_connection_close_pass_int_200_and_str(self):
+        """
+        Assert proper information is logged on callback _on_connection_close call
+        and connection is closed when reply_code is 200.
+        """
+        mock_connection = mock.Mock()
+        self.consumer._channel = mock.Mock()
+        reply_code_or_reason = 200
+        reply_text = "reply_text"
+        with mock.patch("fedora_messaging._session._log") as mock_log:
+            self.consumer._on_connection_close(
+                mock_connection, reply_code_or_reason, reply_text
+            )
+        mock_log.info.assert_called_once_with(
+            "Server connection closed (%s), shutting down", reply_text
+        )
+        self.assertEqual(self.consumer._channel, None)
+        mock_connection.ioloop.stop.assert_called_once_with()
+
+    def test_on_connection_close_pass_str_and_str(self):
+        """
+        Assert proper information is logged on callback _on_connection_close call
+        and method call_later is called when reply_code is not 200.
+        """
+        host_name = "test_host"
+        conn_mock_attrs = {"params.host": host_name}
+        mock_connection = mock.Mock(**conn_mock_attrs)
+        self.consumer._connection = mock_connection
+        self.consumer._channel = mock.Mock()
+        reply_code_or_reason = "reply_code"
+        reply_text = "reply_text"
+        with mock.patch("fedora_messaging._session._log") as mock_log:
+            self.consumer._on_connection_close(
+                mock_connection, reply_code_or_reason, reply_text
+            )
+        mock_log.warning.assert_called_once_with(
+            "Connection to %s closed unexpectedly (%d): %s",
+            host_name,
+            0,
+            reply_code_or_reason,
+        )
+        self.assertEqual(self.consumer._channel, None)
+        mock_connection.ioloop.call_later.assert_called_once_with(
+            1, self.consumer.reconnect
+        )
+
+    def test_signal_SIGTERM(self):
+        """Assert ConsumerSession._shutdown is called on signal SIGTERM."""
+        consumer_tags = "test_consumer_tags"
+        channel_mock_attrs = {"consumer_tags": consumer_tags}
+        mock_channel = mock.Mock(**channel_mock_attrs)
+        conn_mock_attrs = {"is_open": True}
+        self.consumer._running = True
+        mock_connection = mock.Mock(**conn_mock_attrs)
+        self.consumer._connection = mock_connection
+        self.consumer._channel = mock_channel
+        signal_handler = signal.getsignal(signal.SIGTERM)
+
+        with mock.patch("fedora_messaging._session._log") as mock_log:
+            signal_handler(signal.SIGTERM, "test_frame")
+
+        mock_log.info.assert_called_once_with(
+            "Halting %r consumer sessions", consumer_tags
+        )
+        self.assertEqual(self.consumer._running, False)
+        mock_connection.close.assert_called_once_with()
+        self.assertEqual(signal.getsignal(signal.SIGTERM), signal.SIG_DFL)
+
+    def test_signal_SIGINT(self):
+        """Assert ConsumerSession._shutdown is called on signal SIGINT."""
+        consumer_tags = "test_consumer_tags"
+        channel_mock_attrs = {"consumer_tags": consumer_tags}
+        mock_channel = mock.Mock(**channel_mock_attrs)
+        conn_mock_attrs = {"is_open": True}
+        mock_connection = mock.Mock(**conn_mock_attrs)
+        self.consumer._running = True
+        self.consumer._connection = mock_connection
+        self.consumer._channel = mock_channel
+        signal_handler = signal.getsignal(signal.SIGINT)
+
+        with mock.patch("fedora_messaging._session._log") as mock_log:
+            signal_handler(signal.SIGINT, "test_frame")
+
+        mock_log.info.assert_called_once_with(
+            "Halting %r consumer sessions", consumer_tags
+        )
+        self.assertEqual(self.consumer._running, False)
+        mock_connection.close.assert_called_once_with()
+        self.assertEqual(signal.getsignal(signal.SIGINT), signal.SIG_DFL)
+
+    def test_other_signals(self):
+        """Assert handlers for signals other than SIGINT and SIGTERM are default handlers."""
+        for sig_no in range(1, signal.NSIG):
+            if sig_no in (signal.SIGINT, signal.SIGTERM, 32, 33):
+                continue
+            signal_handler = signal.getsignal(sig_no)
+            if sig_no in (signal.SIGPIPE, signal.SIGXFSZ):
+                self.assertEqual(signal.SIG_IGN, signal_handler)
+            else:
+                self.assertEqual(signal.SIG_DFL, signal_handler)
 
 
 class ConsumerSessionMessageTests(unittest.TestCase):
