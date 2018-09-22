@@ -277,26 +277,16 @@ class ConsumerSession(object):
                 callback=self._on_queue_declareok,
             )
 
-    def _on_channel_close(self, channel, reply_code_or_reason, reply_text=None):
+    def _on_channel_close(self, channel, reply_code, reply_text=None):
         """
         Callback invoked when the channel is closed.
 
         Args:
             channel (pika.channel.Channel): The channel that got closed.
-            reply_code_or_reason (int|Exception): The reason why the channel
-                was closed. In older versions of pika, this is the AMQP code.
+            reply_code (int): The reason code why the channel was closed.
             reply_text (str): The human-readable reason for the channel's
-                closure (only in older versions of pika).
+                closure.
         """
-        if isinstance(reply_code_or_reason, pika_errs.ChannelClosed):
-            reply_code = reply_code_or_reason.reply_code
-            reply_text = reply_code_or_reason.reply_text
-        elif isinstance(reply_code_or_reason, int):
-            reply_code = reply_code_or_reason
-        else:
-            reply_code = 0
-            reply_text = str(reply_code_or_reason)
-
         _log.info("Channel %r closed (%d): %s", channel, reply_code, reply_text)
         self._channel = None
 
