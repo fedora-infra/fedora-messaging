@@ -74,7 +74,7 @@ class MockProtocol(FedoraMessagingProtocol):
     """A Protocol object that mocks the underlying channel and impl."""
 
     def __init__(self, *args, **kwargs):
-        super(MockProtocol, self).__init__(*args, **kwargs)
+        FedoraMessagingProtocol.__init__(self, *args, **kwargs)
         self._impl = mock.Mock(name="_impl")
         self._impl.is_closed = True
         self._channel = MockChannel(name="_channel")
