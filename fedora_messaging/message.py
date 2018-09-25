@@ -125,6 +125,10 @@ def get_message(routing_key, properties, body):
         routing_key (str): The AMQP routing key (will become the message topic)
         properties (pika.BasicProperties): the AMQP properties
         body (bytes): The encoded message body
+
+    Raises:
+        ValidationError: If Message validation failed or message body
+            docoding/loading is impossible.
     """
     if properties.headers is None:
         _log.error(
