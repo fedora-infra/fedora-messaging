@@ -214,6 +214,114 @@ def get_message(routing_key, properties, body):
     return message
 
 
+def dumps(messages):
+    """
+    Serialize messages to a JSON formatted str
+
+    Args:
+        messages (list): The list of messages to serialize. Each message in
+            the messages is subclass of Messge.
+
+    Returns:
+        str: Serialized messages.
+
+    Raises:
+        TypeError: If at least one message is not instance of Message class or subclass.
+    """
+    serialized_messages = []
+    try:
+        for message in messages:
+            message_dict = message.dump()
+            serialized_messages.append(message_dict)
+    except AttributeError:
+        _log.error("Improper object for messages serialization.")
+        raise TypeError("Message have to be instance of Message class or subclass.")
+
+    return json.dumps(serialized_messages)
+
+
+def loads(serialized_messages):
+    """
+    Deserialize messages from a JSON formatted str
+
+    Args:
+        serialized_messages (JSON str):
+
+    Returns:
+        list: Deserialized message objects.
+
+    Raises:
+        ValidationError: If deserialized message validation failed.
+        KeyError: If serialized_messages aren't properly serialized.
+        json.JSONDecodeError: If serialized_messages is not valid JSON
+    """
+    try:
+        messages_dicts = json.loads(serialized_messages)
+    except json.JSONDecodeError:
+        _log.error("Loading serialized messages failed.")
+        raise
+
+    messages = []
+    for message_dict in messages_dicts:
+        try:
+            headers = message_dict["headers"]
+        except KeyError:
+            _log.error("Message saved without headers.")
+            raise
+
+        try:
+            MessageClass = get_class(headers["fedora_messaging_schema"])
+        except KeyError:
+            _log.error("Message (headers=%r) saved without a schema header.", headers)
+            raise
+
+        try:
+            body = message_dict["body"]
+        except KeyError:
+            _log.error("Message saved without body.")
+            raise
+
+        try:
+            id = message_dict["id"]
+        except KeyError:
+            _log.error("Message saved without id.")
+            raise
+
+        try:
+            queue = message_dict["queue"]
+        except KeyError:
+            _log.warning("Message saved without queue.")
+            queue = None
+
+        try:
+            topic = message_dict["topic"]
+        except KeyError:
+            _log.error("Message saved without topic.")
+            raise
+
+        try:
+            severity = headers["fedora_messaging_severity"]
+        except KeyError:
+            _log.error("Message saved without a severity.")
+            raise
+
+        message = MessageClass(
+            body=body, topic=topic, headers=headers, severity=severity
+        )
+        try:
+            message.validate()
+            _log.debug("Successfully validated message %r", message)
+        except jsonschema.exceptions.ValidationError as e:
+            _log.error("Message validation of %r failed: %r", message, e)
+            raise ValidationError(e)
+
+        message.queue = queue
+        message.id = id
+        messages.append(message)
+
+    return messages
+
+
 class Message(object):
     """
     Messages are simply JSON-encoded objects. This allows message authors to
@@ -510,3 +618,18 @@ class Message(object):
             list(str): A list of affected flatpaks names.
         """
         return []
+
+    def dump(self):
+        """
+        Dump message attributes.
+
+        Returns:
+            dict: A dictionary of messge attributes.
+        """
+        return {
+            "topic": self.topic,
+            "headers": self._headers,
+            "id": self.id,
+            "body": self._body,
+            "queue": self.queue,
+        }
