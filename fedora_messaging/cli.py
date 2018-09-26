@@ -28,6 +28,7 @@ import os
 import sys
 
 import click
+import pkg_resources
 
 from . import config, api, exceptions
 
@@ -107,7 +108,7 @@ def consume(exchange, queue_name, routing_key, callback, app_name):
     callback_path = callback or config.conf["callback"]
     if not callback_path:
         raise click.ClickException(
-            '"callback" must be the Python path to a' " callable to consume"
+            '"callback" must be the Python path to a callable to consume'
         )
     try:
         module, cls = callback_path.strip().split(":")
@@ -141,7 +142,11 @@ def consume(exchange, queue_name, routing_key, callback, app_name):
     try:
         return api.consume(callback, bindings)
     except ValueError as e:
-        raise click.exceptions.BadOptionUsage(str(e))
+        click_version = pkg_resources.get_distribution("click").parsed_version
+        if click_version < pkg_resources.parse_version("7.0"):
+            raise click.exceptions.BadOptionUsage(str(e))
+        else:
+            raise click.exceptions.BadOptionUsage("callback", str(e))
     except exceptions.HaltConsumer as e:
         if e.exit_code:
             _log.error(
