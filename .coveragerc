@@ -1,7 +1,12 @@
 [run]
 branch = True
-include =
-    fedora_messaging/*
+source =
+    fedora_messaging
+
+[paths]
+source =
+   fedora_messaging
+   .tox/*/site-packages/fedora_messaging
 
 [report]
 exclude_lines =
