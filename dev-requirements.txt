@@ -1,5 +1,5 @@
+coverage
 sphinx
-pytest-cov
 mock
 twisted
 pytest-twisted

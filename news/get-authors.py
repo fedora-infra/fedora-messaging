@@ -2,8 +2,12 @@
 
 from subprocess import check_output
 
+last_tag = check_output(["git", "describe", "--abbrev=0"], universal_newlines=True)
 authors = {}
-output = check_output(["git", "log", "--format=%ae\t%an"], universal_newlines=True)
+log_range = last_tag.strip() + "..HEAD"
+output = check_output(
+    ["git", "log", log_range, "--format=%ae\t%an"], universal_newlines=True
+)
 for line in output.splitlines():
     email, fullname = line.split("\t")
     email = email.split("@")[0].replace(".", "")
