@@ -104,7 +104,7 @@ def test_basic_pub_sub():
     )
     expected_headers = {
         u"fedora_messaging_severity": 20,
-        u"fedora_messaging_schema": u"fedora_messaging.message:Message",
+        u"fedora_messaging_schema": u"base.message",
         u"niceness": u"very",
     }
     messages_received = []

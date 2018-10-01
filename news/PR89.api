@@ -1,0 +1,2 @@
+The name of the entry point is now used to identify the message type. This is
+documented in detail in the wire format.

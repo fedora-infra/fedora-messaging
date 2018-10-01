@@ -40,9 +40,9 @@ containing an important dictionary attribute: ``body_schema``. This is where
 the JSON schema lives.
 
 For clarity, edit the ``setup.py`` file and in the entry points list change the
-``mailman.schema`` name to something more relevant to your app, like
-``yourapp.schema``. The entry point name is currently unused (only the class
-path matters), but you should use something that identifies your app.
+``mailman.messageV1`` name to something more relevant to your app, like
+``yourapp.my_messageV1``. The entry point name needs to be unique to your
+application, so it's best to prefix it with your package or application name.
 
 Schema format
 ~~~~~~~~~~~~~

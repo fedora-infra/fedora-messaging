@@ -34,9 +34,9 @@ debug-level information, 20 being informational, 30 being warning-level, and 40
 being critically important.
 
 The ``fedora_messaging_schema`` key should be set to a string that uniquely
-identifies the type of message. In the Python library, this is mapped to a
-class containing the schema and a Python API to interact with the message
-object.
+identifies the type of message. In the Python library this is the entry point
+name, which is mapped to a class containing the schema and a Python API to
+interact with the message object.
 
 The header's json-schema is::
 

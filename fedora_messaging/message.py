@@ -1,11 +1,7 @@
 """
 This module defines the base class of message objects and keeps a registry of
 known message implementations. This registry is populated from Python entry
-points. The registry keys are Python paths and the values are sub-classes of
-:class:`Message`.
-
-When publishing, the API will add a header with the schema used so the consumer
-can locate the correct schema.
+points in the "fedora.messages" group.
 
 To implement your own message schema, simply create a class that inherits the
 :class:`Message` class, and add an entry point in your Python package under the
@@ -13,12 +9,19 @@ To implement your own message schema, simply create a class that inherits the
 schema would be::
 
     entry_points = {
-        'fedora.messages': ['base.message=fedora_messaging.message:Message']
+        'fedora.messages': [
+            'base.message=fedora_messaging.message:Message'
+        ]
     }
 
+The entry point name must be unique to your application and is used to map
+messages to your message class, so it's best to prefix it with your application
+name (e.g. ``bodhi.new_update_messageV1``). When publishing, the Fedora
+Messaging library will add a header with the entry point name of the class used
+so the consumer can locate the correct schema.
+
 Since every client needs to have the message schema installed, you should define
-this class in a small Python package of its own. Note that at this time, the
-entry point name is unused.
+this class in a small Python package of its own.
 """
 
 import datetime
@@ -58,8 +61,9 @@ SEVERITIES = (DEBUG, INFO, WARNING, ERROR)
 
 _log = logging.getLogger(__name__)
 
-# Maps regular expressions to message classes
-_class_registry = {}
+# Maps string names of message types to classes and back
+_schema_name_to_class = {}
+_class_to_schema_name = {}
 
 # Used to load the registry automatically on first use
 _registry_loaded = False
@@ -81,10 +85,9 @@ def get_class(schema_name):
     global _registry_loaded
     if not _registry_loaded:
         load_message_classes()
-        _registry_loaded = True
 
     try:
-        return _class_registry[schema_name]
+        return _schema_name_to_class[schema_name]
     except KeyError:
         _log.warning(
             'The schema "%s" is not in the schema registry! Either install '
@@ -92,28 +95,49 @@ def get_class(schema_name):
             "Falling back to the default schema...",
             schema_name,
         )
-        return _class_registry[_schema_name(Message)]
+        return Message
+
+
+def get_name(cls):
+    """
+    Retrieve the schema name associated with a message class.
+
+    Returns:
+        str: The schema name.
+
+    Raises:
+        TypeError: If the message class isn't registered. Check your entry point
+            for correctness.
+    """
+    global _registry_loaded
+    if not _registry_loaded:
+        load_message_classes()
+
+    try:
+        return _class_to_schema_name[cls]
+    except KeyError:
+        raise TypeError(
+            "The class {} is not in the message registry, which indicates it is"
+            ' not in the current list of entry points for "fedora_messaging".'
+            " Please check that the class has been added to your package's"
+            " entry points.".format(repr(cls))
+        )
 
 
 def load_message_classes():
     """Load the 'fedora.messages' entry points and register the message classes."""
     for message in pkg_resources.iter_entry_points("fedora.messages"):
         cls = message.load()
-        _log.info("Registering the '%r' class as a Fedora Message", cls)
-        _class_registry[_schema_name(cls)] = cls
-
-
-def _schema_name(cls):
-    """
-    Get the Python path of a class, used to identify the message schema.
-
-    Args:
-        cls (object): The class (not the instance of the class).
-
-    Returns:
-        str: The path in the format "<module>:<class_name>".
-    """
-    return "{}:{}".format(cls.__module__, cls.__name__)
+        _log.info(
+            "Registering the '%s' key as the '%r' class in the Message "
+            "class registry",
+            message.name,
+            cls,
+        )
+        _schema_name_to_class[message.name] = cls
+        _class_to_schema_name[cls] = message.name
+    global _registry_loaded
+    _registry_loaded = True
 
 
 def get_message(routing_key, properties, body):
@@ -263,7 +287,7 @@ class Message(object):
     def _build_properties(self, headers):
         # Consumers use this to determine what schema to use and if they're out
         # of date.
-        headers["fedora_messaging_schema"] = _schema_name(self.__class__)
+        headers["fedora_messaging_schema"] = get_name(self.__class__)
         now = datetime.datetime.utcnow().replace(microsecond=0, tzinfo=pytz.utc)
         headers["sent-at"] = now.isoformat()
         headers["fedora_messaging_severity"] = self.severity
