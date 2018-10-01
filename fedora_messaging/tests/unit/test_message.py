@@ -116,8 +116,7 @@ class MessageTests(unittest.TestCase):
         self.assertIn("sent-at", msg._properties.headers)
         self.assertIn("fedora_messaging_schema", msg._properties.headers)
         self.assertEqual(
-            msg._properties.headers["fedora_messaging_schema"],
-            "fedora_messaging.message:Message",
+            msg._properties.headers["fedora_messaging_schema"], "base.message"
         )
 
     def test_headers(self):
@@ -126,8 +125,7 @@ class MessageTests(unittest.TestCase):
         self.assertEqual(msg._properties.headers["foo"], "bar")
         # The fedora_messaging_schema key must also be added when headers are given.
         self.assertEqual(
-            msg._properties.headers["fedora_messaging_schema"],
-            "fedora_messaging.message:Message",
+            msg._properties.headers["fedora_messaging_schema"], "base.message"
         )
 
     def test_severity_default_header_set(self):
@@ -241,6 +239,7 @@ class CustomMessage(message.Message):
             return []
 
 
+@mock.patch.dict(message._class_to_schema_name, {CustomMessage: "custom_id"})
 class CustomMessageTests(unittest.TestCase):
     """Tests for a Message subclass that provides filter headers"""
 
@@ -288,35 +287,44 @@ class CustomMessageTests(unittest.TestCase):
 class ClassRegistryTests(unittest.TestCase):
     """Tests for the :func:`fedora_messaging.message.load_message_classes`."""
 
-    def test_load_message(self):
-        with mock.patch.dict(message._class_registry, {}, clear=True):
+    def test_load_message_name_to_class(self):
+        """Assert the entry point name maps to the class object."""
+        with mock.patch.dict(message._schema_name_to_class, {}, clear=True):
             message.load_message_classes()
-            self.assertIn("fedora_messaging.message:Message", message._class_registry)
+            self.assertIn("base.message", message._schema_name_to_class)
             self.assertTrue(
-                message._class_registry["fedora_messaging.message:Message"]
-                is message.Message
+                message._schema_name_to_class["base.message"] is message.Message
+            )
+
+    def test_load_message_class_to_name(self):
+        """Assert the entry point name maps to the class object."""
+        with mock.patch.dict(message._class_to_schema_name, {}, clear=True):
+            message.load_message_classes()
+            self.assertIn(message.Message, message._class_to_schema_name)
+            self.assertEqual(
+                "base.message", message._class_to_schema_name[message.Message]
             )
 
     @mock.patch("fedora_messaging.message._registry_loaded", False)
     def test_get_class_autoload(self):
         """Assert the registry is automatically loaded."""
-        with mock.patch.dict(message._class_registry, {}, clear=True):
-            self.assertEqual(
-                message.get_class("fedora_messaging.message:Message"), message.Message
-            )
-
-    @mock.patch("fedora_messaging.message._registry_loaded", False)
-    def test_get_class_autoload_first_call(self):
-        """Assert the registry loads classes on first call to get_class."""
-        with mock.patch.dict(message._class_registry, {}, clear=True):
-            self.assertEqual(
-                message.get_class("fedora_messaging.message:Message"), message.Message
-            )
+        with mock.patch.dict(message._schema_name_to_class, {}, clear=True):
+            self.assertEqual(message.get_class("base.message"), message.Message)
 
     @mock.patch("fedora_messaging.message._registry_loaded", True)
-    def test_get_class_autoload_once(self):
+    def test_get_class_default(self):
+        """Assert the base class is returns if the class is unknown."""
+        with mock.patch.dict(message._schema_name_to_class, {}, clear=True):
+            self.assertEqual(message.get_class("no.such.message"), message.Message)
+
+    @mock.patch("fedora_messaging.message._registry_loaded", False)
+    def test_get_name_autoload(self):
+        """Assert the registry is automatically loaded."""
+        with mock.patch.dict(message._class_to_schema_name, {}, clear=True):
+            self.assertEqual(message.get_name(message.Message), "base.message")
+
+    @mock.patch("fedora_messaging.message._registry_loaded", True)
+    def test_get_name_autoload_once(self):
         """Assert the registry doesn't repeatedly load."""
-        with mock.patch.dict(message._class_registry, {}, clear=True):
-            self.assertRaises(
-                KeyError, message.get_class, "fedora_messaging.message:Message"
-            )
+        with mock.patch.dict(message._class_to_schema_name, {}, clear=True):
+            self.assertRaises(TypeError, message.get_name, "this.is.not.an.entrypoint")
