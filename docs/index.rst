@@ -51,6 +51,7 @@ API Documentation
    :maxdepth: 2
 
    api
+   wire-format
 
 
 Contributor Guide
