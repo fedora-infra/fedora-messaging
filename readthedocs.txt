@@ -1,0 +1,15 @@
+blinker
+click
+coverage
+jsonschema
+mock
+pika>=0.12
+pytoml
+pytz
+pytest-twisted
+pyOpenSSL
+six
+service_identity
+sphinx
+towncrier
+twisted
