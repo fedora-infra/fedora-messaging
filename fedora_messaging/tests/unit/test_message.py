@@ -188,6 +188,18 @@ class MessageTests(unittest.TestCase):
         # The packages property must exist and be a list
         self.assertEqual(message.Message().packages, [])
 
+    def test_containers(self):
+        """The containers attribute must exist and be a list."""
+        self.assertEqual(message.Message().containers, [])
+
+    def test_modules(self):
+        """The modules attribute must exist and be a list."""
+        self.assertEqual(message.Message().modules, [])
+
+    def test_flatpaks(self):
+        """The flatpaks attribute must exist and be a list."""
+        self.assertEqual(message.Message().flatpaks, [])
+
 
 class ClassRegistryTests(unittest.TestCase):
     """Tests for the :func:`fedora_messaging.message.load_message_classes`."""
