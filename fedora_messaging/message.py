@@ -438,3 +438,30 @@ class Message(object):
             list(str): A list of affected package names.
         """
         return []
+
+    @property
+    def containers(self):
+        """List of containers affected by the action that generated this message.
+
+        Returns:
+            list(str): A list of affected container names.
+        """
+        return []
+
+    @property
+    def modules(self):
+        """List of modules affected by the action that generated this message.
+
+        Returns:
+            list(str): A list of affected module names.
+        """
+        return []
+
+    @property
+    def flatpaks(self):
+        """List of flatpaks affected by the action that generated this message.
+
+        Returns:
+            list(str): A list of affected flatpaks names.
+        """
+        return []
