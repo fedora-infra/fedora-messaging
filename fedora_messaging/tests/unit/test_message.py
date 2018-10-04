@@ -201,6 +201,90 @@ class MessageTests(unittest.TestCase):
         self.assertEqual(message.Message().flatpaks, [])
 
 
+class CustomMessage(message.Message):
+    """Test class that returns values for filter properties."""
+
+    @property
+    def usernames(self):
+        try:
+            return self._body["users"]
+        except KeyError:
+            return []
+
+    @property
+    def packages(self):
+        try:
+            return self._body["packages"]
+        except KeyError:
+            return []
+
+    @property
+    def containers(self):
+        try:
+            return self._body["containers"]
+        except KeyError:
+            return []
+        pass
+
+    @property
+    def modules(self):
+        try:
+            return self._body["modules"]
+        except KeyError:
+            return []
+
+    @property
+    def flatpaks(self):
+        try:
+            return self._body["flatpaks"]
+        except KeyError:
+            return []
+
+
+class CustomMessageTests(unittest.TestCase):
+    """Tests for a Message subclass that provides filter headers"""
+
+    def test_usernames(self):
+        """Assert usernames are placed in the message headers."""
+        msg = CustomMessage(body={"users": ["jcline", "abompard"]})
+
+        self.assertEqual(msg.usernames, ["jcline", "abompard"])
+        self.assertIn("fedora_messaging_user_jcline", msg._headers)
+        self.assertIn("fedora_messaging_user_abompard", msg._headers)
+
+    def test_packages(self):
+        """Assert RPM packages are placed in the message headers."""
+        msg = CustomMessage(body={"packages": ["kernel", "python-requests"]})
+
+        self.assertEqual(msg.packages, ["kernel", "python-requests"])
+        self.assertIn("fedora_messaging_rpm_kernel", msg._headers)
+        self.assertIn("fedora_messaging_rpm_python-requests", msg._headers)
+
+    def test_containers(self):
+        """Assert containers are placed in the message headers."""
+        msg = CustomMessage(body={"containers": ["rawhide:latest", "f29"]})
+
+        self.assertEqual(msg.containers, ["rawhide:latest", "f29"])
+        self.assertIn("fedora_messaging_container_rawhide:latest", msg._headers)
+        self.assertIn("fedora_messaging_container_f29", msg._headers)
+
+    def test_modules(self):
+        """Assert modules are placed in the message headers."""
+        msg = CustomMessage(body={"modules": ["nodejs", "ripgrep"]})
+
+        self.assertEqual(msg.modules, ["nodejs", "ripgrep"])
+        self.assertIn("fedora_messaging_module_nodejs", msg._headers)
+        self.assertIn("fedora_messaging_module_ripgrep", msg._headers)
+
+    def test_flatpaks(self):
+        """Assert flatpaks are placed in the message headers."""
+        msg = CustomMessage(body={"flatpaks": ["firefox", "hexchat"]})
+
+        self.assertEqual(msg.flatpaks, ["firefox", "hexchat"])
+        self.assertIn("fedora_messaging_flatpak_firefox", msg._headers)
+        self.assertIn("fedora_messaging_flatpak_hexchat", msg._headers)
+
+
 class ClassRegistryTests(unittest.TestCase):
     """Tests for the :func:`fedora_messaging.message.load_message_classes`."""
 
