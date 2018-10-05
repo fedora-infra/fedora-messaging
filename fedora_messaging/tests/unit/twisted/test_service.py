@@ -20,6 +20,7 @@ from __future__ import absolute_import, unicode_literals
 import unittest
 import os
 
+from twisted.application.internet import TCPClient, SSLClient
 from twisted.internet import ssl
 import mock
 import pika
@@ -60,6 +61,13 @@ class ServiceTests(unittest.TestCase):
             )
             service.factory.consume.assert_called_once_with(cb, "my_queue")
 
+    def test_init_tls(self):
+        """Assert creating the service with an amqps URL configures TLS."""
+        service = FedoraMessagingService("amqps://")
+
+        self.assertTrue(isinstance(service._parameters, pika.URLParameters))
+        self.assertIsNotNone(service._parameters.ssl_options)
+
     def test_init_client_props_override(self):
         service = FedoraMessagingService("amqp://?client_properties={'foo':'bar'}")
         self.assertEqual(service._parameters.client_properties, {"foo": "bar"})
@@ -72,6 +80,18 @@ class ServiceTests(unittest.TestCase):
         serv = service.services[0]
         self.assertTrue(serv.factory is service.factory)
         self.assertTrue(serv.parent is service)
+        self.assertIsInstance(serv, TCPClient)
+
+    def test_connect_tls(self):
+        """Assert connecting with amqps starts an SSLClient."""
+        service = FedoraMessagingService("amqps://")
+        service.factory = mock.Mock()
+        service.connect()
+        self.assertEqual(len(service.services), 1)
+        serv = service.services[0]
+        self.assertTrue(serv.factory is service.factory)
+        self.assertTrue(serv.parent is service)
+        self.assertIsInstance(serv, SSLClient)
 
     def test_startService(self):
         service = FedoraMessagingService()

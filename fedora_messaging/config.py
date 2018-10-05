@@ -282,11 +282,7 @@ DEFAULTS = dict(
     qos={"prefetch_size": 0, "prefetch_count": 10},
     callback=None,
     consumer_config={},
-    tls={
-        "ca_cert": "/etc/pki/tls/certs/ca-bundle.crt",
-        "certfile": None,
-        "keyfile": None,
-    },
+    tls={"ca_cert": None, "certfile": None, "keyfile": None},
     log_config={
         "version": 1,
         "disable_existing_loggers": False,
