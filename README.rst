@@ -7,7 +7,7 @@ Fedora Messaging
 .. image:: https://img.shields.io/pypi/pyversions/fedora-messaging.svg
     :target: https://pypi.org/project/fedora-messaging/
 
-.. image:: https://readthedocs.org/projects/docs/badge/?version=latest
+.. image:: https://readthedocs.org/projects/fedora-messaging/badge/?version=latest
     :alt: Documentation Status
     :target: https://fedora-messaging.readthedocs.io/en/latest/?badge=latest
 
