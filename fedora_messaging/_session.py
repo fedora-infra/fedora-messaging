@@ -82,12 +82,15 @@ def _configure_tls_parameters(parameters):
         }
     else:
         ssl_context = ssl.create_default_context()
-        try:
-            ssl_context.load_verify_locations(cafile=config.conf["tls"]["ca_cert"])
-        except ssl.SSLError as e:
-            raise ConfigurationException(
-                'The "ca_cert" setting in the "tls" section is invalid ({})'.format(e)
-            )
+        if config.conf["tls"]["ca_cert"]:
+            try:
+                ssl_context.load_verify_locations(cafile=config.conf["tls"]["ca_cert"])
+            except ssl.SSLError as e:
+                raise ConfigurationException(
+                    'The "ca_cert" setting in the "tls" section is invalid ({})'.format(
+                        e
+                    )
+                )
         ssl_context.options |= ssl.OP_NO_SSLv2
         ssl_context.options |= ssl.OP_NO_SSLv3
         ssl_context.options |= ssl.OP_NO_TLSv1
