@@ -267,6 +267,7 @@ class Message(object):
         now = datetime.datetime.utcnow().replace(microsecond=0, tzinfo=pytz.utc)
         headers["sent-at"] = now.isoformat()
         headers["fedora_messaging_severity"] = self.severity
+        headers.update(self._filter_headers())
         message_id = str(uuid.uuid4())
         return pika.BasicProperties(
             content_type="application/json",
@@ -275,6 +276,26 @@ class Message(object):
             headers=headers,
             message_id=message_id,
         )
+
+    def _filter_headers(self):
+        """
+        Add headers designed for filtering messages based on objects.
+
+        Returns:
+            dict: Filter-related headers to be combined with the existing headers
+        """
+        headers = {}
+        for user in self.usernames:
+            headers["fedora_messaging_user_{}".format(user)] = True
+        for package in self.packages:
+            headers["fedora_messaging_rpm_{}".format(package)] = True
+        for container in self.containers:
+            headers["fedora_messaging_container_{}".format(container)] = True
+        for module in self.modules:
+            headers["fedora_messaging_module_{}".format(module)] = True
+        for flatpak in self.flatpaks:
+            headers["fedora_messaging_flatpak_{}".format(flatpak)] = True
+        return headers
 
     @property
     def _headers(self):
