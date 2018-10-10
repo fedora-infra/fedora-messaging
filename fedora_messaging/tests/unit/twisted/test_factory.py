@@ -133,7 +133,9 @@ class FactoryTests(unittest.TestCase):
         d = factory._on_client_ready()
 
         def _check(_):
-            mock_channel.queue_bind.assert_called_once_with("my_queue", "my_exchange")
+            mock_channel.queue_bind.assert_called_once_with(
+                queue="my_queue", exchange="my_exchange"
+            )
             self.assertTrue(factory._client_ready.called)
 
         d.addCallback(_check)
