@@ -73,7 +73,7 @@ class PubSubTests(unittest.TestCase):
 
 @pytest.mark.skipif(
     _pika_version < pkg_resources.parse_version("1.0.0b1"),
-    reason="Twisted only supported on pika-1.0.0b1+",
+    reason="Twisted with confirms only supported on pika-1.0.0b1+",
 )
 @pytest_twisted.inlineCallbacks
 def test_check_confirms():
@@ -86,10 +86,6 @@ def test_check_confirms():
     serv.stopService()
 
 
-@pytest.mark.skipif(
-    _pika_version < pkg_resources.parse_version("1.0.0b1"),
-    reason="Twisted only supported on pika-1.0.0b1+",
-)
 @pytest_twisted.inlineCallbacks
 def test_basic_pub_sub():
     """Basic test of the Twisted publishing/subscribing support"""
@@ -137,10 +133,6 @@ def test_basic_pub_sub():
         assert expected_headers == m._headers
 
 
-@pytest.mark.skipif(
-    _pika_version < pkg_resources.parse_version("1.0.0b1"),
-    reason="Twisted only supported on pika-1.0.0b1+",
-)
 @pytest_twisted.inlineCallbacks
 def test_unhandled_exception_cancels_consumer():
     """Assert any unhandled Exception results in the consumer being canceled."""
@@ -169,10 +161,6 @@ def test_unhandled_exception_cancels_consumer():
     serv.stopService()
 
 
-@pytest.mark.skipif(
-    _pika_version < pkg_resources.parse_version("1.0.0b1"),
-    reason="Twisted only supported on pika-1.0.0b1+",
-)
 @pytest_twisted.inlineCallbacks
 def test_nack_handled():
     """Assert raising Nack in a consumer works and messages are re-delivered"""
@@ -209,10 +197,6 @@ def test_nack_handled():
     serv.stopService()
 
 
-@pytest.mark.skipif(
-    _pika_version < pkg_resources.parse_version("1.0.0b1"),
-    reason="Twisted only supported on pika-1.0.0b1+",
-)
 @pytest_twisted.inlineCallbacks
 def test_drop_handled():
     """Assert raising Drop in a consumer works and messages are not re-delivered"""
@@ -245,10 +229,6 @@ def test_drop_handled():
     serv.stopService()
 
 
-@pytest.mark.skipif(
-    _pika_version < pkg_resources.parse_version("1.0.0b1"),
-    reason="Twisted only supported on pika-1.0.0b1+",
-)
 @pytest_twisted.inlineCallbacks
 def test_declare_queue_failures():
     """Assert that if a queue can't be declared, it results in an exception."""
@@ -266,10 +246,6 @@ def test_declare_queue_failures():
     serv.stopService()
 
 
-@pytest.mark.skipif(
-    _pika_version < pkg_resources.parse_version("1.0.0b1"),
-    reason="Twisted only supported on pika-1.0.0b1+",
-)
 @pytest_twisted.inlineCallbacks
 def test_declare_exchange_failures():
     """Assert that if an exchange can't be declared, it results in an exception."""
@@ -287,10 +263,6 @@ def test_declare_exchange_failures():
     serv.stopService()
 
 
-@pytest.mark.skipif(
-    _pika_version < pkg_resources.parse_version("1.0.0b1"),
-    reason="Twisted only supported on pika-1.0.0b1+",
-)
 @pytest_twisted.inlineCallbacks
 def test_declare_binding_failure():
     """Assert that if a binding can't be declared, it results in an exception."""
