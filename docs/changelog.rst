@@ -4,6 +4,16 @@ Release Notes
 
 .. towncrier release notes start
 
+v1.0.1 (2018-10-10)
+===================
+
+Bug Fixes
+---------
+
+* Fix a compatibility issue in Twisted between pika 0.12 and 1.0.
+  (`#97 <https://github.com/fedora-infra/fedora-messaging/issues/97>`_)
+
+
 v1.0.0 (2018-10-10)
 ===================
 
