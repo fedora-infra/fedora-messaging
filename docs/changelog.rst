@@ -4,6 +4,77 @@ Release Notes
 
 .. towncrier release notes start
 
+v1.0.0 (2018-10-10)
+===================
+
+API Changes
+-----------
+
+* The unused ``exchange`` parameter from the PublisherSession was removed
+  (`PR#56 <https://github.com/fedora-infra/fedora-messaging/pull/56>`_)
+
+* The ``setupRead`` API in the Twisted protocol has been removed and replaced with
+  ``consume`` and ``cancel`` APIs which allow for multiple consumers with multiple
+  callbacks
+  (`PR#72 <https://github.com/fedora-infra/fedora-messaging/pull/72>`_)
+
+* The name of the entry point is now used to identify the message type
+  (`PR#89 <https://github.com/fedora-infra/fedora-messaging/pull/89>`_)
+
+
+Features
+--------
+
+* Ensure proper TLS client cert checking with ``service_identity``
+  (`PR#51 <https://github.com/fedora-infra/fedora-messaging/pull/51>`_)
+
+* Support Python 3.7
+  (`PR#53 <https://github.com/fedora-infra/fedora-messaging/pull/53>`_)
+
+* Compatibility with `Click <https://click.palletsprojects.com/>`_ 7.x
+  (`PR#86 <https://github.com/fedora-infra/fedora-messaging/pull/86>`_)
+
+* The complete set of valid severity levels is now available at
+  :data:`fedora_messaging.api.SEVERITIES`
+  (`PR#60 <https://github.com/fedora-infra/fedora-messaging/pull/60>`_)
+
+* A ``queue`` attribute is present on received messages with the name of the
+  queue it arrived on
+  (`PR#65 <https://github.com/fedora-infra/fedora-messaging/pull/65>`_)
+
+* The wire format of fedora-messaging is now documented
+  (`PR#88 <https://github.com/fedora-infra/fedora-messaging/pull/88>`_)
+
+
+Development Changes
+-------------------
+
+* Use `towncrier <https://github.com/hawkowl/towncrier>`_ to generate the release notes
+  (`PR#67 <https://github.com/fedora-infra/fedora-messaging/pull/67>`_)
+
+* Check that our dependencies have Free licenses
+  (`PR#68 <https://github.com/fedora-infra/fedora-messaging/pull/68>`_)
+
+* Test coverage is now at 97%.
+
+
+Other Changes
+-------------
+
+* The library is available in Fedora as ``fedora-messaging``.
+
+
+Contributors
+------------
+Many thanks to the contributors of bug reports, pull requests, and pull request
+reviews for this release:
+
+* Aurélien Bompard
+* Jeremy Cline
+* Michal Konečný
+* Sebastian Wojciechowski
+
+
 v1.0.0b1
 ========
 
