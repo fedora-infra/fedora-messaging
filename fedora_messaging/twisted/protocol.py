@@ -489,7 +489,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
                 try:
                     queue = b.pop("queue")
                     exchange = b.pop("exchange")
-                    yield channel.queue_bind(queue, exchange, **b)
+                    yield channel.queue_bind(queue=queue, exchange=exchange, **b)
                 except pika.exceptions.ChannelClosed as e:
                     raise BadDeclaration("binding", binding, e)
         finally:
