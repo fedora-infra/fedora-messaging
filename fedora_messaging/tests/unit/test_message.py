@@ -21,6 +21,7 @@ import unittest
 
 import jsonschema
 import mock
+import pika
 
 from fedora_messaging import message, exceptions
 
@@ -54,6 +55,181 @@ class GetMessageTests(unittest.TestCase):
             msg._encoded_routing_key, msg._properties, msg._encoded_body
         )
         self.assertIsInstance(received_msg, message.Message)
+
+
+class MessageDumpsTests(unittest.TestCase):
+    """Tests for the :func:`fedora_messaging.message.dumps` function."""
+
+    def test_proper_message(self):
+        """Assert proper json is returned"""
+        test_topic = "test topic"
+        test_body = {"test_key": "test_value"}
+        test_queue = "test queue"
+        test_id = "test id"
+        test_headers = {
+            "fedora_messaging_schema": "base.message",
+            "fedora_messaging_severity": message.WARNING,
+        }
+        test_properties = pika.BasicProperties(
+            content_type="application/json",
+            content_encoding="utf-8",
+            delivery_mode=2,
+            headers=test_headers,
+            message_id=test_id,
+        )
+        test_msg = message.Message(
+            body=test_body, topic=test_topic, properties=test_properties
+        )
+        test_msg.queue = test_queue
+        expected_json = (
+            '[{"topic": "test topic", "headers": {"fedora_messaging_schema": "base.message", '
+            '"fedora_messaging_severity": 30}, "id": "test id", "body": '
+            '{"test_key": "test_value"}, "queue": "test queue"}]'
+        )
+        self.assertEqual(expected_json, message.dumps([test_msg]))
+
+    def test_improper_messages(self):
+        """Assert TypeError is raised when improper messages are provided"""
+        messages = ["m1", "m2"]
+        with mock.patch("fedora_messaging.message._log") as mock_log:
+            self.assertRaises(TypeError, message.dumps, messages)
+        mock_log.error.assert_called_once_with(
+            "Improper object for messages serialization."
+        )
+
+
+class MessageLoadsTests(unittest.TestCase):
+    """Tests for the :func:`fedora_messaging.message.loads` function."""
+
+    def test_proper_json(self):
+        """Assert loading message from json work."""
+        message_json = (
+            '[{"topic": "test topic", "headers": {"fedora_messaging_schema": "base.message", '
+            '"fedora_messaging_severity": 30}, "id": "test id", "body": '
+            '{"test_key": "test_value"}, "queue": "test queue"}]'
+        )
+        messages = message.loads(message_json)
+        test_message = messages[0]
+        self.assertEqual(len(messages), 1)
+        self.assertIsInstance(test_message, message.Message)
+        self.assertEqual("test topic", test_message.topic)
+        self.assertEqual("test id", test_message.id)
+        self.assertEqual({"test_key": "test_value"}, test_message._body)
+        self.assertEqual("test queue", test_message.queue)
+        self.assertEqual(message.WARNING , test_message._headers["fedora_messaging_severity"])
+        self.assertEqual("base.message", test_message._headers["fedora_messaging_schema"])
+
+    def test_improper_json(self):
+        """Assert proper exception is raised when improper json is provided."""
+        message_json = "improper json"
+        with mock.patch("fedora_messaging.message._log") as mock_log:
+            self.assertRaises(json.JSONDecodeError, message.loads, message_json)
+        mock_log.error.assert_called_once_with("Loading serialized messages failed.")
+
+    def test_missing_headers(self):
+        """Assert proper exception is raised when headers are missing."""
+        message_json = (
+            '[{"topic": "test topic", "id": "test id",'
+            '"body": {"test_key": "test_value"}, "queue": "test queue"}]'
+        )
+        with mock.patch("fedora_messaging.message._log") as mock_log:
+            self.assertRaises(KeyError, message.loads, message_json)
+        mock_log.error.assert_called_once_with("Message saved without headers.")
+
+    def test_missing_messaging_schema(self):
+        """Assert proper exception is raised when messaging schema missing."""
+        message_json = (
+            '[{"topic": "test topic", "headers": {"fedora_messaging_severity": 30}, '
+            '"id": "test id", "body": {"test_key": "test_value"}, "queue": "test queue"}]'
+        )
+        with mock.patch("fedora_messaging.message._log") as mock_log:
+            self.assertRaises(KeyError, message.loads, message_json)
+        mock_log.error.assert_called_once_with(
+            "Message (headers=%r) saved without a schema header.",
+            {"fedora_messaging_severity": 30},
+        )
+
+    def test_missing_body(self):
+        """Assert proper exception is raised when body is missing."""
+        message_json = (
+            '[{"topic": "test topic", "headers": {"fedora_messaging_schema": '
+            '"base.message", "fedora_messaging_severity": 30}, "id": "test id", '
+            '"queue": "test queue"}]'
+        )
+        with mock.patch("fedora_messaging.message._log") as mock_log:
+            self.assertRaises(KeyError, message.loads, message_json)
+        mock_log.error.assert_called_once_with("Message saved without body.")
+
+    def test_missing_id(self):
+        """Assert proper exception is raised when id is missing."""
+        message_json = (
+            '[{"topic": "test topic", "headers": {"fedora_messaging_schema": '
+            '"base.message", "fedora_messaging_severity": 30}, '
+            '"body": {"test_key": "test_value"}, "queue": "test queue"}]'
+        )
+        with mock.patch("fedora_messaging.message._log") as mock_log:
+            self.assertRaises(KeyError, message.loads, message_json)
+        mock_log.error.assert_called_once_with("Message saved without id.")
+
+    def test_missing_queue(self):
+        """Assert message without queue is returned and warning is printed."""
+        message_json = (
+            '[{"topic": "test topic", "headers": {"fedora_messaging_schema": '
+            '"base.message", "fedora_messaging_severity": 30}, "id": "test id", '
+            '"body": {"test_key": "test_value"}}]'
+        )
+        with mock.patch("fedora_messaging.message._log") as mock_log:
+             messages = message.loads(message_json)
+        mock_log.warning.assert_called_once_with("Message saved without queue.")
+        test_message = messages[0]
+        self.assertEqual(len(messages), 1)
+        self.assertEqual("test topic", test_message.topic)
+        self.assertEqual("test id", test_message.id)
+        self.assertEqual({"test_key": "test_value"}, test_message._body)
+        self.assertEqual(None, test_message.queue)
+        self.assertEqual(message.WARNING , test_message._headers["fedora_messaging_severity"])
+        self.assertEqual("base.message", test_message._headers["fedora_messaging_schema"])
+
+    def test_missing_topic(self):
+        """Assert proper exception is raised when topic is missing."""
+        message_json = (
+            '[{"headers": {"fedora_messaging_schema": "base.message", '
+            '"fedora_messaging_severity": 30}, "id": "test id", '
+            '"body": {"test_key": "test_value"}, "queue": "test queue"}]'
+        )
+        with mock.patch("fedora_messaging.message._log") as mock_log:
+            self.assertRaises(KeyError, message.loads, message_json)
+        mock_log.error.assert_called_once_with("Message saved without topic.")
+
+    def test_missing_severity(self):
+        """Assert proper exception is raised when topic severity missing."""
+        message_json = (
+            '[{"topic": "test topic", "headers": {"fedora_messaging_schema": '
+            '"base.message"}, "id": "test id", "body": {"test_key": "test_value"},'
+            '"queue": "test queue"}]'
+        )
+        with mock.patch("fedora_messaging.message._log") as mock_log:
+            self.assertRaises(KeyError, message.loads, message_json)
+        mock_log.error.assert_called_once_with("Message saved without a severity.")
+
+    def test_validation_failure(self):
+        """Assert proper exception is raised when message validation failed."""
+        message_json = (
+            '[{"topic": "test topic", "headers": {"fedora_messaging_schema": "base.message", '
+            '"fedora_messaging_severity": 41}, "id": "test id", '
+            '"body": {"test_key": "test_value"}, "queue": "test queue"}]'
+        )
+        with mock.patch("fedora_messaging.message._log") as mock_log:
+            self.assertRaises(exceptions.ValidationError, message.loads, message_json)
+        mock_log.error.assert_called_once()
+        self.assertEqual(
+            mock_log.error.call_args_list[0][0][0],
+            "Message validation of %r failed: %r",
+        )
+        self.assertEqual(
+            mock_log.error.call_args_list[0][0][2],
+            jsonschema.exceptions.ValidationError("41 is not one of [10, 20, 30, 40]"),
+        )
 
 
 class MessageTests(unittest.TestCase):
@@ -197,6 +373,38 @@ class MessageTests(unittest.TestCase):
     def test_flatpaks(self):
         """The flatpaks attribute must exist and be a list."""
         self.assertEqual(message.Message().flatpaks, [])
+
+    def test_dump(self):
+        """Assert proper dict is generated on Message.dump."""
+        test_topic = "test topic"
+        test_body = {"test_key": "test_value"}
+        test_queue = "test queue"
+        test_id = "test id"
+        test_headers = {
+            "fedora_messaging_schema": "base.message",
+            "fedora_messaging_severity": message.WARNING,
+        }
+        test_properties = pika.BasicProperties(
+            content_type="application/json",
+            content_encoding="utf-8",
+            delivery_mode=2,
+            headers=test_headers,
+            message_id=test_id,
+        )
+        expected_dict = {
+            "topic": test_topic,
+            "headers": test_headers,
+            "id": test_id,
+            "body": test_body,
+            "queue": test_queue,
+        }
+        test_msg = message.Message(
+            body=test_body, topic=test_topic, properties=test_properties
+        )
+        test_msg.queue = test_queue
+
+        test_msg_dict = test_msg.dump()
+        self.assertEqual(expected_dict, test_msg_dict)
 
 
 class CustomMessage(message.Message):
