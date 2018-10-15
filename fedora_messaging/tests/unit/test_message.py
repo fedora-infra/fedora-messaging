@@ -227,8 +227,8 @@ class MessageLoadsTests(unittest.TestCase):
             "Message validation of %r failed: %r",
         )
         self.assertEqual(
-            mock_log.error.call_args_list[0][0][2],
-            jsonschema.exceptions.ValidationError("41 is not one of [10, 20, 30, 40]"),
+            mock_log.error.call_args_list[0][0][2].message,
+            "41 is not one of [10, 20, 30, 40]",
         )
 
 
