@@ -237,7 +237,7 @@ def dumps(messages):
         _log.error("Improper object for messages serialization.")
         raise TypeError("Message have to be instance of Message class or subclass.")
 
-    return json.dumps(serialized_messages)
+    return json.dumps(serialized_messages, sort_keys=True)
 
 
 def loads(serialized_messages):
@@ -253,11 +253,11 @@ def loads(serialized_messages):
     Raises:
         ValidationError: If deserialized message validation failed.
         KeyError: If serialized_messages aren't properly serialized.
-        json.JSONDecodeError: If serialized_messages is not valid JSON
+        ValueError: If serialized_messages is not valid JSON
     """
     try:
         messages_dicts = json.loads(serialized_messages)
-    except json.JSONDecodeError:
+    except ValueError:
         _log.error("Loading serialized messages failed.")
         raise
 
