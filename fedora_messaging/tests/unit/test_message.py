@@ -80,11 +80,12 @@ class MessageDumpsTests(unittest.TestCase):
         test_msg = message.Message(
             body=test_body, topic=test_topic, properties=test_properties
         )
+
         test_msg.queue = test_queue
         expected_json = (
-            '[{"topic": "test topic", "headers": {"fedora_messaging_schema": "base.message", '
-            '"fedora_messaging_severity": 30}, "id": "test id", "body": '
-            '{"test_key": "test_value"}, "queue": "test queue"}]'
+            '[{"body": {"test_key": "test_value"}, "headers": {"fedora_messaging_schema": '
+            '"base.message", "fedora_messaging_severity": 30}, "id": "test id", "queue": '
+            '"test queue", "topic": "test topic"}]'
         )
         self.assertEqual(expected_json, message.dumps([test_msg]))
 
@@ -116,14 +117,18 @@ class MessageLoadsTests(unittest.TestCase):
         self.assertEqual("test id", test_message.id)
         self.assertEqual({"test_key": "test_value"}, test_message._body)
         self.assertEqual("test queue", test_message.queue)
-        self.assertEqual(message.WARNING , test_message._headers["fedora_messaging_severity"])
-        self.assertEqual("base.message", test_message._headers["fedora_messaging_schema"])
+        self.assertEqual(
+            message.WARNING, test_message._headers["fedora_messaging_severity"]
+        )
+        self.assertEqual(
+            "base.message", test_message._headers["fedora_messaging_schema"]
+        )
 
     def test_improper_json(self):
         """Assert proper exception is raised when improper json is provided."""
         message_json = "improper json"
         with mock.patch("fedora_messaging.message._log") as mock_log:
-            self.assertRaises(json.JSONDecodeError, message.loads, message_json)
+            self.assertRaises(ValueError, message.loads, message_json)
         mock_log.error.assert_called_once_with("Loading serialized messages failed.")
 
     def test_missing_headers(self):
@@ -179,7 +184,7 @@ class MessageLoadsTests(unittest.TestCase):
             '"body": {"test_key": "test_value"}}]'
         )
         with mock.patch("fedora_messaging.message._log") as mock_log:
-             messages = message.loads(message_json)
+            messages = message.loads(message_json)
         mock_log.warning.assert_called_once_with("Message saved without queue.")
         test_message = messages[0]
         self.assertEqual(len(messages), 1)
@@ -187,8 +192,12 @@ class MessageLoadsTests(unittest.TestCase):
         self.assertEqual("test id", test_message.id)
         self.assertEqual({"test_key": "test_value"}, test_message._body)
         self.assertEqual(None, test_message.queue)
-        self.assertEqual(message.WARNING , test_message._headers["fedora_messaging_severity"])
-        self.assertEqual("base.message", test_message._headers["fedora_messaging_schema"])
+        self.assertEqual(
+            message.WARNING, test_message._headers["fedora_messaging_severity"]
+        )
+        self.assertEqual(
+            "base.message", test_message._headers["fedora_messaging_schema"]
+        )
 
     def test_missing_topic(self):
         """Assert proper exception is raised when topic is missing."""
