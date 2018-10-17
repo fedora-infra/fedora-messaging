@@ -23,6 +23,7 @@ User Guide
    publishing
    consuming
    messages
+   testing
    changelog
 
 
