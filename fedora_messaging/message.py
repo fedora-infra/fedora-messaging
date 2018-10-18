@@ -231,7 +231,7 @@ def dumps(messages):
     serialized_messages = []
     try:
         for message in messages:
-            message_dict = message.dump()
+            message_dict = message._dump()
             serialized_messages.append(message_dict)
     except AttributeError:
         _log.error("Improper object for messages serialization.")
@@ -619,12 +619,12 @@ class Message(object):
         """
         return []
 
-    def dump(self):
+    def _dump(self):
         """
         Dump message attributes.
 
         Returns:
-            dict: A dictionary of messge attributes.
+            dict: A dictionary of message attributes.
         """
         return {
             "topic": self.topic,

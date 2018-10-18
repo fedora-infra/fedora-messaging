@@ -384,7 +384,7 @@ class MessageTests(unittest.TestCase):
         self.assertEqual(message.Message().flatpaks, [])
 
     def test_dump(self):
-        """Assert proper dict is generated on Message.dump."""
+        """Assert proper dict is generated on Message._dump."""
         test_topic = "test topic"
         test_body = {"test_key": "test_value"}
         test_queue = "test queue"
@@ -412,7 +412,7 @@ class MessageTests(unittest.TestCase):
         )
         test_msg.queue = test_queue
 
-        test_msg_dict = test_msg.dump()
+        test_msg_dict = test_msg._dump()
         self.assertEqual(expected_dict, test_msg_dict)
 
 
