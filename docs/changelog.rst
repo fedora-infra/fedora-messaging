@@ -4,6 +4,32 @@ Release Notes
 
 .. towncrier release notes start
 
+v1.1.0 (2018-11-13)
+===================
+
+Features
+--------
+
+* Initial work on a serialization format for
+  :class:`fedora_messaging.message.Message` and APIs for loading and storing
+  messages. This is intended to make it easy to record and replay messages for
+  testing purposes.
+  (`#84 <https://github.com/fedora-infra/fedora-messaging/issues/84>`_)
+
+* Add a module, :mod:`fedora_messaging.testing`, to add useful test helpers.
+  Check out the module documentation for details!
+  (`#100 <https://github.com/fedora-infra/fedora-messaging/issues/100>`_)
+
+
+Contributors
+------------
+Many thanks to the contributors of bug reports, pull requests, and pull request
+reviews for this release:
+
+* Jeremy Cline
+* Sebastian Wojciechowski
+
+
 v1.0.1 (2018-10-10)
 ===================
 
