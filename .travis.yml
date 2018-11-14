@@ -1,6 +1,19 @@
 language: python
 cache: pip
 
+notifications:
+  email:
+    recipients:
+      - jcline@fedoraproject.org
+      - abompard@fedoraproject.org
+    on_success: never
+    on_failure: always
+  irc:
+    channels:
+      - "chat.freenode.net#fedora-apps"
+    on_success: never
+    on_failure: change
+
 install:
  - pip install --upgrade pip setuptools
  - pip install tox
