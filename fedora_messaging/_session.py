@@ -149,7 +149,7 @@ class PublisherSession(object):
         message.validate()
         try:
             self._connect_and_publish(exchange, message)
-        except (pika_errs.ConnectionClosed, pika_errs.ChannelClosed) as e:
+        except (pika_errs.ConnectionClosed, pika_errs.ChannelClosed):
             # Because this is a blocking connection (and thus can't heartbeat)
             # we might need to restart the connection.
             _log.info("Resetting connection to %s", self._parameters.host)

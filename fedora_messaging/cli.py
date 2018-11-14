@@ -112,7 +112,7 @@ def consume(exchange, queue_name, routing_key, callback, app_name):
         )
     try:
         module, cls = callback_path.strip().split(":")
-    except ValueError as e:
+    except ValueError:
         raise click.ClickException(
             "Unable to parse the callback path ({}); the "
             'expected format is "my_package.module:'

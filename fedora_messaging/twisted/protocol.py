@@ -170,7 +170,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
                     e=str(e),
                 )
                 break
-            except Exception as e:
+            except Exception:
                 _log.failure(
                     "An unexpected error occurred consuming from queue {q}",
                     q=consumer.queue,
@@ -290,7 +290,7 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         except (pika.exceptions.NackError, pika.exceptions.UnroutableError) as e:
             _log.error("Message was rejected by the broker ({reason})", reason=str(e))
             raise PublishReturned(reason=e)
-        except pika.exceptions.ChannelClosed as e:
+        except pika.exceptions.ChannelClosed:
             self._channel = yield self._allocate_channel()
             yield self.publish(message, exchange)
         except pika.exceptions.ConnectionClosed as e:
