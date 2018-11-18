@@ -83,14 +83,14 @@ def cli(conf):
 @cli.command()
 @click.option("--app-name", help=_app_name_help)
 @click.option("--callback", help=_callback_help)
-@click.option("--routing-key", help=_routing_key_help)
+@click.option("--routing-key", help=_routing_key_help, multiple=True)
 @click.option("--queue-name", help=_queue_name_help)
 @click.option("--exchange", help=_exchange_help)
 def consume(exchange, queue_name, routing_key, callback, app_name):
     """Consume messages from an AMQP queue using a Python callback."""
     if exchange and queue_name and routing_key:
         bindings = [
-            {"exchange": exchange, "queue_name": queue_name, "routing_key": routing_key}
+            {"exchange": exchange, "queue": queue_name, "routing_keys": routing_key}
         ]
     elif not exchange and not queue_name and not routing_key:
         bindings = config.conf["bindings"]

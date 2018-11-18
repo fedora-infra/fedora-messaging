@@ -55,7 +55,7 @@ class ConsumeCliTests(unittest.TestCase):
         """Assert providing a configuration file via the CLI works."""
         result = self.runner.invoke(cli.cli, ["--conf=" + GOOD_CONF, "consume"])
         mock_consume.assert_called_with(
-            echo, [{"exchange": "e", "queue_name": "q", "routing_key": "#"}]
+            echo, [{"exchange": "e", "queue": "q", "routing_keys": ["#"]}]
         )
         self.assertEqual(0, result.exit_code)
 
@@ -66,7 +66,7 @@ class ConsumeCliTests(unittest.TestCase):
             cli.cli, ["consume"], env={"FEDORA_MESSAGING_CONF": GOOD_CONF}
         )
         mock_consume.assert_called_with(
-            echo, [{"exchange": "e", "queue_name": "q", "routing_key": "#"}]
+            echo, [{"exchange": "e", "queue": "q", "routing_keys": ["#"]}]
         )
         self.assertEqual(0, result.exit_code)
 
@@ -97,7 +97,11 @@ class ConsumeCliTests(unittest.TestCase):
     @mock.patch("fedora_messaging.cli.api.consume")
     def test_good_cli_bindings(self, mock_consume, mock_importlib):
         """Assert providing a bindings via the CLI works."""
-        cli_options = {"exchange": "e", "queue-name": "qn", "routing-key": "rk"}
+        cli_options = {
+            "exchange": "e",
+            "queue-name": "qn",
+            "routing-keys": ("rk1", "rk2"),
+        }
         mock_mod_with_callable = mock.Mock(spec=["callable"])
         mock_importlib.import_module.return_value = mock_mod_with_callable
         result = self.runner.invoke(
@@ -106,7 +110,8 @@ class ConsumeCliTests(unittest.TestCase):
                 "consume",
                 "--exchange=" + cli_options["exchange"],
                 "--queue-name=" + cli_options["queue-name"],
-                "--routing-key=" + cli_options["routing-key"],
+                "--routing-key=" + cli_options["routing-keys"][0],
+                "--routing-key=" + cli_options["routing-keys"][1],
             ],
         )
         mock_importlib.import_module.called_once_with("mod")
@@ -115,8 +120,8 @@ class ConsumeCliTests(unittest.TestCase):
             [
                 {
                     "exchange": cli_options["exchange"],
-                    "queue_name": cli_options["queue-name"],
-                    "routing_key": cli_options["routing-key"],
+                    "queue": cli_options["queue-name"],
+                    "routing_keys": cli_options["routing-keys"],
                 }
             ],
         )

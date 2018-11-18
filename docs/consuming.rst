@@ -43,8 +43,8 @@ argument::
     # the queue configuration in this dictionary
     binding = {
         'exchange': 'amq.topic',  # The AMQP exchange to bind our queue to
-        'queue_name': 'demo',  # The unique name of our queue on the AMQP broker
-        'routing_key': '#',  # The topics that should be delivered to the queue
+        'queue': 'demo',  # The unique name of our queue on the AMQP broker
+        'routing_keys': ['#'],  # The topics that should be delivered to the queue
     }
 
     # Start consuming messages using our callback. This call will block until
