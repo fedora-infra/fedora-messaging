@@ -5,7 +5,7 @@ amqp_url = "amqp://"
 
 publish_exchange = "amq.topic"
 
-callback = "fedora_messaging.examples:print_msg"
+callback = "fedora_messaging.example:printer"
 
 # Note the double brackets below.
 # To add another binding, add another [[bindings]] section.
