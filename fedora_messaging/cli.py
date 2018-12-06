@@ -88,12 +88,22 @@ def cli(conf):
 @click.option("--exchange", help=_exchange_help)
 def consume(exchange, queue_name, routing_key, callback, app_name):
     """Consume messages from an AMQP queue using a Python callback."""
+    if queue_name:
+        queues = {
+            queue_name: {
+                "durable": True,
+                "auto_delete": False,
+                "exclusive": False,
+                "arguments": {},
+            }
+        }
     if exchange and queue_name and routing_key:
         bindings = [
             {"exchange": exchange, "queue": queue_name, "routing_keys": routing_key}
         ]
     elif not exchange and not queue_name and not routing_key:
         bindings = config.conf["bindings"]
+        queues = config.conf["queues"]
     else:
         raise click.ClickException(
             "You must define all three of exchange, queue_name and"
@@ -140,7 +150,7 @@ def consume(exchange, queue_name, routing_key, callback, app_name):
 
     _log.info("Starting consumer with %s callback", callback_path)
     try:
-        return api.consume(callback, bindings)
+        return api.consume(callback, bindings=bindings, queues=queues)
     except ValueError as e:
         click_version = pkg_resources.get_distribution("click").parsed_version
         if click_version < pkg_resources.parse_version("7.0"):
