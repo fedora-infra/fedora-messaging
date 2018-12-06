@@ -20,7 +20,7 @@ __all__ = (
 _session_cache = threading.local()
 
 
-def consume(callback, bindings=None):
+def consume(callback, bindings=None, queues=None):
     """
     Start a message consumer that executes the provided callback when messages are
     received.
@@ -34,7 +34,13 @@ def consume(callback, bindings=None):
     >>> def my_callback(message):
     ...     print(message)
     >>> bindings = [{'exchange': 'amq.topic', 'queue': 'demo', 'routing_keys': ['#']}]
-    >>> api.consume(my_callback, bindings=bindings)
+    >>> queues = {
+    ...     "demo": {"durable": False, "auto_delete": True, "exclusive": True, "arguments": {}}
+    ... }
+    >>> api.consume(my_callback, bindings=bindings, queues=queues)
+
+    If the bindings and queue arguments are not provided, they will be loaded from
+    the configuration.
 
     For complete documentation on writing consumers, see the :ref:`consumers`
     documentation.
@@ -42,26 +48,42 @@ def consume(callback, bindings=None):
     Args:
         callback (callable): A callable object that accepts one positional argument,
             a :class:`Message`.
-        bindings (dict or list of dict): The bindings to use when consuming. This
+        bindings (dict or list of dict): Bindings to declare before consuming. This
             should be the same format as the :ref:`conf-bindings` configuration.
+        queues (dict): The queue or queues to declare and consume from. This should be
+            in the same format as the :ref:`conf-queues` configuration dictionary where
+            each key is a queue name and each value is a dictionary of settings for that
+            queue.
 
     Raises:
         fedora_messaging.exceptions.HaltConsumer: If the consumer requests that
             it be stopped.
         ValueError: If the consumer provide callback that is not a class that
-            implements __call__ and is not a function, or if bindings isn't a
-            dictionary or list of dictionaries.
+            implements __call__ and is not a function, if the bindings argument
+            is not a dict or list of dicts with the proper keys, or if the queues
+            argument isn't a dict with the proper keys.
     """
     if isinstance(bindings, dict):
         bindings = [bindings]
-    if bindings:
-        for b in bindings:
-            if not isinstance(b, dict):
-                raise ValueError(
-                    "Expected list of dict bindings, got {}".format(bindings)
-                )
+
+    if bindings is None:
+        bindings = config.conf["bindings"]
+    else:
+        try:
+            config.validate_bindings(bindings)
+        except exceptions.ConfigurationException as e:
+            raise ValueError(e.message)
+
+    if queues is None:
+        queues = config.conf["queues"]
+    else:
+        try:
+            config.validate_queues(queues)
+        except exceptions.ConfigurationException as e:
+            raise ValueError(e.message)
+
     session = _session.ConsumerSession()
-    session.consume(callback, bindings)
+    session.consume(callback, bindings=bindings, queues=queues)
 
 
 def publish(message, exchange=None):

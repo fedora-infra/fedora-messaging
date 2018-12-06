@@ -21,7 +21,7 @@
 import unittest
 import mock
 
-from fedora_messaging import api
+from fedora_messaging import api, config
 from fedora_messaging.exceptions import PublishException
 from fedora_messaging.signals import (
     pre_publish_signal,
@@ -32,33 +32,62 @@ from fedora_messaging.signals import (
 
 @mock.patch("fedora_messaging._session.ConsumerSession")
 class ConsumeTests(unittest.TestCase):
-    def test_bindings_are_dict(self, mock_session):
-        """Assert consume is working(bindings type is dict)"""
-        mock_session.return_value = mock_session
-        api.consume("test_callback", dict())
-        mock_session.assert_called_once()
-        mock_session.consume.assert_called_once_with("test_callback", [dict()])
+    def test_defaults(self, mock_session):
+        """Assert that bindings and queues come from the config if not provided."""
+        api.consume("test_callback")
 
-    def test_bindings_not_list_of_dict(self, mock_session):
-        """Assert consume is working(bindings type is not dict)"""
-        mock_session.return_value = mock_session
+        mock_session.return_value.consume.assert_called_once_with(
+            "test_callback",
+            bindings=config.conf["bindings"],
+            queues=config.conf["queues"],
+        )
+
+    def test_bindings_dict(self, mock_session):
+        """Assert consume wraps bindings in a list of just a plain dict"""
+        bindings = {"queue": "q1", "exchange": "e1", "routing_keys": ["#"]}
+
+        api.consume("test_callback", bindings)
+
+        mock_session.assert_called_once()
+        mock_session.return_value.consume.assert_called_once_with(
+            "test_callback", bindings=[bindings], queues=config.conf["queues"]
+        )
+
+    def test_bindings_invalid_type(self, mock_session):
+        """Assert bindings are validated and result in a value error if they are invalid."""
         self.assertRaises(ValueError, api.consume, "test_callback", "test_bindings")
 
     def test_bindings_list_of_dict(self, mock_session):
         """Assert consume is working(bindings type is dict)"""
+        bindings = [{"queue": "q1", "exchange": "e1", "routing_keys": ["#"]}]
         mock_session.return_value = mock_session
-        api.consume("test_callback", [{"example": "binding"}])
+
+        api.consume("test_callback", bindings)
+
         mock_session.assert_called_once()
         mock_session.consume.assert_called_once_with(
-            "test_callback", [{"example": "binding"}]
+            "test_callback", bindings=bindings, queues=config.conf["queues"]
         )
 
-    def test_bindings_is_None(self, mock_session):
-        """Assert consume is working(bindings type is None)"""
-        mock_session.return_value = mock_session
-        api.consume("test_callback")
-        mock_session.assert_called_once()
-        mock_session.consume.assert_called_once_with("test_callback", None)
+    def test_queues_invalid_type(self, mock_session):
+        """Assert bindings are validated and result in a value error if they are invalid."""
+        self.assertRaises(ValueError, api.consume, None, None, "should be a dict")
+
+    def test_with_queues(self, mock_session):
+        """Assert queues is used over the config if provided."""
+        queues = {
+            "q1": {
+                "durable": True,
+                "auto_delete": False,
+                "exclusive": False,
+                "arguments": {},
+            }
+        }
+
+        api.consume("test_callback", bindings=[], queues=queues)
+        mock_session.return_value.consume.assert_called_once_with(
+            "test_callback", bindings=[], queues=queues
+        )
 
 
 class PublishTests(unittest.TestCase):
