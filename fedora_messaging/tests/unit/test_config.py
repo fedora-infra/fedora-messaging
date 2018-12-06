@@ -418,3 +418,15 @@ class LoadTests(unittest.TestCase):
         mock_log.info.assert_called_once_with(
             "Loading configuration from /etc/fedora-messaging/config.toml"
         )
+
+    def test_load_on_get_item(self):
+        """Assert load_config is called when __getitem__ is invoked."""
+        config = msg_config.LazyConfig()
+        config.load_config = mock.Mock()
+
+        try:
+            config["some_key"]
+        except KeyError:
+            pass
+
+        config.load_config.assert_called_once_with()
