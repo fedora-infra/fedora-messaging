@@ -308,6 +308,91 @@ DEFAULTS = dict(
 )
 
 
+def validate_bindings(bindings):
+    """
+    Validate the bindings configuration.
+
+    Raises:
+        exceptions.ConfigurationException: If the configuration provided is of an
+            invalid format.
+    """
+    if not isinstance(bindings, (list, tuple)):
+        raise exceptions.ConfigurationException(
+            "bindings must be a list or tuple of dictionaries, but was a {}".format(
+                type(bindings)
+            )
+        )
+
+    for binding in bindings:
+        missing_keys = []
+        for key in ("queue", "exchange", "routing_keys"):
+            if key not in binding:
+                missing_keys.append(key)
+        if missing_keys:
+            raise exceptions.ConfigurationException(
+                "a binding is missing the following keys from its settings "
+                "value: {}".format(missing_keys)
+            )
+
+        if not isinstance(binding["routing_keys"], (list, tuple)):
+            raise exceptions.ConfigurationException(
+                "routing_keys must be a list or tuple, but was a {}".format(
+                    type(binding["routing_keys"])
+                )
+            )
+
+
+def validate_queues(queues):
+    """
+    Validate the queues configuration.
+
+    Raises:
+        exceptions.ConfigurationException: If the configuration provided is of an
+            invalid format.
+    """
+    if not isinstance(queues, dict):
+        raise exceptions.ConfigurationException(
+            "'queues' must be a dictionary mapping queue names to settings."
+        )
+
+    for queue, settings in queues.items():
+        if not isinstance(settings, dict):
+            raise exceptions.ConfigurationException(
+                "the {} queue in the 'queues' setting has a value of type {}, but it "
+                "should be a dictionary of settings.".format(queue, type(settings))
+            )
+        missing_keys = []
+        for key in ("durable", "auto_delete", "exclusive", "arguments"):
+            if key not in settings:
+                missing_keys.append(key)
+        if missing_keys:
+            raise exceptions.ConfigurationException(
+                "the {} queue is missing the following keys from its settings "
+                "value: {}".format(queue, missing_keys)
+            )
+
+
+def validate_client_properties(props):
+    """
+    Validate the client properties setting.
+
+    This will add the "version", "information", and "product" keys if they are
+    missing. All other keys are application-specific.
+
+    Raises:
+        exceptions.ConfigurationException: If any of the basic keys are overridden.
+    """
+    for key in ("version", "information", "product"):
+        # Nested dictionaries are not merged so key can be missing
+        if key not in props:
+            props[key] = DEFAULTS["client_properties"][key]
+        # Don't let users override these as they identify this library in AMQP
+        if props[key] != DEFAULTS["client_properties"][key]:
+            raise exceptions.ConfigurationException(
+                '"{}" is a reserved keyword in client_properties'.format(key)
+            )
+
+
 class LazyConfig(dict):
     """This class lazy-loads the configuration file."""
 
@@ -355,15 +440,9 @@ class LazyConfig(dict):
                     " {}".format(key, list(DEFAULTS.keys()))
                 )
 
-        for key in ("version", "information", "product"):
-            # Nested dictionaries are not merged so key can be missing
-            if key not in self["client_properties"]:
-                self["client_properties"][key] = DEFAULTS["client_properties"][key]
-            # Don't let users override these as they identify this library in AMQP
-            if self["client_properties"][key] != DEFAULTS["client_properties"][key]:
-                raise exceptions.ConfigurationException(
-                    '"{}" is a reserved keyword in client_properties'.format(key)
-                )
+        validate_queues(self["queues"])
+        validate_bindings(self["bindings"])
+        validate_client_properties(self["client_properties"])
 
     def load_config(self, config_path=None):
         """
