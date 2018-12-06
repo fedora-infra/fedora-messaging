@@ -88,6 +88,105 @@ partial_config = 'publish_exchange = "special_exchange"'
 malformed_config = 'publish_exchange = "special_exchange'  # missing close quote
 
 
+class TestObj(object):
+    """This exists purely to make __repr__ the same on Python 2 and 3."""
+
+
+class ValidateBindingsTests(unittest.TestCase):
+    """Unit tests for :func:`fedora_messaging.config.validate_bindings`."""
+
+    def test_valid(self):
+        """Assert no exceptions are raised if the bindings are valid."""
+        bindings = [
+            {"queue": "q1", "exchange": "e1", "routing_keys": ["#"]},
+            {"queue": "q2", "exchange": "e2", "routing_keys": ("#",)},
+        ]
+
+        msg_config.validate_bindings(bindings)
+
+    def test_wrong_type(self):
+        """Assert a useful message is provided if bindings isn't a list or tuple"""
+        with self.assertRaises(ConfigurationException) as cm:
+            msg_config.validate_bindings(TestObj())
+        self.assertEqual(
+            "Configuration error: bindings must be a list or tuple of dictionaries, "
+            "but was a <class 'fedora_messaging.tests.unit.test_config.TestObj'>",
+            str(cm.exception),
+        )
+
+    def test_missing_keys(self):
+        """Assert a useful message is provided if "queue" is missing from the config."""
+        bindings = [{}]
+        with self.assertRaises(ConfigurationException) as cm:
+            msg_config.validate_bindings(bindings)
+        self.assertIn(
+            "Configuration error: a binding is missing the following keys",
+            str(cm.exception),
+        )
+        self.assertIn("queue", str(cm.exception))
+        self.assertIn("exchange", str(cm.exception))
+        self.assertIn("routing_keys", str(cm.exception))
+
+    def test_routing_key_str(self):
+        """Assert a useful message is provided if "routing_keys" is not a list or tuple."""
+        bindings = [{"exchange": "e1", "queue": "q1", "routing_keys": TestObj()}]
+        with self.assertRaises(ConfigurationException) as cm:
+            msg_config.validate_bindings(bindings)
+        self.assertEqual(
+            "Configuration error: routing_keys must be a list or tuple, but was a "
+            "<class 'fedora_messaging.tests.unit.test_config.TestObj'>",
+            str(cm.exception),
+        )
+
+
+class ValidateQueuesTests(unittest.TestCase):
+    """Unit tests for :func:`fedora_messaging.config.validate_queues`."""
+
+    def test_valid(self):
+        """Assert no exception is raised with a valid configuration."""
+        queues = {
+            "q1": {
+                "durable": True,
+                "auto_delete": False,
+                "exclusive": False,
+                "arguments": {},
+            }
+        }
+
+        msg_config.validate_queues(queues)
+
+    def test_invalid_type(self):
+        with self.assertRaises(ConfigurationException) as cm:
+            msg_config.validate_queues([])
+        self.assertEqual(
+            "Configuration error: 'queues' must be a dictionary mapping queue names to settings.",
+            str(cm.exception),
+        )
+
+    def test_settings_invalid_type(self):
+        with self.assertRaises(ConfigurationException) as cm:
+            msg_config.validate_queues({"q1": TestObj()})
+        self.assertEqual(
+            "Configuration error: the q1 queue in the 'queues' setting has a value of type "
+            "<class 'fedora_messaging.tests.unit.test_config.TestObj'>, but it should be a "
+            "dictionary of settings.",
+            str(cm.exception),
+        )
+        self.assertIn("it should be a dictionary of settings.", str(cm.exception))
+
+    def test_missing_keys(self):
+        with self.assertRaises(ConfigurationException) as cm:
+            msg_config.validate_queues({"q1": {}})
+        self.assertIn(
+            "Configuration error: the q1 queue is missing the following keys from its settings",
+            str(cm.exception),
+        )
+        self.assertIn("durable", str(cm.exception))
+        self.assertIn("auto_delete", str(cm.exception))
+        self.assertIn("exclusive", str(cm.exception))
+        self.assertIn("arguments", str(cm.exception))
+
+
 class LoadTests(unittest.TestCase):
     """Unit tests for :func:`fedora_messaging.config.load`."""
 
