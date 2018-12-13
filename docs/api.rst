@@ -63,6 +63,14 @@ basis. The following are valid severity levels:
 
 .. _exceptions-api:
 
+
+Utilities
+---------
+
+.. automodule:: fedora_messaging.schema_utils
+   :members:
+
+
 Exceptions
 ==========
 
