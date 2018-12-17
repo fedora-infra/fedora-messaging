@@ -272,6 +272,14 @@ class MessageTests(unittest.TestCase):
             message.Message(topic="test.topic", body={"my": "key"}),
         )
 
+    def test_equality_different_sent_at(self):
+        """Assert the "sent-at" key is not included in the equality check."""
+        m1 = message.Message(topic="test.topic", body={"my": "key"})
+        m2 = message.Message(topic="test.topic", body={"my": "key"})
+        m2._headers["sent-at"] = datetime.datetime(1970, 1, 2).isoformat()
+
+        self.assertEqual(m1, m2)
+
     def test_repr(self):
         """Assert the message produces a valid representation of the message."""
         msg = message.Message(topic="test.topic", body={"my": "key"})

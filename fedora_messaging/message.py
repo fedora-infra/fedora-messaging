@@ -473,17 +473,33 @@ class Message(object):
         """
         Two messages of the same class with the same topic, headers, and body are equal.
 
+        The "sent-at" header is excluded from the equality check as this is set
+        automatically and is dependent on when the object is created.
+
         Args:
             other (object): The object to check for equality.
 
         Returns:
             bool: True if the messages are equal.
         """
+        if not isinstance(other, self.__class__):
+            return False
+
+        headers = self._headers.copy()
+        other_headers = other._headers.copy()
+        try:
+            del headers["sent-at"]
+        except KeyError:
+            pass
+        try:
+            del other_headers["sent-at"]
+        except KeyError:
+            pass
+
         return (
-            isinstance(other, self.__class__)
-            and self.topic == other.topic
+            self.topic == other.topic
             and self._body == other._body
-            and self._headers == other._headers
+            and headers == other_headers
         )
 
     def validate(self):

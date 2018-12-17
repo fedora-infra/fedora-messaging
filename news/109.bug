@@ -1,0 +1,2 @@
+Fix the equality check on :class:`fedora_messaging.message.Message` objects to
+exclude the 'sent-at' header.
