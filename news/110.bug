@@ -1,0 +1,6 @@
+Documentation for consumers indicated any callable object was acceptable to use
+as a callback as long as it accepted a single positional argument (the
+message). However, the implementation required that the callable be a function
+or a class, which it then instantiated. This has been fixed and you may now use
+any callable object, such as a method or an instance of a class that implements
+``__call__``
