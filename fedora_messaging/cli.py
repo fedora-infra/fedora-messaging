@@ -88,32 +88,31 @@ def cli(conf):
 @click.option("--exchange", help=_exchange_help)
 def consume(exchange, queue_name, routing_key, callback, app_name):
     """Consume messages from an AMQP queue using a Python callback."""
+
+    # The configuration validates these are not null and contain all required keys
+    # when it is loaded.
+    bindings = config.conf["bindings"]
+    queues = config.conf["queues"]
+
+    # The CLI and config.DEFAULTS have different defaults for the queue
+    # settings at the moment.  We should select a universal default in the
+    # future and remove this. Unfortunately that will break backwards compatibility.
+    if queues == config.DEFAULTS["queues"]:
+        queues[config._default_queue_name]["durable"] = True
+        queues[config._default_queue_name]["auto_delete"] = False
+
     if queue_name:
-        queues = {
-            queue_name: {
-                "durable": True,
-                "auto_delete": False,
-                "exclusive": False,
-                "arguments": {},
-            }
-        }
-    if exchange and queue_name and routing_key:
-        bindings = [
-            {"exchange": exchange, "queue": queue_name, "routing_keys": routing_key}
-        ]
-    elif not exchange and not queue_name and not routing_key:
-        bindings = config.conf["bindings"]
-        queues = config.conf["queues"]
-    else:
-        raise click.ClickException(
-            "You must define all three of exchange, queue_name and"
-            " routing_key, or none of them to use the configuration"
-        )
-    if not bindings:
-        raise click.ClickException(
-            "No bindings are defined in the configuration file"
-            " and none were provided as arguments!"
-        )
+        queues = {queue_name: config.conf["queues"][config._default_queue_name]}
+        for binding in bindings:
+            binding["queue"] = queue_name
+
+    if exchange:
+        for binding in bindings:
+            binding["exchange"] = exchange
+
+    if routing_key:
+        for binding in bindings:
+            binding["routing_keys"] = routing_key
 
     callback_path = callback or config.conf["callback"]
     if not callback_path:
