@@ -140,48 +140,30 @@ class ConsumeCliTests(unittest.TestCase):
             echo, bindings=expected_bindings, queues=config.conf["queues"]
         )
 
-    @mock.patch.dict(
-        "fedora_messaging.config.conf", {"bindings": None, "callback": "mod:callable"}
-    )
-    @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.consume")
-    def test_wrong_cli_bindings(self, mock_consume, mock_importlib):
+    def test_queue_and_routing_key(self, mock_consume):
         """Assert providing improper bindings is reported."""
-        cli_options = {"queue-name": "qn", "routing-key": "rk"}
-        mock_mod_with_callable = mock.Mock(spec=["callable"])
-        mock_importlib.import_module.return_value = mock_mod_with_callable
-        result = self.runner.invoke(
-            cli.cli,
-            [
-                "consume",
-                "--queue-name=" + cli_options["queue-name"],
-                "--routing-key=" + cli_options["routing-key"],
-            ],
-        )
-        mock_importlib.import_module.called_once_with("mod")
-        mock_consume.assert_not_called()
-        self.assertIn(
-            "You must define all three of exchange, queue_name and"
-            " routing_key, or none of them to use the configuration",
-            result.output,
-        )
-        self.assertEqual(1, result.exit_code)
-
-    @mock.patch("fedora_messaging.cli.api.consume")
-    def test_missing_cli_and_conf_bindings(self, mock_consume):
-        """Assert missing bindings via cli and in conf is reported."""
-        config.conf["bindings"] = None
         config.conf["callback"] = "fedora_messaging.tests.unit.test_cli:echo"
 
-        result = self.runner.invoke(cli.cli, ["consume"])
-
-        mock_consume.assert_not_called()
-        self.assertEqual(1, result.exit_code)
-        self.assertIn(
-            "No bindings are defined in the configuration file"
-            " and none were provided as arguments!",
-            result.output,
+        result = self.runner.invoke(
+            cli.cli, ["consume", "--queue-name=qn", "--routing-key=rk"]
         )
+
+        mock_consume.assert_called_once_with(
+            echo,
+            bindings=[
+                {"exchange": "amq.topic", "queue": "qn", "routing_keys": ("rk",)}
+            ],
+            queues={
+                "qn": {
+                    "durable": True,
+                    "auto_delete": False,
+                    "exclusive": False,
+                    "arguments": {},
+                }
+            },
+        )
+        self.assertEqual(0, result.exit_code)
 
     @mock.patch("fedora_messaging.cli.api.consume")
     def test_good_cli_callable(self, mock_consume):
