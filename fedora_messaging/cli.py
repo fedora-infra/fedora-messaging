@@ -77,7 +77,7 @@ def cli(conf):
             config.conf.load_config(config_path=conf)
         except exceptions.ConfigurationException as e:
             raise click.exceptions.BadParameter(str(e))
-        config.conf.setup_logging()
+    config.conf.setup_logging()
 
 
 @cli.command()
