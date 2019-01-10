@@ -146,16 +146,18 @@ A dictionary of queues that should be present in the broker. Each key should be
 a queue name, and the value should be a dictionary with the queue's configuration.
 Options are:
 
-* ``durable`` - whether or not the queue should survive a broker restart.
+* ``durable`` - whether or not the queue should survive a broker restart. This is
+  set to ``False`` for the default queue.
 
 * ``auto_delete`` - whether or not the queue should be deleted once the
-  consumer disconnects.
+  consumer disconnects. This is set to ``True`` for the default queue.
 
 * ``exclusive`` - whether or not the queue is exclusive to the current
-  connection.
+  connection. This is set to ``False`` for the default queue.
 
 * ``arguments`` - dictionary of arbitrary keyword arguments for the queue, which
-  depends on the broker in use and its extensions.
+  depends on the broker in use and its extensions. This is set to ``{}`` for the
+  default queue
 
 For example::
 
