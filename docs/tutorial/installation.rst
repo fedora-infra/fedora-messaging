@@ -34,6 +34,9 @@ Install RabbitMQ and start it::
     dnf install rabbitmq-server
     systemctl start rabbitmq-server
 
+Enable RabbitMQ web admin interface::
+   rabbitmq-plugins enable rabbitmq_management
+
 RabbitMQ has a web admin interface that you can access at:
 http://localhost:15672/. The username is ``guest`` and the password is
 ``guest``. This interface lets you change the configuration, send messages and
