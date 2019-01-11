@@ -118,7 +118,8 @@ def consume(exchange, queue_name, routing_key, callback, app_name):
     callback_path = callback or config.conf["callback"]
     if not callback_path:
         raise click.ClickException(
-            '"callback" must be the Python path to a callable to consume'
+            "A Python path to a callable object that accepts the message must be provided"
+            ' with the "--callback" command line option or in the configuration file'
         )
     try:
         module, cls = callback_path.strip().split(":")
@@ -131,8 +132,11 @@ def consume(exchange, queue_name, routing_key, callback, app_name):
     try:
         module = importlib.import_module(module)
     except ImportError as e:
+        provider = "--callback argument" if callback else "configuration file"
         raise click.ClickException(
-            "Failed to import the callback module ({})".format(str(e))
+            "Failed to import the callback module ({}) provided in the {}".format(
+                str(e), provider
+            )
         )
 
     try:

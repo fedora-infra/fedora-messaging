@@ -256,7 +256,8 @@ class ConsumeCliTests(unittest.TestCase):
         mock_importlib.import_module.not_called()
         mock_consume.assert_not_called()
         self.assertIn(
-            '"callback" must be the Python path to a' " callable to consume",
+            "A Python path to a callable object that accepts the message must be provided"
+            ' with the "--callback" command line option or in the configuration file',
             result.output,
         )
         self.assertEqual(1, result.exit_code)
@@ -285,7 +286,7 @@ class ConsumeCliTests(unittest.TestCase):
     @mock.patch.dict("fedora_messaging.config.conf", {"bindings": "b"})
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.consume")
-    def test_cli_callable_import_failure(self, mock_consume, mock_importlib):
+    def test_cli_callable_import_failure_cli_opt(self, mock_consume, mock_importlib):
         """Assert module with callable import failure is reported."""
         cli_options = {"callback": "mod:callable"}
         error_message = "No module named 'mod'"
@@ -296,7 +297,29 @@ class ConsumeCliTests(unittest.TestCase):
         mock_importlib.import_module.called_once_with("mod")
         mock_consume.assert_not_called()
         self.assertIn(
-            "Failed to import the callback module ({})".format(error_message),
+            "Failed to import the callback module ({}) provided in the --callback argument".format(
+                error_message
+            ),
+            result.output,
+        )
+        self.assertEqual(1, result.exit_code)
+
+    @mock.patch.dict(
+        "fedora_messaging.config.conf", {"bindings": "b", "callback": "mod:callable"}
+    )
+    @mock.patch("fedora_messaging.cli.importlib")
+    @mock.patch("fedora_messaging.cli.api.consume")
+    def test_cli_callable_import_failure_conf(self, mock_consume, mock_importlib):
+        """Assert module with callable import failure is reported."""
+        error_message = "No module named 'mod'"
+        mock_importlib.import_module.side_effect = ImportError(error_message)
+        result = self.runner.invoke(cli.cli, ["consume"])
+        mock_importlib.import_module.called_once_with("mod")
+        mock_consume.assert_not_called()
+        self.assertIn(
+            "Failed to import the callback module ({}) provided in the configuration file".format(
+                error_message
+            ),
             result.output,
         )
         self.assertEqual(1, result.exit_code)
