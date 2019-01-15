@@ -47,7 +47,8 @@ def consume(callback, bindings=None, queues=None):
 
     Args:
         callback (callable): A callable object that accepts one positional argument,
-            a :class:`Message`.
+            a :class:`Message` or a class object that implements the ``__call__``
+            method. The class will be instantiated before use.
         bindings (dict or list of dict): Bindings to declare before consuming. This
             should be the same format as the :ref:`conf-bindings` configuration.
         queues (dict): The queue or queues to declare and consume from. This should be

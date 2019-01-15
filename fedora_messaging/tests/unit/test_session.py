@@ -355,6 +355,46 @@ class ConsumerSessionTests(unittest.TestCase):
         self.assertRaises(ValueError, self.consumer.consume, "not_callable")
         self.assertFalse(hasattr(self.consumer, "_consumer_callback"))
 
+    def test_consume_with_method(self):
+        """Test that a method can be provided as the callback."""
+
+        class Callback(object):
+            def callback(self):
+                return
+
+        callback = Callback().callback
+
+        def stop_consumer():
+            # Necessary to exit the while loop
+            self.consumer._running = False
+
+        connection = mock.Mock()
+        connection.ioloop.start.side_effect = stop_consumer
+
+        with mock.patch(
+            "fedora_messaging._session.pika.SelectConnection",
+            lambda *a, **kw: connection,
+        ):
+            self.consumer.consume(callback)
+            self.assertEqual(self.consumer._consumer_callback, callback)
+            connection.ioloop.start.assert_called_once()
+            # Callback is a callable class
+            self.consumer.consume(mock.Mock)
+            self.assertTrue(isinstance(self.consumer._consumer_callback, mock.Mock))
+            # Configuration defaults
+            self.consumer.consume(callback)
+            self.assertEqual(self.consumer._bindings, config.conf["bindings"])
+            self.assertEqual(self.consumer._queues, config.conf["queues"])
+            self.assertEqual(self.consumer._exchanges, config.conf["exchanges"])
+            # Configuration overrides
+            test_value = [{"test": "test"}]
+            self.consumer.consume(
+                callback, bindings=test_value, queues=test_value, exchanges=test_value
+            )
+            self.assertEqual(self.consumer._bindings, test_value)
+            self.assertEqual(self.consumer._queues, test_value)
+            self.assertEqual(self.consumer._exchanges, test_value)
+
     def test_declare(self):
         # Test that the exchanges, queues and bindings are properly
         # declared.

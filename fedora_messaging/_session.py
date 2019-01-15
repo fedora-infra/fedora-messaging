@@ -479,8 +479,8 @@ class ConsumerSession(object):
 
         Raises:
             HaltConsumer: Raised when the consumer halts.
-            ValueError: If the callback isn't a function or a class with __call__
-                defined.
+            ValueError: If the callback isn't a callable object or a class with
+                __call__ defined.
         """
         self._bindings = bindings or config.conf["bindings"]
         self._queues = queues or config.conf["queues"]
@@ -495,7 +495,7 @@ class ConsumerSession(object):
                     " or a function."
                 )
             self._consumer_callback = cb_obj
-        elif inspect.isfunction(callback):
+        elif callable(callback):
             self._consumer_callback = callback
         else:
             raise ValueError(
