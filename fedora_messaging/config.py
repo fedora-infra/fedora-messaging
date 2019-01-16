@@ -225,6 +225,7 @@ meaning there is no limit. The default settings are::
 """
 from __future__ import unicode_literals
 
+import copy
 import logging
 import logging.config
 import os
@@ -454,7 +455,7 @@ class LazyConfig(dict):
         Otherwise, the path defaults to ``/etc/fedora-messaging/config.toml``.
         """
         self.loaded = True
-        config = DEFAULTS.copy()
+        config = copy.deepcopy(DEFAULTS)
 
         if config_path is None:
             if "FEDORA_MESSAGING_CONF" in os.environ:
