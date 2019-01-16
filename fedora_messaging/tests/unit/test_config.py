@@ -190,6 +190,14 @@ class ValidateQueuesTests(unittest.TestCase):
 class LoadTests(unittest.TestCase):
     """Unit tests for :func:`fedora_messaging.config.load`."""
 
+    def test_deep_copy(self):
+        """Assert nested dictionaries in DEFAULTS are not copied into the config instance."""
+        config = msg_config.LazyConfig().load_config()
+
+        config["queues"]["somequeue"] = {}
+
+        self.assertNotIn("somequeue", msg_config.DEFAULTS["queues"])
+
     @mock.patch("fedora_messaging.config._log", autospec=True)
     @mock.patch("fedora_messaging.config.os.path.exists", return_value=False)
     def test_missing_config_file(self, mock_exists, mock_log):
