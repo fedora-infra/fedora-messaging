@@ -50,6 +50,11 @@ class ConsumeCliTests(unittest.TestCase):
     def setUp(self):
         self.runner = CliRunner()
 
+    def tearDown(self):
+        """Make sure each test has a fresh default configuration."""
+        config.conf = config.LazyConfig()
+        config.conf.load_config()
+
     @mock.patch("fedora_messaging.cli.api.consume")
     def test_good_conf(self, mock_consume):
         """Assert providing a configuration file via the CLI works."""
@@ -94,40 +99,24 @@ class ConsumeCliTests(unittest.TestCase):
             "Error: Invalid value: thispathdoesnotexist is not a file", result.output
         )
 
-    @mock.patch.dict(
-        "fedora_messaging.config.conf", {"bindings": None, "callback": "mod:callable"}
-    )
-    @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.consume")
-    def test_good_cli_bindings(self, mock_consume, mock_importlib):
+    def test_good_cli_bindings(self, mock_consume):
         """Assert providing a bindings via the CLI works."""
-        cli_options = {
-            "exchange": "e",
-            "queue-name": "qn",
-            "routing-keys": ("rk1", "rk2"),
-        }
-        mock_mod_with_callable = mock.Mock(spec=["callable"])
-        mock_importlib.import_module.return_value = mock_mod_with_callable
+        config.conf["callback"] = "fedora_messaging.tests.unit.test_cli:echo"
+
         result = self.runner.invoke(
             cli.cli,
             [
                 "consume",
-                "--exchange=" + cli_options["exchange"],
-                "--queue-name=" + cli_options["queue-name"],
-                "--routing-key=" + cli_options["routing-keys"][0],
-                "--routing-key=" + cli_options["routing-keys"][1],
+                "--exchange=e",
+                "--queue-name=qn",
+                "--routing-key=rk1",
+                "--routing-key=rk2",
             ],
         )
-        mock_importlib.import_module.called_once_with("mod")
         mock_consume.assert_called_once_with(
-            mock_mod_with_callable.callable,
-            bindings=[
-                {
-                    "exchange": cli_options["exchange"],
-                    "queue": cli_options["queue-name"],
-                    "routing_keys": cli_options["routing-keys"],
-                }
-            ],
+            echo,
+            bindings=[{"exchange": "e", "queue": "qn", "routing_keys": ("rk1", "rk2")}],
             queues={
                 "qn": {
                     "durable": True,
@@ -139,21 +128,17 @@ class ConsumeCliTests(unittest.TestCase):
         )
         self.assertEqual(0, result.exit_code)
 
-    @mock.patch.dict(
-        "fedora_messaging.config.conf", {"bindings": "b", "callback": "mod:callable"}
-    )
-    @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.consume")
-    def test_no_cli_bindings(self, mock_consume, mock_importlib):
+    def test_no_cli_bindings(self, mock_consume):
         """Assert providing a bindings via configuration works."""
-        mock_mod_with_callable = mock.Mock(spec=["callable"])
-        mock_importlib.import_module.return_value = mock_mod_with_callable
-        result = self.runner.invoke(cli.cli, ["consume"])
-        mock_importlib.import_module.called_once_with("mod")
-        mock_consume.assert_called_once_with(
-            mock_mod_with_callable.callable, bindings="b", queues=config.conf["queues"]
-        )
+        expected_bindings = [{"exchange": "e", "queue": "q", "routing_keys": ["#"]}]
+
+        result = self.runner.invoke(cli.cli, ["--conf=" + GOOD_CONF, "consume"])
+
         self.assertEqual(0, result.exit_code)
+        mock_consume.assert_called_once_with(
+            echo, bindings=expected_bindings, queues=config.conf["queues"]
+        )
 
     @mock.patch.dict(
         "fedora_messaging.config.conf", {"bindings": None, "callback": "mod:callable"}
@@ -182,39 +167,31 @@ class ConsumeCliTests(unittest.TestCase):
         )
         self.assertEqual(1, result.exit_code)
 
-    @mock.patch.dict(
-        "fedora_messaging.config.conf", {"bindings": None, "callback": "mod:callable"}
-    )
-    @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.consume")
-    def test_missing_cli_and_conf_bindings(self, mock_consume, mock_importlib):
+    def test_missing_cli_and_conf_bindings(self, mock_consume):
         """Assert missing bindings via cli and in conf is reported."""
-        mock_mod_with_callable = mock.Mock(spec=["callable"])
-        mock_importlib.import_module.return_value = mock_mod_with_callable
+        config.conf["bindings"] = None
+        config.conf["callback"] = "fedora_messaging.tests.unit.test_cli:echo"
+
         result = self.runner.invoke(cli.cli, ["consume"])
-        mock_importlib.import_module.not_called()
+
         mock_consume.assert_not_called()
+        self.assertEqual(1, result.exit_code)
         self.assertIn(
             "No bindings are defined in the configuration file"
             " and none were provided as arguments!",
             result.output,
         )
-        self.assertEqual(1, result.exit_code)
 
-    @mock.patch.dict("fedora_messaging.config.conf", {"bindings": "b", "queues": "c"})
-    @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.consume")
-    def test_good_cli_callable(self, mock_consume, mock_importlib):
+    def test_good_cli_callable(self, mock_consume):
         """Assert providing a callable via the CLI works."""
-        cli_options = {"callback": "mod:callable"}
-        mock_mod_with_callable = mock.Mock(spec=["callable"])
-        mock_importlib.import_module.return_value = mock_mod_with_callable
         result = self.runner.invoke(
-            cli.cli, ["consume", "--callback=" + cli_options["callback"]]
+            cli.cli, ["consume", "--callback=fedora_messaging.tests.unit.test_cli:echo"]
         )
-        mock_importlib.import_module.called_once_with("mod")
+
         mock_consume.assert_called_once_with(
-            mock_mod_with_callable.callable, bindings="b", queues="c"
+            echo, bindings=config.conf["bindings"], queues=config.conf["queues"]
         )
         self.assertEqual(0, result.exit_code)
 
@@ -304,24 +281,16 @@ class ConsumeCliTests(unittest.TestCase):
         )
         self.assertEqual(1, result.exit_code)
 
-    @mock.patch.dict(
-        "fedora_messaging.config.conf", {"bindings": "b", "callback": "mod:callable"}
-    )
-    @mock.patch("fedora_messaging.cli.importlib")
-    @mock.patch("fedora_messaging.cli.api.consume")
-    def test_cli_callable_import_failure_conf(self, mock_consume, mock_importlib):
+    def test_cli_callable_import_failure_conf(self):
         """Assert module with callable import failure is reported."""
-        error_message = "No module named 'mod'"
-        mock_importlib.import_module.side_effect = ImportError(error_message)
+        config.conf["callback"] = "donotmakethismoduleorthetestbreaks:function"
+
         result = self.runner.invoke(cli.cli, ["consume"])
-        mock_importlib.import_module.called_once_with("mod")
-        mock_consume.assert_not_called()
-        self.assertIn(
-            "Failed to import the callback module ({}) provided in the configuration file".format(
-                error_message
-            ),
-            result.output,
-        )
+
+        # Python 2 import exceptions print differently, so break this assert up :(
+        self.assertIn("Failed to import the callback module", result.output)
+        self.assertIn("donotmakethismoduleorthetestbreaks", result.output)
+        self.assertIn("provided in the configuration file", result.output)
         self.assertEqual(1, result.exit_code)
 
     @mock.patch("fedora_messaging.cli.getattr")
@@ -349,34 +318,24 @@ class ConsumeCliTests(unittest.TestCase):
         )
         self.assertEqual(1, result.exit_code)
 
-    @mock.patch.dict("fedora_messaging.config.conf", {"bindings": "b", "queues": "q"})
-    @mock.patch("fedora_messaging.cli.importlib")
-    @mock.patch("fedora_messaging.cli.api.consume")
-    def test_consume_improper_callback_object(self, mock_consume, mock_importlib):
+    def test_consume_improper_callback_object(self):
         """Assert improper callback object type failure is reported."""
-        cli_options = {"callback": "mod:callable"}
         error_message = (
             "Callback must be a class that implements __call__ or a function."
         )
-        mock_mod_with_callable = mock.Mock(spec=["callable"])
-        mock_importlib.import_module.return_value = mock_mod_with_callable
-        mock_consume.side_effect = ValueError(error_message)
+
         result = self.runner.invoke(
-            cli.cli, ["consume", "--callback=" + cli_options["callback"]]
+            cli.cli,
+            ["consume", "--callback=fedora_messaging.tests.unit.test_cli:FIXTURES_DIR"],
         )
-        mock_importlib.import_module.called_once_with("mod")
-        mock_consume.assert_called_once_with(
-            mock_mod_with_callable.callable, bindings="b", queues="q"
-        )
+
         self.assertIn(error_message, result.output)
         self.assertEqual(2, result.exit_code)
 
-    @mock.patch.dict("fedora_messaging.config.conf", {"bindings": "b", "queues": "q"})
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.consume")
     def test_consume_halt_with_exitcode(self, mock_consume, mock_importlib):
         """Assert user execution halt with reason and exit_code is reported."""
-        cli_options = {"callback": "mod:callable"}
         halt_message = "User halted execution"
         halt_exit_code = 5
         mock_mod_with_callable = mock.Mock(spec=["callable"])
@@ -384,13 +343,14 @@ class ConsumeCliTests(unittest.TestCase):
         mock_consume.side_effect = exceptions.HaltConsumer(
             exit_code=halt_exit_code, reason=halt_message
         )
+
         with mock.patch("fedora_messaging.cli._log") as mock_log:
-            result = self.runner.invoke(
-                cli.cli, ["consume", "--callback=" + cli_options["callback"]]
-            )
-        mock_importlib.import_module.called_once_with("mod")
+            result = self.runner.invoke(cli.cli, ["consume", "--callback=mod:callable"])
+
         mock_consume.assert_called_once_with(
-            mock_mod_with_callable.callable, bindings="b", queues="q"
+            mock_mod_with_callable.callable,
+            bindings=config.conf["bindings"],
+            queues=config.conf["queues"],
         )
         mock_log.error.assert_called_once_with(
             "Consumer halted with non-zero exit code (%d): %s",
@@ -399,20 +359,19 @@ class ConsumeCliTests(unittest.TestCase):
         )
         self.assertEqual(halt_exit_code, result.exit_code)
 
-    @mock.patch.dict("fedora_messaging.config.conf", {"bindings": "b", "queues": "q"})
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.consume")
     def test_consume_halt_without_exitcode(self, mock_consume, mock_importlib):
         """Assert user execution halt is reported."""
-        cli_options = {"callback": "mod:callable"}
         mock_mod_with_callable = mock.Mock(spec=["callable"])
         mock_importlib.import_module.return_value = mock_mod_with_callable
         mock_consume.side_effect = exceptions.HaltConsumer(exit_code=0)
-        result = self.runner.invoke(
-            cli.cli, ["consume", "--callback=" + cli_options["callback"]]
-        )
-        mock_importlib.import_module.called_once_with("mod")
+
+        result = self.runner.invoke(cli.cli, ["consume", "--callback=mod:callable"])
+
         mock_consume.assert_called_once_with(
-            mock_mod_with_callable.callable, bindings="b", queues="q"
+            mock_mod_with_callable.callable,
+            bindings=config.conf["bindings"],
+            queues=config.conf["queues"],
         )
         self.assertEqual(0, result.exit_code)
