@@ -4,6 +4,66 @@ Release Notes
 
 .. towncrier release notes start
 
+v1.2.0 (2019-01-21)
+===================
+
+Features
+--------
+
+* The :func:`fedora_messaging.api.consume` API now accepts a "queues" keyword
+  which specifies the queues to declare and consume from, and the
+  "fedora-messaging" CLI makes use of this
+  (`PR#107 <https://github.com/fedora-infra/fedora-messaging/pull/107>`_)
+
+* Utilities were added in the :py:mod:`schema_utils` module to help write the
+  Python API of your message schemas
+  (`PR#108 <https://github.com/fedora-infra/fedora-messaging/pull/108>`_)
+
+* No long require "--exchange", "--queue-name", and "--routing-key" to all be
+  specified when using "fedora-messaging consume". If one is not supplied, a
+  default is chosen. These defaults are documented in the command's manual page
+  (`PR#117 <https://github.com/fedora-infra/fedora-messaging/pull/117>`_)
+
+
+Bug Fixes
+---------
+
+* Fix the "consumer" setting in config.toml.example to point to a real Python path
+  (`PR#104 <https://github.com/fedora-infra/fedora-messaging/pull/104>`_)
+
+* fedora-messaging consume now actually uses the --queue-name and --routing-key
+  parameter provided to it, and --routing-key can now be specified multiple times
+  as was documented
+  (`PR#105 <https://github.com/fedora-infra/fedora-messaging/pull/105>`_)
+
+* Fix the equality check on :class:`fedora_messaging.message.Message` objects to
+  exclude the 'sent-at' header
+  (`PR#109 <https://github.com/fedora-infra/fedora-messaging/pull/109>`_)
+
+* Documentation for consumers indicated any callable object was acceptable to use
+  as a callback as long as it accepted a single positional argument (the
+  message). However, the implementation required that the callable be a function
+  or a class, which it then instantiated. This has been fixed and you may now use
+  any callable object, such as a method or an instance of a class that implements
+  ``__call__``
+  (`PR#110 <https://github.com/fedora-infra/fedora-messaging/pull/110>`_)
+
+* Fix an issue where the fedora-messaging CLI would only log if a configuration
+  file was explicitly supplied
+  (`PR#113 <https://github.com/fedora-infra/fedora-messaging/pull/113>`_)
+
+
+Contributors
+------------
+Many thanks to the contributors of bug reports, pull requests, and pull request
+reviews for this release:
+
+* Aurélien Bompard
+* Jeremy Cline
+* Sebastian Wojciechowski
+* Tomas Tomecek
+
+
 v1.1.0 (2018-11-13)
 ===================
 
