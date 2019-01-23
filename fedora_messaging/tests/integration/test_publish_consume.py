@@ -127,7 +127,7 @@ def test_basic_pub_sub():
     assert len(messages_received) == 3
     for m in messages_received:
         assert u"nice.message" == m.topic
-        assert {u"encouragement": u"You're doing great!"} == m._body
+        assert {u"encouragement": u"You're doing great!"} == m.body
         assert "sent-at" in m._headers
         del m._headers["sent-at"]
         assert expected_headers == m._headers

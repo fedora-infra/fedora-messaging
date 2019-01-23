@@ -27,6 +27,7 @@ this class in a small Python package of its own.
 import datetime
 import json
 import logging
+import warnings
 import uuid
 
 import jsonschema
@@ -383,7 +384,7 @@ class Message(object):
     def __init__(
         self, body=None, headers=None, topic=None, properties=None, severity=None
     ):
-        self._body = body or {}
+        self.body = body or {}
         if topic:
             self.topic = topic
         headers = headers or {}
@@ -459,14 +460,14 @@ class Message(object):
     @property
     def _encoded_body(self):
         """The encoded body used to publish the message."""
-        return json.dumps(self._body).encode("utf-8")
+        return json.dumps(self.body).encode("utf-8")
 
     def __repr__(self):
         """
         Provide a printable representation of the object that can be passed to func:`eval`.
         """
         return "{}(id={}, topic={}, body={})".format(
-            self.__class__.__name__, repr(self.id), repr(self.topic), repr(self._body)
+            self.__class__.__name__, repr(self.id), repr(self.topic), repr(self.body)
         )
 
     def __eq__(self, other):
@@ -498,7 +499,7 @@ class Message(object):
 
         return (
             self.topic == other.topic
-            and self._body == other._body
+            and self.body == other.body
             and headers == other_headers
         )
 
@@ -527,9 +528,9 @@ class Message(object):
             jsonschema.validate(self._headers, schema)
         for schema in (self.body_schema, Message.body_schema):
             _log.debug(
-                'Validating message body "%r" with schema "%r"', self._body, schema
+                'Validating message body "%r" with schema "%r"', self.body, schema
             )
-            jsonschema.validate(self._body, schema)
+            jsonschema.validate(self.body, schema)
 
     @property
     def summary(self):
@@ -559,7 +560,7 @@ class Message(object):
             h=json.dumps(
                 self._headers, sort_keys=True, indent=4, separators=(",", ": ")
             ),
-            b=json.dumps(self._body, sort_keys=True, indent=4, separators=(",", ": ")),
+            b=json.dumps(self.body, sort_keys=True, indent=4, separators=(",", ": ")),
         )
 
     @property
@@ -646,6 +647,24 @@ class Message(object):
             "topic": self.topic,
             "headers": self._headers,
             "id": self.id,
-            "body": self._body,
+            "body": self.body,
             "queue": self.queue,
         }
+
+    @property
+    def _body(self):
+        warnings.warn(
+            "The '_body' property has been renamed to 'body'.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.body
+
+    @_body.setter
+    def _body(self, value):
+        warnings.warn(
+            "The '_body' property has been renamed to 'body'.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.body = value

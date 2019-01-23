@@ -49,7 +49,7 @@ class PublisherSessionTests(unittest.TestCase):
         self.message._headers = {}
         self.message.topic = "test.topic"
         self.message._encoded_routing_key = b"test.topic"
-        self.message._body = "test body"
+        self.message.body = "test body"
         self.message._encoded_body = b'"test body"'
         self.tls_conf = {
             "keyfile": None,
@@ -777,7 +777,7 @@ class ConsumerSessionMessageTests(unittest.TestCase):
         msg = self.consumer._consumer_callback.call_args_list[0][0][0]
         msg.validate.assert_called_once()
         self.channel.basic_ack.assert_called_with(delivery_tag="testtag")
-        self.assertEqual(msg._body, "test body")
+        self.assertEqual(msg.body, "test body")
 
     def test_message_queue_set(self):
         """Assert the queue attribute is set on messages."""
@@ -791,7 +791,7 @@ class ConsumerSessionMessageTests(unittest.TestCase):
         self.consumer._on_message(self.channel, self.frame, self.properties, body)
         self.consumer._consumer_callback.assert_called_once()
         msg = self.consumer._consumer_callback.call_args_list[0][0][0]
-        self.assertEqual(msg._body, "test body unicode é à ç")
+        self.assertEqual(msg.body, "test body unicode é à ç")
 
     def test_message_wrong_encoding(self):
         body = '"test body unicode é à ç"'.encode("utf-8")

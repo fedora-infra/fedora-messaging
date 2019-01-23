@@ -130,21 +130,21 @@ class MessageV1(BaseMessage):
     @property
     def subject(self):
         """The email's subject."""
-        return self._body["msg"]["subject"]
+        return self.body["msg"]["subject"]
 
     @property
     def body(self):
         """The email message body."""
-        return self._body["msg"]["body"]
+        return self.body["msg"]["body"]
 
     @property
     def agent_avatar(self):
         """An URL to the avatar of the user who caused the action."""
-        from_header = self._body["msg"]["from"]
+        from_header = self.body["msg"]["from"]
         return get_avatar(from_header)
 
     def _get_archived_at(self):
-        return self._body["msg"]["archived-at"]
+        return self.body["msg"]["archived-at"]
 
 
 class MessageV2(BaseMessage):
@@ -184,18 +184,18 @@ class MessageV2(BaseMessage):
     @property
     def subject(self):
         """The email's subject."""
-        return self._body["subject"]
+        return self.body["subject"]
 
     @property
     def body(self):
         """The email message body."""
-        return self._body["body"]
+        return self.body["body"]
 
     @property
     def agent_avatar(self):
         """An URL to the avatar of the user who caused the action."""
-        from_header = self._body["from"]
+        from_header = self.body["from"]
         return get_avatar(from_header)
 
     def _get_archived_at(self):
-        return self._body["archived-at"]
+        return self.body["archived-at"]
