@@ -423,6 +423,30 @@ class MessageTests(unittest.TestCase):
         test_msg_dict = test_msg._dump()
         self.assertEqual(expected_dict, test_msg_dict)
 
+    @mock.patch("fedora_messaging.message.warnings")
+    def test_body_deprecation_setter(self, mock_warning):
+        """Assert a deprecation warning is printed on _body setter usage."""
+        m = message.Message(body={})
+        m._body["old"] = "interface"
+
+        mock_warning.warn.assert_called_once_with(
+            "The '_body' property has been renamed to 'body'.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
+    @mock.patch("fedora_messaging.message.warnings")
+    def test_body_deprecation_getter(self, mock_warning):
+        """Assert a deprecation warning is printed on _body getter usage."""
+        m = message.Message(body={"old": "interface"})
+        self.assertEqual(m._body["old"], "interface")
+
+        mock_warning.warn.assert_called_once_with(
+            "The '_body' property has been renamed to 'body'.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
 
 class CustomMessage(message.Message):
     """Test class that returns values for filter properties."""
