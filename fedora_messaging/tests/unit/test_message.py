@@ -115,7 +115,7 @@ class MessageLoadsTests(unittest.TestCase):
         self.assertIsInstance(test_message, message.Message)
         self.assertEqual("test topic", test_message.topic)
         self.assertEqual("test id", test_message.id)
-        self.assertEqual({"test_key": "test_value"}, test_message._body)
+        self.assertEqual({"test_key": "test_value"}, test_message.body)
         self.assertEqual("test queue", test_message.queue)
         self.assertEqual(
             message.WARNING, test_message._headers["fedora_messaging_severity"]
@@ -190,7 +190,7 @@ class MessageLoadsTests(unittest.TestCase):
         self.assertEqual(len(messages), 1)
         self.assertEqual("test topic", test_message.topic)
         self.assertEqual("test id", test_message.id)
-        self.assertEqual({"test_key": "test_value"}, test_message._body)
+        self.assertEqual({"test_key": "test_value"}, test_message.body)
         self.assertEqual(None, test_message.queue)
         self.assertEqual(
             message.WARNING, test_message._headers["fedora_messaging_severity"]
@@ -430,21 +430,21 @@ class CustomMessage(message.Message):
     @property
     def usernames(self):
         try:
-            return self._body["users"]
+            return self.body["users"]
         except KeyError:
             return []
 
     @property
     def packages(self):
         try:
-            return self._body["packages"]
+            return self.body["packages"]
         except KeyError:
             return []
 
     @property
     def containers(self):
         try:
-            return self._body["containers"]
+            return self.body["containers"]
         except KeyError:
             return []
         pass
@@ -452,14 +452,14 @@ class CustomMessage(message.Message):
     @property
     def modules(self):
         try:
-            return self._body["modules"]
+            return self.body["modules"]
         except KeyError:
             return []
 
     @property
     def flatpaks(self):
         try:
-            return self._body["flatpaks"]
+            return self.body["flatpaks"]
         except KeyError:
             return []
 
