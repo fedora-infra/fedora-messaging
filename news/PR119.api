@@ -1,1 +1,0 @@
-The :py:attr:`Message._body` attribute is renamed to ``body``, and is now part of the public API.
