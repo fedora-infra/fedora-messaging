@@ -107,3 +107,6 @@ ENV/
 
 # fedora_messaging specific files
 config.toml
+
+# VS Code
+.vscode
