@@ -4,6 +4,25 @@ Release Notes
 
 .. towncrier release notes start
 
+v1.3.0 (2019-01-24)
+===================
+
+API Changes
+-----------
+
+* The :py:attr:`Message._body` attribute is renamed to ``body``, and is now part of the public API.
+  (`PR#119 <https://github.com/fedora-infra/fedora-messaging/pull/119>`_)
+
+
+Contributors
+------------
+Many thanks to the contributors of bug reports, pull requests, and pull request
+reviews for this release:
+
+* Aurélien Bompard
+* Jeremy Cline
+
+
 v1.2.0 (2019-01-21)
 ===================
 
