@@ -56,7 +56,7 @@ class LibravatarURLTests(unittest.TestCase):
     def test_email(self):
         expected = (
             "https://seccdn.libravatar.org/avatar/"
-            "5d9c68c6c50ed3d02a2fcf54f63993b6"
+            "ae5deb822e0d71992900471a7199d0d95b8e7c9d05c40a8245a281fd2c1d6684"
             "?s=64&d=retro"
         )
         assert schema_utils.libravatar_url(email="testuser") == expected
