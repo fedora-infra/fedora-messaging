@@ -95,6 +95,26 @@ configuration file and no options on the command line.
     in *all* ``bindings`` entries in the configuration file.
 
 
+Systemd service
+===============
+
+The ``consume`` subcommand can be started as a system service, and Fedora
+Messaging provides a dynamic systemd service file.
+
+First, create a valid Fedora Messaging configuration file in
+``/etc/fedora-messaging/foo.toml``, with the ``callback`` parameter pointing to
+your consuming function or class. Remember that you can use the
+``consumer_config`` section for your own configuration.
+
+Enable and start the service in systemd with the following commands::
+
+  systemctl enable fm-consumer@foo.service
+  systemctl start fm-consumer@foo.service
+
+The service name after the ``@`` and before the ``.service`` must match your
+filename in ``/etc/fedora-messaging`` (without the ``.toml`` suffix).
+
+
 Help
 ====
 

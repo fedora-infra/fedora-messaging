@@ -1,0 +1,11 @@
+[Unit]
+Description=Fedora Messaging consumer
+Documentation=http://fedora-messaging.readthedocs.io/
+
+[Service]
+Type=simple
+ExecStart=fedora-messaging --conf /etc/fedora-messaging/%i.toml consume
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
