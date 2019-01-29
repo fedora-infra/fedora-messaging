@@ -35,6 +35,7 @@ import pika
 import pkg_resources
 import pytz
 
+from . import config
 from .exceptions import ValidationError
 
 
@@ -385,8 +386,13 @@ class Message(object):
         self, body=None, headers=None, topic=None, properties=None, severity=None
     ):
         self.body = body or {}
+
         if topic:
+            # Default is "" on base class
             self.topic = topic
+        if config.conf["topic_prefix"]:
+            self.topic = ".".join((config.conf["topic_prefix"].rstrip("."), self.topic))
+
         headers = headers or {}
         if severity:
             self.severity = severity

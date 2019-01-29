@@ -447,6 +447,12 @@ class MessageTests(unittest.TestCase):
             stacklevel=2,
         )
 
+    def test_topic_prefix(self):
+        """Assert the topic prefix is prepended to the constructor's topic."""
+        with mock.patch.dict(message.config.conf, {"topic_prefix": "prefix"}):
+            msg = message.Message(topic="test.topic")
+        self.assertEqual(msg.topic, "prefix.test.topic")
+
 
 class CustomMessage(message.Message):
     """Test class that returns values for filter properties."""
