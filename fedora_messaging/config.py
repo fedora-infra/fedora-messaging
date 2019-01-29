@@ -130,6 +130,11 @@ publish_exchange
 A string that identifies the exchange to publish to. The default is
 ``amq.topic``.
 
+topic_prefix
+------------
+A string that will be prepended to topics on sent messages.
+This is useful to migrate from fedmsg, but should not be used otherwise.
+The default is an empty string.
 
 .. _sub-config:
 
@@ -263,6 +268,7 @@ DEFAULTS = dict(
         ),
     },
     publish_exchange="amq.topic",
+    topic_prefix="",
     exchanges={
         "amq.topic": {
             "type": "topic",

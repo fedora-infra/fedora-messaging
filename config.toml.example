@@ -7,6 +7,10 @@ publish_exchange = "amq.topic"
 
 callback = "fedora_messaging.example:printer"
 
+# The topic_prefix configuration value will add a prefix to the topics of every sent message.
+# This is used for migrating from fedmsg, and should not be used afterwards.
+topic_prefix = ""
+
 # Note the double brackets below.
 # To add another binding, add another [[bindings]] section.
 [[bindings]]

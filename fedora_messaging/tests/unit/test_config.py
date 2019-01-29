@@ -29,10 +29,12 @@ amqp_url = "amqp://guest:guest@rabbit-server1:5672/%2F"
 
 publish_exchange = "special_exchange"
 
+topic_prefix = ""
+
 callback = "fedora_messaging.examples:print_msg"
 
 bindings = [
-    {"queue" = "my_queue", "exchange" = "amq.topic", "routing_keys" = ["#"]},
+    {queue = "my_queue", exchange = "amq.topic", routing_keys = ["#"]},
 ]
 
 [tls]
@@ -271,6 +273,7 @@ class LoadTests(unittest.TestCase):
                 "information": "https://fedora-messaging.readthedocs.io/en/stable/",
                 "version": msg_config.DEFAULTS["client_properties"]["version"],
             },
+            topic_prefix="",
             publish_exchange="special_exchange",
             exchanges={
                 "custom_exchange": {
