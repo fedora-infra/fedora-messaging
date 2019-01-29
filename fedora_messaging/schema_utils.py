@@ -19,7 +19,7 @@ the Python API of your message schemas.
 """
 
 import collections
-from hashlib import sha256, md5
+from hashlib import sha256
 
 from six.moves.urllib import parse
 
@@ -64,9 +64,10 @@ def libravatar_url(email=None, openid=None, size=64, default="retro"):
     params = collections.OrderedDict([("s", size), ("d", default)])
     query = parse.urlencode(params)
     if email:
-        idhash = md5(email.encode("utf-8")).hexdigest()
+        value = email
     elif openid:
-        idhash = sha256(openid.encode("utf-8")).hexdigest()
+        value = openid
     else:
         raise ValueError("You must provide either the email or the openid.")
+    idhash = sha256(value.encode("utf-8")).hexdigest()
     return "https://seccdn.libravatar.org/avatar/%s?%s" % (idhash, query)
