@@ -45,6 +45,10 @@ class PublisherSessionTests(unittest.TestCase):
         self.publisher = _session.PublisherSession()
         self.publisher._connection = mock.Mock()
         self.publisher._channel = mock.Mock()
+        if _session._pika_version < pkg_resources.parse_version("1.0.0b1"):
+            self.publisher_channel_publish = self.publisher._channel.publish
+        else:
+            self.publisher_channel_publish = self.publisher._channel.basic_publish
         self.message = mock.Mock()
         self.message._headers = {}
         self.message.topic = "test.topic"
@@ -117,8 +121,8 @@ class PublisherSessionTests(unittest.TestCase):
         # Check that the publication works properly.
         self.publisher.publish(self.message)
         self.message.validate.assert_called_once()
-        self.publisher._channel.publish.assert_called_once()
-        publish_call = self.publisher._channel.publish.call_args_list[0][1]
+        self.publisher_channel_publish.assert_called_once()
+        publish_call = self.publisher_channel_publish.call_args_list[0][1]
         self.assertEqual(publish_call["exchange"], None)
         self.assertEqual(publish_call["routing_key"], b"test.topic")
         self.assertEqual(publish_call["body"], b'"test body"')
@@ -138,9 +142,13 @@ class PublisherSessionTests(unittest.TestCase):
         ):
             self.publisher.publish(self.message)
         self.message.validate.assert_called_once()
-        self.publisher._channel.publish.assert_called_once()
+        if _session._pika_version < pkg_resources.parse_version("1.0.0b1"):
+            publish_mock_method = self.publisher._channel.publish
+        else:
+            publish_mock_method = self.publisher._channel.basic_publish
+        publish_mock_method.assert_called_once()
         self.publisher._channel.confirm_delivery.assert_not_called()
-        publish_call = self.publisher._channel.publish.call_args_list[0][1]
+        publish_call = publish_mock_method.call_args_list[0][1]
         self.assertEqual(publish_call["exchange"], None)
         self.assertEqual(publish_call["routing_key"], b"test.topic")
         self.assertEqual(publish_call["body"], b'"test body"')
@@ -148,11 +156,11 @@ class PublisherSessionTests(unittest.TestCase):
     def test_publish_rejected(self):
         # Check that the correct exception is raised when the publication is
         # rejected.
-        self.publisher._channel.publish.side_effect = pika_errs.NackError(
-            [self.message]
-        )
+        # Nacks
+        self.publisher_channel_publish.side_effect = pika_errs.NackError([self.message])
         self.assertRaises(PublishReturned, self.publisher.publish, self.message)
-        self.publisher._channel.publish.side_effect = pika_errs.UnroutableError(
+        # Unroutables
+        self.publisher_channel_publish.side_effect = pika_errs.UnroutableError(
             [self.message]
         )
         self.assertRaises(PublishReturned, self.publisher.publish, self.message)
@@ -161,7 +169,7 @@ class PublisherSessionTests(unittest.TestCase):
         # Check that the correct exception is raised when the publication has
         # failed for an unknown reason, and that the connection is closed.
         self.publisher._connection.is_open = False
-        self.publisher._channel.publish.side_effect = pika_errs.AMQPError()
+        self.publisher_channel_publish.side_effect = pika_errs.AMQPError()
         self.assertRaises(ConnectionException, self.publisher.publish, self.message)
         self.publisher._connection.is_open = True
         self.assertRaises(ConnectionException, self.publisher.publish, self.message)
@@ -182,7 +190,11 @@ class PublisherSessionTests(unittest.TestCase):
             self.publisher._connect_and_publish(None, self.message)
         connection_class_mock.assert_called_with(self.publisher._parameters)
         channel_mock.confirm_delivery.assert_called_once()
-        channel_mock.publish.assert_called_with(
+        if _session._pika_version < pkg_resources.parse_version("1.0.0b1"):
+            publish_mock_method = channel_mock.publish
+        else:
+            publish_mock_method = channel_mock.basic_publish
+        publish_mock_method.assert_called_with(
             exchange=None,
             routing_key=b"test.topic",
             body=b'"test body"',
@@ -191,7 +203,7 @@ class PublisherSessionTests(unittest.TestCase):
 
     def test_publish_disconnected(self):
         # The publisher must try to re-establish a connection on publish.
-        self.publisher._channel.publish.side_effect = pika_errs.ConnectionClosed(
+        self.publisher_channel_publish.side_effect = pika_errs.ConnectionClosed(
             200, "I wanted to"
         )
         connection_class_mock = mock.Mock()
@@ -208,12 +220,16 @@ class PublisherSessionTests(unittest.TestCase):
         channel_mock.confirm_delivery.assert_called_once()
         self.assertEqual(self.publisher._connection, connection_mock)
         self.assertEqual(self.publisher._channel, channel_mock)
-        channel_mock.publish.assert_called_once()
+        if _session._pika_version < pkg_resources.parse_version("1.0.0b1"):
+            publish_mock_method = channel_mock.publish
+        else:
+            publish_mock_method = channel_mock.basic_publish
+        publish_mock_method.assert_called_once()
 
     def test_publish_reconnect_failed_generic_error(self):
         # The publisher must try to re-establish a connection on publish, and
         # close the connection if it can't be established.
-        self.publisher._channel.publish.side_effect = pika_errs.ConnectionClosed(
+        self.publisher_channel_publish.side_effect = pika_errs.ConnectionClosed(
             200, "I wanted to"
         )
         connection_class_mock = mock.Mock()
@@ -232,7 +248,7 @@ class PublisherSessionTests(unittest.TestCase):
     def test_publish_reconnect_failed_rejected(self):
         # The publisher must try to re-establish a connection on publish, and
         # close the connection if it can't be established.
-        self.publisher._channel.publish.side_effect = pika_errs.ConnectionClosed(
+        self.publisher_channel_publish.side_effect = pika_errs.ConnectionClosed(
             200, "I wanted to"
         )
         connection_class_mock = mock.Mock()
