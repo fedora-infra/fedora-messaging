@@ -40,7 +40,15 @@ argument::
         print(str(message))
 
     # Next, we need a queue to consume messages from. We can define
-    # the queue configuration in this dictionary
+    # the queue and binding configurations in these dictionaries:
+    queues = {
+        'demo': {
+            'durable': False,  # Delete the queue on broker restart
+            'auto_delete': True,  # Delete the queue when the client terminates
+            'exclusive': False,  # Allow multiple simultaneous consumers
+            'arguments': {},
+        },
+    }
     binding = {
         'exchange': 'amq.topic',  # The AMQP exchange to bind our queue to
         'queue': 'demo',  # The unique name of our queue on the AMQP broker
@@ -50,7 +58,7 @@ argument::
     # Start consuming messages using our callback. This call will block until
     # a KeyboardInterrupt is raised, or the process receives a SIGINT or SIGTERM
     # signal.
-    api.consume(printer_callback, binding)
+    api.consume(printer_callback, bindings=binding, queues=queues)
 
 In this example, there's one queue and the queue only has one binding, but it's
 possible to consume from multiple queues and each queue can have multiple
