@@ -128,10 +128,14 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         # The optional `res` argument is for compatibility with pika < 1.0.0
         # Create channel
         self._channel = yield self._allocate_channel()
+        if _pika_version < pkg_resources.parse_version("1.0.0b1"):
+            extra_args = dict(all_channels=True)
+        else:
+            extra_args = dict(global_qos=True)
         yield self._channel.basic_qos(
             prefetch_count=config.conf["qos"]["prefetch_count"],
             prefetch_size=config.conf["qos"]["prefetch_size"],
-            all_channels=True,
+            **extra_args
         )
         if _pika_version < pkg_resources.parse_version("1.0.0b1"):
             TwistedProtocolConnection.connectionReady(self, res)

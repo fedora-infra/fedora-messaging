@@ -180,7 +180,11 @@ class PublisherSession(object):
             if self._confirms:
                 self._channel.confirm_delivery()
 
-        self._channel.publish(
+        if _pika_version < pkg_resources.parse_version("1.0.0b1"):
+            method = self._channel.publish
+        else:
+            method = self._channel.basic_publish
+        method(
             exchange=exchange,
             routing_key=message._encoded_routing_key,
             body=message._encoded_body,

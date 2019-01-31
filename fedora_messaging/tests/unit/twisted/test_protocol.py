@@ -196,11 +196,15 @@ class ProtocolTests(unittest.TestCase):
     def test_connection_ready(self):
         # Check the ready Deferred.
         def _check(_):
-            self.protocol._channel.basic_qos.assert_called_with(
+            expected_args = dict(
                 prefetch_count=config.conf["qos"]["prefetch_count"],
                 prefetch_size=config.conf["qos"]["prefetch_size"],
-                all_channels=True,
             )
+            if _pika_version < pkg_resources.parse_version("1.0.0b1"):
+                expected_args["all_channels"] = True
+            else:
+                expected_args["global_qos"] = True
+            self.protocol._channel.basic_qos.assert_called_with(**expected_args)
 
         d = self.protocol.ready
         d.addCallback(_check)
