@@ -450,7 +450,7 @@ class ConsumerSessionTests(unittest.TestCase):
             routing_key="testrk",
             callback=None,
         )
-        if pkg_resources.get_distribution("pika").version.startswith("0.12."):
+        if _session._pika_version < pkg_resources.parse_version("1.0.0b1"):
             self.consumer._channel.basic_consume.assert_called_with(
                 consumer_callback=self.consumer._on_message, queue="testqueue"
             )
