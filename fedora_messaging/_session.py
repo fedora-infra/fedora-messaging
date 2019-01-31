@@ -40,10 +40,11 @@ from .exceptions import (
 
 _log = logging.getLogger(__name__)
 
-# pika 0.12 introduces the SSLOptions object in 0.12, but it doesn't have the
+# pika introduces the SSLOptions object in 0.12, but it doesn't have the
 # same API that 1.0.0 has. Additionally, the connection parameters still expect
-# the old dictionary, so mark SSLOptions as None if this is 0.12
-if pkg_resources.get_distribution("pika").version.startswith("0.12."):
+# the old dictionary, so mark SSLOptions as None if this is 0.x
+_pika_version = pkg_resources.get_distribution("pika").parsed_version
+if _pika_version < pkg_resources.parse_version("1.0.0b1"):
     SSLOptions = None  # noqa: F811
 
 
@@ -402,7 +403,7 @@ class ConsumerSession(object):
                         routing_key=key,
                     )
                 bc_args = dict(queue=frame.method.queue)
-                if pkg_resources.get_distribution("pika").version.startswith("0.12."):
+                if _pika_version < pkg_resources.parse_version("1.0.0b1"):
                     bc_args["consumer_callback"] = self._on_message
                 else:
                     bc_args["on_message_callback"] = self._on_message
