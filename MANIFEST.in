@@ -1,3 +1,4 @@
-include LICENSE README.rst config.toml.example dev-requirements.txt requirements.txt tox.ini
+include LICENSE README.rst config.toml.example dev-requirements.txt requirements.txt tox.ini fm-consumer@.service
 graft docs
+prune docs/_build
 graft fedora_messaging/tests/fixtures
