@@ -4,6 +4,36 @@ Release Notes
 
 .. towncrier release notes start
 
+1.4.0 (2019-02-07)
+==================
+
+Features
+--------
+
+* The ``topic_prefix`` configuration value has been added to automatically add
+  a prefix to the topic of all outgoing messages.
+  (`#121 <https://github.com/fedora-infra/fedora-messaging/issues/121>`_)
+
+* Support for Pika 0.13.
+  (`#126 <https://github.com/fedora-infra/fedora-messaging/issues/126>`_)
+
+* Add a systemd service file for consumers.
+
+
+Development Changes
+-------------------
+
+* Use Bandit for security checking.
+
+
+Contributors
+------------
+Many thanks to the contributors of bug reports, pull requests, and pull request
+reviews for this release:
+
+* Aurélien Bompard
+
+
 v1.3.0 (2019-01-24)
 ===================
 
