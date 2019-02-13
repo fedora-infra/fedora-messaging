@@ -298,10 +298,11 @@ Converting consumers
 
 .. the-new-hotness
 
-Let's use `the-new-hotness`_ app as an example. Clone the code using the
-following command::
+Let's use `the-new-hotness`_ app as an example. Clone the code and switch to state
+before conversion by using the following commands::
 
     git clone https://github.com/fedora-infra/the-new-hotness.git
+    git checkout 0.10.1
 
 And change to this directory.
 
@@ -314,36 +315,37 @@ thus modify this function to make it use Fedora Messaging instead of fedmsg.
 Configuration
 -------------
 First we need to convert configuration file from fedmsg format to Fedora
-Messaging. This could be more difficult, when converting complex consumer.
+Messaging. Unlike fedmsg, fedora-messaging does not allow for arbitrary
+configuration keys. You will need to place any application-specific configuration
+in the :ref: dictionary.
 
-In case of ``the-new-hotness`` we are listening to three topics. So we
-create a new binding for them in config.toml::
+The converted configuration ``config.toml`` could look like following::
 
-     [[bindings]]
-     queue = "the-new-hotness"
-     exchange = "amq.topic"
-     routing_keys = [
-        "org.release-monitoring.prod.anitya.project.version.update",
-        "org.release-monitoring.prod.anitya.project.map.new",
-        "org.fedoraproject.prod.buildsys.task.state.change",
-     ]
+    # Define the callback function
+    # This will allow you to call only ``fedora-messaging consume`` without explicitly
+    # specifying the callback every time you starting ``the-new-hotness``.
+    callback = "hotness.consumers:BugzillaTicketFiler"
 
-And define a queue::
+    # In case of the-new-hotness we are listening to three topics, so we
+    # create a new binding for them
+    [[bindings]]
+    queue = "the-new-hotness"
+    exchange = "amq.topic"
+    routing_keys = [
+       "org.release-monitoring.prod.anitya.project.version.update",
+       "org.release-monitoring.prod.anitya.project.map.new",
+       "org.fedoraproject.prod.buildsys.task.state.change",
+    ]
 
+    # Define a queue
     [queues.the-new-hotness]
     durable = true
     auto_delete = false
     exclusive = false
     arguments = {}
 
-Next step is to define the callback function in configuration::
-
-   callback = "hotness.consumers:BugzillaTicketFiler"
-
-This will allow you to call only ``fedora-messaging consume`` without explicitly
-specifying the callback every time you starting ``the-new-hotness``.
-
-Any application specific configuration should go to ``consumer_config`` section.
+Any application specific configuration should go to ``consumer_config`` section
+:ref:`config`.
 
 Init method
 -----------
@@ -351,9 +353,9 @@ The ``BugzillaTicketFiler`` class in ``consumers.py`` is doing all the consuming
 First we need to change the inheritance of this class. Fedora Messaging consumer class
 needs to inherit only from ``object``.
 
-Than we need to modify the ``__init__`` method and use the ``fedora_messaging.config.conf``
-instead of fedmsg configuration. The ``__init__`` method could look something like this
-after change::
+Then we need to modify the ``__init__`` method and use the ``fedora_messaging.config.conf``
+dictionary instead of the fedmsg configuration. The ``__init__`` method could look something
+like this after the change::
 
     from fedora_messaging.config import conf
 
@@ -378,66 +380,10 @@ after change::
         # This is just convenient.
         self.config = conf["consumer_config"]
 
-        self.bugzilla = hotness.bz.Bugzilla(
-            consumer=self, config=self.config["bugzilla"]
-        )
-        self.buildsys = hotness.buildsys.Koji(consumer=self, config=self.config["koji"])
+        ...
 
-        default = "https://pagure.io/releng/fedora-scm-requests"
-        self.repo_url = self.config.get("repo_url", default)
-        default = "https://pdc.fedoraproject.org"
-        self.pdc_url = self.config.get("pdc_url", default)
-        default = "https://src.fedoraproject.org"
-        self.dist_git_url = self.config.get("dist_git_url", default)
-
-        anitya_config = self.config.get("anitya", {})
-        default = "https://release-monitoring.org"
-        self.anitya_url = anitya_config.get("url", default)
-        self.anitya_username = anitya_config.get("username", default)
-        self.anitya_password = anitya_config.get("password", default)
-
-        # Also, set up our global cache object.
-        _log.info("Configuring cache.")
-        with hotness.cache.cache_lock:
-            if not hotness.cache.cache.is_configured:
-                hotness.cache.cache.configure(**self.config["cache"])
-
-        self.mdapi_url = self.config.get("mdapi_url")
-        _log.info("Using hotness.mdapi_url=%r" % self.mdapi_url)
-        self.repoid = self.config.get("repoid", "rawhide")
-        _log.info("Using hotness.repoid=%r" % self.repoid)
-        self.distro = self.config.get("distro", "Fedora")
-        _log.info("Using hotness.distro=%r" % self.distro)
-
-        # Retrieve the requests configuration; by default requests time out
-        # after 15 seconds and are retried up to 3 times.
-        self.requests_session = requests.Session()
-        self.timeout = (
-            self.config.get("connect_timeout", 15),
-            self.config.get("read_timeout", 15),
-        )
-        retries = self.config.get("hotness.requests_retries", 3)
-        retry_conf = retry.Retry(
-            total=retries, connect=retries, read=retries, backoff_factor=1
-        )
-        retry_conf.BACKOFF_MAX = 5
-        self.requests_session.mount(
-            "http://", requests.adapters.HTTPAdapter(max_retries=retry_conf)
-        )
-        self.requests_session.mount(
-            "https://", requests.adapters.HTTPAdapter(max_retries=retry_conf)
-        )
-        _log.info(
-            "Requests timeouts are {}s (connect) and {}s (read)"
-            " with {} retries".format(self.timeout[0], self.timeout[1], retries)
-        )
-
-        # Build a little store where we'll keep track of what koji scratch
-        # builds we have kicked off.  We'll look later for messages indicating
-        # that they have completed.
-        self.scratch_builds = {}
-
-        _log.info("That new hotness ticket filer is all initialized")
+.. note::
+    Unrelated code was deleted from the example.
 
 Wrapper function
 ----------------
@@ -471,21 +417,18 @@ methods for any topic you are receiving.
 
 Testing
 -------
-Let's start ``the-new-hotness`` app and make sure the message is correctly consumed.
-First we'll create a vagrant VM::
+To prepare ``the-new-hotness`` for testing checkout the ``requirements.txt`` file and ``devel``
+folder from ``master`` branch::
 
-    vagrant up
+    git checkout master devel requirements.txt
 
-And then we'll ssh to it::
+This will convert development environment to the state when it's ready for Fedora Messaging.
+In a `configured development environment
+<https://the-new-hotness.readthedocs.io/en/latest/dev-guide.html#development-environment>`_
+we can easily test our conversion.
 
-    vagrant ssh
-
-Next you need to add your Bugzilla credentials or API key to the configuration in ``~/config.toml``.
-You can obtain these from `Partner Bugzilla <https://partner-bugzilla.redhat.com>`_.
-``the-new-hotness`` doesn't start without them.
-
-To start ``the-new-hotness`` use alias ``hotstart``, this will start the systemd service with
-following command ``fedora-messaging consume``. The systemd unit could be find in
+Start app by using alias ``hotstart``, this will start the systemd
+service with following command ``fedora-messaging consume``. The systemd unit could be find in
 ``.config/systemd/user/``.
 
 For testing you can use any message from `datagrepper <https://apps.fedoraproject.org/datagrepper>`_.
