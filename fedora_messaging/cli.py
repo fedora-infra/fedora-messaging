@@ -34,7 +34,7 @@ import click
 import pkg_resources
 
 from . import config, api, exceptions
-from .message import loads
+from .message import dumps, loads
 
 _log = logging.getLogger(__name__)
 
@@ -72,13 +72,13 @@ _queue_name_help = (
 )
 _exchange_help = (
     "The name of the exchange to bind the queue to. Can contain ASCII letters, "
-    "digits, hyphen, underscore, period, or colon. If one is not specified, the "
-    "default is the ``amq.topic`` exchange."
+    "digits, hyphen, underscore, period, or colon."
 )
 _publish_exchange_help = (
     "The name of the exchange to publish to. Can contain ASCII letters, "
     "digits, hyphen, underscore, period, or colon."
 )
+_limit_help = "The maximum number of messages to record."
 
 
 # Global variable used to set the exit code in error handlers, then let
@@ -113,7 +113,26 @@ def consume(exchange, queue_name, routing_key, callback, callback_file, app_name
     """Consume messages from an AMQP queue using a Python callback."""
     # The configuration validates these are not null and contain all required keys
     # when it is loaded.
+    if callback_file:
+        callback = _callback_from_filesystem(callback_file)
+    else:
+        callback = _callback_from_python_path(callback)
+    _consume(exchange, queue_name, routing_key, callback, app_name)
 
+
+def _consume(exchange, queue_name, routing_key, callback, app_name):
+    """
+    The actual consume code, which expects an actual callable object.
+    This lets various consume-based commands share the setup code. Anything
+    that accepts None loads the defaults from the configuration.
+
+    Args:
+        exchange (str): The AMQP message exchange to bind to, or None.
+        queue_name (str): The queue name to use, or None.
+        routing_key (str): The routing key to use, or None.
+        callback (callable): A callable object to use for the callback.
+        app_name (str): The application name to use, or None.
+    """
     bindings = config.conf["bindings"]
     queues = config.conf["queues"]
 
@@ -136,11 +155,6 @@ def consume(exchange, queue_name, routing_key, callback, callback_file, app_name
     if routing_key:
         for binding in bindings:
             binding["routing_keys"] = routing_key
-
-    if callback_file:
-        callback = _callback_from_filesystem(callback_file)
-    else:
-        callback = _callback_from_python_path(callback)
 
     if app_name:
         config.conf["client_properties"]["app"] = app_name
@@ -378,3 +392,64 @@ def publish(exchange, file):
             except exceptions.PublishException as e:
                 click.echo("A general publish exception occurred: {}".format(str(e)))
                 sys.exit(1)
+
+
+class Recorder:
+    """
+    A simple callback class that records messages.
+
+    Attributes:
+        counter (int): The number of messages this callback has recorded.
+        messages (list): The list of messages received.
+
+    Args:
+        limit (int): The maximum number of messages to record.
+        file (file): The file object with write rights.
+    """
+
+    def __init__(self, limit, file):
+        self.counter = 0
+        self._limit = limit
+        self._file = file
+        if limit:
+            self._bar = click.progressbar(length=limit)
+
+    def collect_message(self, message):
+        """
+        Collect received messages.
+
+        Args:
+            message (message.Message): The received message.
+
+        Raises:
+            fedora_messaging.exceptions.HaltConsumer: Raised if the number of received
+                messages reach the limit or if collected messages serialization is impossible.
+        """
+        try:
+            json_str = dumps(message)
+        except exceptions.ValidationError as e:
+            click.echo("Unable to save messages to file: {}".format(str(e)))
+            raise exceptions.HaltConsumer(exit_code=1, requeue=False)
+        else:
+            self._file.write(json_str)
+
+        self.counter += 1
+        if self._limit:
+            self._bar.update(1)
+            if self._limit <= self.counter:
+                raise exceptions.HaltConsumer(exit_code=0, requeue=False)
+
+
+@cli.command()
+@click.argument("file", type=click.File("w"))
+@click.option("--limit", help=_limit_help, type=click.IntRange(1))
+@click.option("--app-name", help=_app_name_help, default="recorder")
+@click.option("--routing-key", help=_routing_key_help, multiple=True)
+@click.option("--queue-name", help=_queue_name_help)
+@click.option("--exchange", help=_exchange_help)
+def record(exchange, queue_name, routing_key, app_name, limit, file):
+    """Record messages from an AMQP queue to provided file."""
+    messages_recorder = Recorder(limit, file)
+    _consume(
+        exchange, queue_name, routing_key, messages_recorder.collect_message, app_name
+    )
