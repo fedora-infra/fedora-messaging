@@ -30,11 +30,12 @@ Options
     Path to a valid configuration file to use in place of the configuration in
     ``/etc/fedora-messaging/config.toml``.
 
+
 Commands
 ========
 
-There are two sub-commands, ``consume`` and ``publish``, described in detail in
-their own sections below.
+There are three sub-commands, ``consume``, ``publish`` and ``record``, described
+in detail in their own sections below.
 
 ``fedora-messaging consume [OPTIONS]``
 
@@ -45,6 +46,11 @@ their own sections below.
 
     Loads serialized messages from a file and publishes them to the specified
     exchange.
+
+``fedora-messaging record [OPTIONS] FILE``
+
+    Records messages arrived from AMQP queue and saves them to file with specified
+    name.
 
 
 consume
@@ -96,8 +102,7 @@ configuration file and no options on the command line.
 ``--exchange``
 
     The name of the exchange to bind the queue to. Can contain ASCII letters,
-    digits, hyphen, underscore, period, or colon. If one is not specified, the
-    default is the ``amq.topic`` exchange.
+    digits, hyphen, underscore, period, or colon.
 
     Setting this option is equivalent to setting the ``exchange`` setting
     in *all* ``bindings`` entries in the configuration file.
@@ -144,6 +149,51 @@ Options
 
     The name of the exchange to publish to. Can contain ASCII letters,
     digits, hyphen, underscore, period, or colon.
+
+
+record
+------
+
+``--limit``
+
+    The maximum number of messages to record.
+
+``--app-name``
+
+    The name of the application, used by the AMQP client to identify itself to
+    the broker. This is purely for administrator convenience to determine what
+    applications are connected and own particular resources. If not specified,
+    the default is ``recorder``.
+
+    This option is equivalent to the ``app`` setting in the ``client_properties``
+    section of the configuration file.
+
+``--routing-key``
+
+    The AMQP routing key to use with the queue. This controls what messages are
+    delivered to the consumer. Can be specified multiple times; any message
+    that matches at least one will be placed in the message queue.
+
+    Setting this option is equivalent to setting the ``routing_keys`` setting
+    in *all* ``bindings`` entries in the configuration file.
+
+``--queue-name``
+
+    The name of the message queue in AMQP. Can contain ASCII letters, digits,
+    hyphen, underscore, period, or colon. If one is not specified, a unique
+    name will be created for you.
+
+    Setting this option is equivalent to setting the ``queue`` setting in *all*
+    ``bindings`` entries and creating a ``queue.<queue-name>`` section in the
+    configuration file.
+
+``--exchange``
+
+    The name of the exchange to bind the queue to. Can contain ASCII letters,
+    digits, hyphen, underscore, period, or colon.
+
+    Setting this option is equivalent to setting the ``exchange`` setting
+    in *all* ``bindings`` entries in the configuration file.
 
 
 Exit codes

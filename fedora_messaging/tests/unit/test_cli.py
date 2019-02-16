@@ -154,7 +154,7 @@ class ConsumeCliTests(unittest.TestCase):
 
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
     def test_queue_and_routing_key(self, mock_consume):
-        """Assert providing improper bindings is reported."""
+        """Asser  providing improper bindings is reported."""
         config.conf["callback"] = "fedora_messaging.tests.unit.test_cli:echo"
 
         result = self.runner.invoke(
@@ -521,6 +521,11 @@ class PublishCliTests(unittest.TestCase):
     def setUp(self):
         self.runner = CliRunner()
 
+    def tearDown(self):
+        """Make sure each test has a fresh default configuration."""
+        config.conf = config.LazyConfig()
+        config.conf.load_config()
+
     def test_correct_msg_in_file(self):
         """Assert providing path to file with correct message via the CLI works."""
         cli_options = {"file": GOOD_MSG_DUMP, "exchange": "test_pe"}
@@ -652,3 +657,94 @@ class PublishCliTests(unittest.TestCase):
         self.assertIn("A general publish exception occurred: eh", result.output)
         mock_publish.assert_called_once()
         self.assertEqual(1, result.exit_code)
+
+
+class RecordCliTests(unittest.TestCase):
+    """Unit tests for the 'record' command of the CLI."""
+
+    def setUp(self):
+        self.runner = CliRunner()
+
+    def tearDown(self):
+        """Make sure each test has a fresh default configuration."""
+        config.conf = config.LazyConfig()
+        config.conf.load_config(config_path="")
+
+    @mock.patch("fedora_messaging.cli._consume")
+    def test_good_cli_bindings(self, mock_consume):
+        """Assert arguments are forwarded to the _consume function."""
+        cli_options = {
+            "file": "test_file.txt",
+            "exchange": "e",
+            "queue-name": "qn",
+            "routing-keys": ("rk1", "rk2"),
+        }
+        self.runner.invoke(
+            cli.cli,
+            [
+                "record",
+                cli_options["file"],
+                "--exchange=" + cli_options["exchange"],
+                "--queue-name=" + cli_options["queue-name"],
+                "--routing-key=" + cli_options["routing-keys"][0],
+                "--routing-key=" + cli_options["routing-keys"][1],
+            ],
+        )
+        mock_consume.assert_called_once_with(
+            "e", "qn", ("rk1", "rk2"), mock.ANY, "recorder"
+        )
+
+
+class RecorderClassTests(unittest.TestCase):
+    """Unit tests for the 'Recorder' class."""
+
+    def test_save_recorded_messages_when_limit_is_reached(self):
+        """Assert that collected messages are saved to file when limit is reached."""
+        msg1 = message.Message(
+            body={"test_key1": "test_value1"},
+            topic="test_topic1",
+            severity=message.INFO,
+        )
+        msg1._properties.headers["sent-at"] = "2018-11-18T10:11:41+00:00"
+        msg1.id = "273ed91d-b8b5-487a-9576-95b9fbdf3eec"
+
+        msg2 = message.Message(
+            body={"test_key2": "test_value2"},
+            topic="test_topic2",
+            severity=message.INFO,
+        )
+        msg2._properties.headers["sent-at"] = "2018-11-18T10:11:41+00:00"
+        msg2.id = "273ed91d-b8b5-487a-9576-95b9fbdf3eec"
+
+        mock_file = mock.MagicMock()
+        test_recorder = cli.Recorder(2, mock_file)
+        test_recorder.collect_message(msg1)
+        mock_file.write.assert_called_with(
+            '{"body": {"test_key1": "test_value1"}, "headers"'
+            ': {"fedora_messaging_schema": "base.message", "fedora_messaging_severity": 20, '
+            '"sent-at": "2018-11-18T10:11:41+00:00"}, "id": "273ed91d-b8b5-487a-9576-95b9fbdf3eec"'
+            ', "queue": null, "topic": "test_topic1"}\n'
+        )
+
+        with self.assertRaises(exceptions.HaltConsumer) as cm:
+            test_recorder.collect_message(msg2)
+        the_exception = cm.exception
+        self.assertEqual(the_exception.exit_code, 0)
+        self.assertEqual(test_recorder.counter, 2)
+        mock_file.write.assert_called_with(
+            '{"body": {"test_key2": "test_value2"}, "headers": '
+            '{"fedora_messaging_schema": "base.message", "fedora_messaging_severity": '
+            '20, "sent-at": "2018-11-18T10:11:41+00:00"}, "id": '
+            '"273ed91d-b8b5-487a-9576-95b9fbdf3eec", "queue": null, "topic": "test_topic2"}\n'
+        )
+
+    def test_recorded_messages_dumps_failed(self):
+        """Assert that attempt to save improper recorded message is reported."""
+        mock_file = mock.MagicMock()
+        test_recorder = cli.Recorder(1, mock_file)
+        with self.assertRaises(exceptions.HaltConsumer) as cm:
+            test_recorder.collect_message("msg1")
+        the_exception = cm.exception
+        self.assertEqual(the_exception.exit_code, 1)
+        self.assertEqual(test_recorder.counter, 0)
+        mock_file.write.assert_not_called()
