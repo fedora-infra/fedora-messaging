@@ -33,6 +33,7 @@ from twisted.internet import defer, protocol, error
 
 from twisted.logger import Logger
 
+from .. import config
 from ..exceptions import ConnectionException
 from .protocol import FedoraMessagingProtocol
 
@@ -240,6 +241,7 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
 
         .. _exchange: https://www.rabbitmq.com/tutorials/amqp-concepts.html#exchanges
         """
+        exchange = exchange or config.conf["publish_exchange"]
         while True:
             client = yield self.whenConnected()
             try:
