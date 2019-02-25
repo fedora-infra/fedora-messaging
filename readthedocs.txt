@@ -4,7 +4,7 @@ coverage
 jsonschema
 mock
 pika>=0.12
-pytoml
+toml
 pytz
 pytest-twisted
 pyOpenSSL

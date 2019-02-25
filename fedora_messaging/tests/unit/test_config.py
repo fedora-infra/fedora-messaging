@@ -241,7 +241,10 @@ class LoadTests(unittest.TestCase):
         """Assert an invalid TOML file raises a ConfigurationException."""
         with self.assertRaises(ConfigurationException) as cm:
             msg_config.LazyConfig().load_config()
-        error = "Failed to parse /etc/fedora-messaging/config.toml: error at line 1, column 1"
+        error = (
+            "Failed to parse /etc/fedora-messaging/config.toml: error at line 1, column 3: "
+            "Found invalid character in key name: '!'. Try quoting the key name."
+        )
         self.assertEqual(error, cm.exception.message)
 
     @mock.patch(

@@ -239,7 +239,7 @@ import os
 import uuid
 
 import pkg_resources
-import pytoml
+import toml
 
 from . import exceptions
 
@@ -475,12 +475,12 @@ class LazyConfig(dict):
             _log.info("Loading configuration from {}".format(config_path))
             with open(config_path) as fd:
                 try:
-                    file_config = pytoml.loads(fd.read())
+                    file_config = toml.load(fd)
                     for key in file_config:
                         config[key.lower()] = file_config[key]
-                except pytoml.core.TomlError as e:
-                    msg = "Failed to parse {}: error at line {}, column {}".format(
-                        config_path, e.line, e.col
+                except toml.TomlDecodeError as e:
+                    msg = "Failed to parse {}: error at line {}, column {}: {}".format(
+                        config_path, e.lineno, e.colno, e.msg
                     )
                     raise exceptions.ConfigurationException(msg)
         else:
