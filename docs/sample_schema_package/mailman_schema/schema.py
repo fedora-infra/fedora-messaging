@@ -29,7 +29,9 @@ class BaseMessage(message.Message):
 
     def __str__(self):
         """Return a complete human-readable representation of the message."""
-        return "Subject: {subj}\n{body}\n".format(subj=self.subject, body=self.body)
+        return "Subject: {subj}\n{body}\n".format(
+            subj=self.subject, body=self.email_body
+        )
 
     @property
     def summary(self):
@@ -42,9 +44,9 @@ class BaseMessage(message.Message):
         return 'Message did not implement "subject" property'
 
     @property
-    def body(self):
+    def email_body(self):
         """The email message body."""
-        return 'Message did not implement "body" property'
+        return 'Message did not implement "email_body" property'
 
     @property
     def url(self):
@@ -133,7 +135,7 @@ class MessageV1(BaseMessage):
         return self.body["msg"]["subject"]
 
     @property
-    def body(self):
+    def email_body(self):
         """The email message body."""
         return self.body["msg"]["body"]
 
@@ -187,7 +189,7 @@ class MessageV2(BaseMessage):
         return self.body["subject"]
 
     @property
-    def body(self):
+    def email_body(self):
         """The email message body."""
         return self.body["body"]
 

@@ -100,7 +100,7 @@ class MessageV1Tests(unittest.TestCase):
         """Assert the message provides a "body" attribute."""
         message = self.msg_class(body=self.full_message)
 
-        self.assertEqual("hello world", message.body)
+        self.assertEqual("hello world", message.email_body)
 
     def test_url(self):
         """Assert the message provides a "url" attribute."""
