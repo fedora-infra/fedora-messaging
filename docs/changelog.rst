@@ -32,7 +32,7 @@ Development Changes
 -------------------
 
 * Switch to Mergify v2
-  (`#136 <https://github.com/fedora-infra/fedora-messaging/pull/129>`_).
+  (`#129 <https://github.com/fedora-infra/fedora-messaging/pull/129>`_).
 
 
 Contributors
