@@ -25,6 +25,7 @@ import pytest
 from twisted.internet import defer
 from twisted.python.failure import Failure
 
+from fedora_messaging import config
 from fedora_messaging.twisted.factory import FedoraMessagingFactory
 from fedora_messaging.exceptions import ConnectionException
 
@@ -75,7 +76,9 @@ class FactoryTests(unittest.TestCase):
         d = factory._on_client_ready()
 
         def _check(_):
-            mock_channel.queue_declare.assert_called_once_with(queue="my_queue")
+            mock_channel.queue_declare.assert_called_once_with(
+                queue="my_queue", passive=False
+            )
             self.assertTrue(factory._client_ready.called)
 
         d.addCallback(_check)
@@ -93,11 +96,36 @@ class FactoryTests(unittest.TestCase):
 
         def _check(_):
             mock_channel.exchange_declare.assert_called_once_with(
-                exchange="my_exchange"
+                exchange="my_exchange", passive=False
             )
             self.assertTrue(factory._client_ready.called)
 
         d.addCallback(_check)
+
+        return pytest_twisted.blockon(d)
+
+    def test_passive_declares(self):
+        """Assert queues and exchanges are created passively when configured so."""
+        factory = FedoraMessagingFactory(
+            None,
+            queues=[{"queue": "my_queue"}],
+            exchanges=[{"exchange": "my_exchange"}],
+        )
+        factory.buildProtocol(None)
+        mock_channel = mock.Mock()
+        factory.client._allocate_channel = mock.Mock(return_value=mock_channel)
+
+        def _check(_):
+            mock_channel.queue_declare.assert_called_once_with(
+                queue="my_queue", passive=True
+            )
+            mock_channel.exchange_declare.assert_called_once_with(
+                exchange="my_exchange", passive=True
+            )
+
+        with mock.patch.dict(config.conf, {"passive_declares": True}):
+            d = factory._on_client_ready()
+            d.addCallback(_check)
 
         return pytest_twisted.blockon(d)
 

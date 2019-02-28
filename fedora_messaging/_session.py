@@ -273,6 +273,7 @@ class ConsumerSession(object):
                 durable=args["durable"],
                 auto_delete=args["auto_delete"],
                 arguments=args["arguments"],
+                passive=config.conf["passive_declares"],
                 callback=self._on_exchange_declareok,
             )
         for name, args in self._queues.items():
@@ -282,6 +283,7 @@ class ConsumerSession(object):
                 auto_delete=args["auto_delete"],
                 exclusive=args["exclusive"],
                 arguments=args["arguments"],
+                passive=config.conf["passive_declares"],
                 callback=self._on_queue_declareok,
             )
 
