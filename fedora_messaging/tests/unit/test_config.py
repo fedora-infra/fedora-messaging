@@ -278,6 +278,7 @@ class LoadTests(unittest.TestCase):
             },
             topic_prefix="",
             publish_exchange="special_exchange",
+            passive_declares=False,
             exchanges={
                 "custom_exchange": {
                     "type": "fanout",

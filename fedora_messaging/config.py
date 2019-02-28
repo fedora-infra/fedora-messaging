@@ -136,6 +136,13 @@ A string that will be prepended to topics on sent messages.
 This is useful to migrate from fedmsg, but should not be used otherwise.
 The default is an empty string.
 
+.. _conf-passive-declares:
+
+passive_declares
+----------------
+A boolean to specify if queues and exchanges should be declared passively (i.e
+checked, but not actually created on the server). Defaults to ``False``.
+
 .. _sub-config:
 
 Consumer Options
@@ -269,6 +276,7 @@ DEFAULTS = dict(
     },
     publish_exchange="amq.topic",
     topic_prefix="",
+    passive_declares=False,
     exchanges={
         "amq.topic": {
             "type": "topic",

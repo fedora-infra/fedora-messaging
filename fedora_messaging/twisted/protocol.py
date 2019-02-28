@@ -399,7 +399,8 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
                   * exchange (str): The exchange's name
                   * exchange_type (str): The type of the exchange ("direct", "topic", etc)
                   * passive (bool): If true, this will just assert that the exchange exists,
-                    but won't create it if it doesn't.
+                    but won't create it if it doesn't. Defaults to the configuration value
+                    :ref:`conf-passive-declares`
                   * durable (bool): Whether or not the exchange is durable
                   * arguments (dict): Extra arguments for the exchange's creation.
         Raises:
@@ -415,10 +416,12 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         channel = yield self._allocate_channel()
         try:
             for exchange in exchanges:
+                args = exchange.copy()
+                args.setdefault("passive", config.conf["passive_declares"])
                 try:
-                    yield channel.exchange_declare(**exchange)
+                    yield channel.exchange_declare(**args)
                 except pika.exceptions.ChannelClosed as e:
-                    raise BadDeclaration("exchange", exchange, e)
+                    raise BadDeclaration("exchange", args, e)
         finally:
             try:
                 channel.close()
@@ -436,7 +439,8 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
 
                   * queue (str): The name of the queue
                   * passive (bool): If true, this will just assert that the queue exists,
-                    but won't create it if it doesn't.
+                    but won't create it if it doesn't. Defaults to the configuration value
+                    :ref:`conf-passive-declares`
                   * durable (bool): Whether or not the queue is durable
                   * exclusive (bool): Whether or not the queue is exclusive to this connection.
                   * auto_delete (bool): Whether or not the queue should be automatically
@@ -455,10 +459,12 @@ class FedoraMessagingProtocol(TwistedProtocolConnection):
         channel = yield self._allocate_channel()
         try:
             for queue in queues:
+                args = queue.copy()
+                args.setdefault("passive", config.conf["passive_declares"])
                 try:
-                    yield channel.queue_declare(**queue)
+                    yield channel.queue_declare(**args)
                 except pika.exceptions.ChannelClosed as e:
-                    raise BadDeclaration("queue", queue, e)
+                    raise BadDeclaration("queue", args, e)
         finally:
             try:
                 channel.close()

@@ -446,6 +446,7 @@ class ConsumerSessionTests(unittest.TestCase):
             durable="durable",
             auto_delete="auto_delete",
             arguments="arguments",
+            passive=False,
             callback=self.consumer._on_exchange_declareok,
         )
         self.consumer._channel.queue_declare.assert_called_with(
@@ -454,6 +455,7 @@ class ConsumerSessionTests(unittest.TestCase):
             auto_delete="auto_delete",
             exclusive="exclusive",
             arguments="arguments",
+            passive=False,
             callback=self.consumer._on_queue_declareok,
         )
         # Declare bindings
@@ -474,6 +476,34 @@ class ConsumerSessionTests(unittest.TestCase):
             self.consumer._channel.basic_consume.assert_called_with(
                 on_message_callback=self.consumer._on_message, queue="testqueue"
             )
+
+    def test_declare_passive(self):
+        # Test that the exchanges, queues and bindings are passively declared
+        # if configured so.
+        self.consumer._channel = mock.Mock()
+        self.consumer._exchanges = {
+            "testexchange": {
+                "type": "type",
+                "durable": "durable",
+                "auto_delete": "auto_delete",
+                "arguments": "arguments",
+            }
+        }
+        self.consumer._queues = {
+            "testqueue": {
+                "durable": "durable",
+                "auto_delete": "auto_delete",
+                "exclusive": "exclusive",
+                "arguments": "arguments",
+            }
+        }
+        with mock.patch.dict(config.conf, {"passive_declares": True}):
+            # Declare exchanges and queues
+            self.consumer._on_qosok(None)
+            call_args = self.consumer._channel.exchange_declare.call_args_list[-1][1]
+            assert call_args.get("passive") is True
+            call_args = self.consumer._channel.queue_declare.call_args_list[-1][1]
+            assert call_args.get("passive") is True
 
     @mock.patch("fedora_messaging._session.pika.SelectConnection")
     def test_reconnect_not_running(self, mock_new_connection):
