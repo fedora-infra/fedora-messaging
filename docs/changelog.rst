@@ -4,8 +4,50 @@ Release Notes
 
 .. towncrier release notes start
 
-1.4.0 (2019-02-07)
-==================
+v1.5.0 (2019-02-28)
+===================
+
+Dependency Changes
+------------------
+
+* Replace the dependency on ``pytoml`` with ``toml``
+  (`#132 <https://github.com/fedora-infra/fedora-messaging/issues/132>`_).
+
+
+Features
+--------
+
+* Support passive declarations for locked-down brokers
+  (`#136 <https://github.com/fedora-infra/fedora-messaging/issues/136>`_).
+
+
+Bug Fixes
+---------
+
+* Fix a bug in the sample schema pachage
+  (`#135 <https://github.com/fedora-infra/fedora-messaging/issues/135>`_).
+
+
+Development Changes
+-------------------
+
+* Switch to Mergify v2
+  (`#136 <https://github.com/fedora-infra/fedora-messaging/pull/129>`_).
+
+
+Contributors
+------------
+Many thanks to the contributors of bug reports, pull requests, and pull request
+reviews for this release:
+
+* Aurélien Bompard
+* Jeremy Cline
+* Michal Konečný
+* Shraddha Agrawal
+
+
+v1.4.0 (2019-02-07)
+===================
 
 Features
 --------
