@@ -390,8 +390,6 @@ class Message(object):
         if topic:
             # Default is "" on base class
             self.topic = topic
-        if config.conf["topic_prefix"]:
-            self.topic = ".".join((config.conf["topic_prefix"].rstrip("."), self.topic))
 
         headers = headers or {}
         if severity:
@@ -461,7 +459,10 @@ class Message(object):
     @property
     def _encoded_routing_key(self):
         """The encoded routing key used to publish the message on the broker."""
-        return self.topic.encode("utf-8")
+        topic = self.topic
+        if config.conf["topic_prefix"]:
+            topic = ".".join((config.conf["topic_prefix"].rstrip("."), topic))
+        return topic.encode("utf-8")
 
     @property
     def _encoded_body(self):
