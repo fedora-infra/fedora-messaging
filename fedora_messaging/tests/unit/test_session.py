@@ -28,7 +28,7 @@ import pkg_resources
 from pika import exceptions as pika_errs, URLParameters, credentials
 from jsonschema.exceptions import ValidationError as JSONValidationError
 
-from fedora_messaging import _session, config
+from fedora_messaging import _session, config, message
 from fedora_messaging.exceptions import (
     PublishReturned,
     ConnectionException,
@@ -262,6 +262,15 @@ class PublisherSessionTests(unittest.TestCase):
         # Check that the connection was reestablished
         connection_class_mock.assert_called_with(self.publisher._parameters)
         self.assertEqual(self.publisher._connection, connection_mock)
+
+    def test_publish_topic_prefix(self):
+        # Check that the topic prefix is correctly prepended to outgoing messages.
+        with mock.patch.dict(config.conf, {"topic_prefix": "prefix"}):
+            msg = message.Message(topic="test.topic")
+            self.publisher.publish(msg)
+        self.publisher_channel_publish.assert_called_once()
+        publish_call = self.publisher_channel_publish.call_args_list[0][1]
+        self.assertEqual(publish_call["routing_key"], b"prefix.test.topic")
 
 
 class ConsumerSessionTests(unittest.TestCase):
@@ -934,6 +943,15 @@ class ConsumerSessionMessageTests(unittest.TestCase):
         )
         self.assertFalse(self.consumer._running)
         self.consumer._connection.close.assert_called_once()
+
+    def test_message_topic_prefix(self):
+        # Check that the topic_prefix isn't added to incoming messages.
+        body = b'"test body"'
+        with mock.patch.dict(config.conf, {"topic_prefix": "prefix"}):
+            self.consumer._on_message(self.channel, self.frame, self.properties, body)
+        self.consumer._consumer_callback.assert_called_once()
+        msg = self.consumer._consumer_callback.call_args_list[0][0][0]
+        self.assertEqual(msg.topic, "test.topic")
 
 
 class ConfigureTlsParameters(unittest.TestCase):

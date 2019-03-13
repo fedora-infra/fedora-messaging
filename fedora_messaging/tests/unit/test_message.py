@@ -448,10 +448,10 @@ class MessageTests(unittest.TestCase):
         )
 
     def test_topic_prefix(self):
-        """Assert the topic prefix is prepended to the constructor's topic."""
+        """Assert the topic prefix is used in the encoded routing key."""
         with mock.patch.dict(message.config.conf, {"topic_prefix": "prefix"}):
             msg = message.Message(topic="test.topic")
-        self.assertEqual(msg.topic, "prefix.test.topic")
+            self.assertEqual(msg._encoded_routing_key, b"prefix.test.topic")
 
 
 class CustomMessage(message.Message):
