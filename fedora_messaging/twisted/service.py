@@ -226,11 +226,23 @@ def _ssl_context_factory(parameters):
         # Decode with the system encoding since this came from the config file. Die,
         # Python 2, die.
         hostname = hostname.decode(locale.getdefaultlocale()[1])
-    context_factory = ssl.optionsForClientTLS(
-        hostname,
-        trustRoot=ca_cert or ssl.platformTrust(),
-        clientCertificate=client_cert,
-        extraCertificateOptions={"raiseMinimumTo": ssl.TLSVersion.TLSv1_2},
-    )
+    try:
+        context_factory = ssl.optionsForClientTLS(
+            hostname,
+            trustRoot=ca_cert or ssl.platformTrust(),
+            clientCertificate=client_cert,
+            extraCertificateOptions={"raiseMinimumTo": ssl.TLSVersion.TLSv1_2},
+        )
+    except AttributeError:
+        # Twisted 12.2 path for EL7 :(
+        context_factory = ssl.CertificateOptions(
+            certificate=client_cert.original,
+            privateKey=client_cert.privateKey.original,
+            caCerts=[ca_cert.original] or ssl.platformTrust(),
+            verify=True,
+            requireCertificate=True,
+            verifyOnce=False,
+            enableSessions=False,
+        )
 
     return context_factory
