@@ -95,6 +95,63 @@ configuration file and no options on the command line.
     in *all* ``bindings`` entries in the configuration file.
 
 
+Exit codes
+==========
+
+consume
+-------
+The ``consume`` command can exit for a number of reasons:
+
+``0``
+
+    The consumer intentionally halted by raising a ``HaltConsumer`` exception.
+
+``2``
+
+    The argument or option provided is invalid.
+
+``10``
+
+    The consumer was unable to declare an exchange, queue, or binding in the
+    message broker. This occurs with the user does not have permission on the
+    broker to create the object *or* the object already exists, but does not
+    have the attributes the consumer expects (e.g. the consumer expects it to
+    be a durable queue, but it is transient).
+
+``11``
+
+    The consumer encounters an unexpected error while registering the consumer
+    with the broker. This is a bug in fedora-messaging and should be reported.
+
+``12``
+
+    The consumer is canceled by the message broker.  The consumer is typically
+    canceled when the queue it is subscribed to is deleted on the broker, but
+    other exceptional cases could result in this. The broker administrators
+    should be consulted in this case.
+
+``13``
+
+    An unexpected general exception is raised by your consumer callback.
+
+Additionally, consumer callbacks can cause the command to exit with a custom
+exit code. Consult the consumer's documentation to see what error codes it uses.
+
+
+Signals
+=======
+
+consume
+-------
+
+The ``consume`` command handles the SIGTERM and SIGINT signals by allowing any
+consumers which are currently processing a message to finish, acknowledging the
+message to the message broker, and then shutting down. Repeated SIGTERM or
+SIGINT signals are ignored. To halt immediately, send the SIGKILL signal;
+messages that are partially processed will be re-delivered when the consumer
+restarts.
+
+
 Systemd service
 ===============
 

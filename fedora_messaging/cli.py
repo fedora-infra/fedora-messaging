@@ -27,6 +27,8 @@ import logging.config
 import os
 import sys
 
+from twisted.python import log as legacy_twisted_log
+from twisted.internet import reactor, error
 import click
 import pkg_resources
 
@@ -66,6 +68,11 @@ _exchange_help = (
 )
 
 
+# Global variable used to set the exit code in error handlers, then let
+# the reactor shut down gracefully, then exit with the proper code.
+_exit_code = 0
+
+
 @click.group()
 @click.option("--conf", envvar="FEDORA_MESSAGING_CONF", help=_conf_help)
 def cli(conf):
@@ -77,6 +84,8 @@ def cli(conf):
             config.conf.load_config(config_path=conf)
         except exceptions.ConfigurationException as e:
             raise click.exceptions.BadParameter(str(e))
+    twisted_observer = legacy_twisted_log.PythonLoggingObserver()
+    twisted_observer.start()
     config.conf.setup_logging()
 
 
@@ -88,9 +97,9 @@ def cli(conf):
 @click.option("--exchange", help=_exchange_help)
 def consume(exchange, queue_name, routing_key, callback, app_name):
     """Consume messages from an AMQP queue using a Python callback."""
-
     # The configuration validates these are not null and contain all required keys
     # when it is loaded.
+
     bindings = config.conf["bindings"]
     queues = config.conf["queues"]
 
@@ -153,18 +162,86 @@ def consume(exchange, queue_name, routing_key, callback, app_name):
 
     _log.info("Starting consumer with %s callback", callback_path)
     try:
-        return api.consume(callback, bindings=bindings, queues=queues)
+        deferred_consumers = api.twisted_consume(
+            callback, bindings=bindings, queues=queues
+        )
+        deferred_consumers.addCallback(_consume_callback)
+        deferred_consumers.addErrback(_consume_errback)
     except ValueError as e:
         click_version = pkg_resources.get_distribution("click").parsed_version
         if click_version < pkg_resources.parse_version("7.0"):
             raise click.exceptions.BadOptionUsage(str(e))
         else:
             raise click.exceptions.BadOptionUsage("callback", str(e))
-    except exceptions.HaltConsumer as e:
-        if e.exit_code:
-            _log.error(
-                "Consumer halted with non-zero exit code (%d): %s",
-                e.exit_code,
-                str(e.reason),
-            )
-            sys.exit(e.exit_code)
+
+    reactor.run()
+    sys.exit(_exit_code)
+
+
+def _consume_errback(failure):
+    """Handle any errors that occur during consumer registration."""
+    global _exit_code
+    if failure.check(exceptions.BadDeclaration):
+        _log.error(
+            "Unable to declare the %s object on the AMQP broker. The "
+            "broker responded with %s. Check permissions for your user.",
+            failure.value.obj_type,
+            failure.value.reason,
+        )
+        _exit_code = 10
+    else:
+        _exit_code = 11
+        _log.exception(
+            "An unexpected error (%r) occurred while registering the "
+            "consumer, please report this bug.",
+            failure.value,
+        )
+    reactor.stop()
+
+
+def _consume_callback(consumers):
+    """
+    Callback when consumers are successfully registered.
+
+    This simply registers callbacks for consumer.result deferred object which
+    fires when the consumer stops.
+
+    Args
+        consumers (list of fedora_messaging.api.Consumer):
+            The list of consumers that were successfully created.
+    """
+    for consumer in consumers:
+
+        def errback(failure):
+            global _exit_code
+            if failure.check(exceptions.HaltConsumer):
+                _exit_code = failure.value.exit_code
+                if _exit_code:
+                    _log.error(
+                        "Consumer halted with non-zero exit code (%d): %s",
+                        _exit_code,
+                        str(failure.value.reason),
+                    )
+            elif failure.check(exceptions.ConsumerCanceled):
+                _exit_code = 12
+                _log.error(
+                    "The consumer was canceled server-side, check with system administrators."
+                )
+            else:
+                _exit_code = 13
+                _log.error(
+                    "Unexpected error occurred in consumer %r: %r", consumer, failure
+                )
+            reactor.stop()
+
+        def callback(consumer):
+            _log.info("The %r consumer halted.", consumer)
+            if all([c.result.called for c in consumers]):
+                _log.info("All consumers have stopped; shutting down.")
+                try:
+                    # Last consumer out shuts off the lights
+                    reactor.stop()
+                except error.ReactorNotRunning:
+                    pass
+
+        consumer.result.addCallbacks(callback, errback)
