@@ -29,6 +29,7 @@ from fedora_messaging import config
 from fedora_messaging.twisted.factory import FedoraMessagingFactory
 from fedora_messaging.twisted.service import (
     FedoraMessagingService,
+    FedoraMessagingServiceV2,
     _ssl_context_factory,
 )
 from fedora_messaging.tests import FIXTURES_DIR
@@ -114,6 +115,15 @@ class ServiceTests(unittest.TestCase):
         with mock.patch(ss_path) as stopService:
             service.stopService()
             stopService.assert_not_called()
+
+
+class ServiceV2Tests(unittest.TestCase):
+    def test_init_tls(self):
+        """Assert creating the service with an amqps URL configures TLS."""
+        service = FedoraMessagingServiceV2("amqps://")
+
+        self.assertTrue(isinstance(service._parameters, pika.URLParameters))
+        self.assertIsNotNone(service._parameters.ssl_options)
 
 
 class SslContextFactoryTests(unittest.TestCase):

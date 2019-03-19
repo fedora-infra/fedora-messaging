@@ -28,7 +28,7 @@ from twisted.internet import defer, error
 
 from fedora_messaging import config
 from fedora_messaging.message import Message
-from fedora_messaging.exceptions import Nack, Drop, HaltConsumer
+from fedora_messaging.exceptions import Nack, Drop, HaltConsumer, NoFreeChannels
 from fedora_messaging.twisted.protocol import (
     FedoraMessagingProtocol,
     _pika_version,
@@ -93,6 +93,17 @@ class ProtocolTests(unittest.TestCase):
         self.protocol = MockProtocol(None)
         self.factory = mock.Mock()
         self.protocol.factory = self.factory
+
+    def test_allocate_channel_no_more_channels(self):
+        """Assert a pika NoFreeChannels exception turns into a fedora_messaging exception."""
+        self.protocol.channel = mock.Mock(
+            name="channel", side_effect=pika.exceptions.NoFreeChannels()
+        )
+
+        d = self.protocol._allocate_channel()
+        d.addCallback(pytest.fail, "Expected a NoFreeChannels exception")
+        d.addErrback(lambda f: f.trap(NoFreeChannels))
+        pytest_twisted.blockon(d)
 
     @mock.patch(
         "fedora_messaging.twisted.protocol.uuid.uuid4", mock.Mock(return_value="tag1")

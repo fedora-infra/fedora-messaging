@@ -1,16 +1,24 @@
 """The API for publishing messages and consuming from message queues."""
+from __future__ import absolute_import
 
 import threading
+import inspect
+
+from twisted.internet import reactor
 
 from . import _session, exceptions, config
 from .signals import pre_publish_signal, publish_signal, publish_failed_signal
 from .message import Message, SEVERITIES  # noqa: F401
+from .twisted import service
+from .twisted.consumer import Consumer  # noqa: F401
 
 
 __all__ = (
     "Message",
     "consume",
     "publish",
+    "twisted_consume",
+    "Consumer",
     "pre_publish_signal",
     "publish_signal",
     "publish_failed_signal",
@@ -18,6 +26,94 @@ __all__ = (
 
 # Sessions aren't thread-safe, so each thread gets its own
 _session_cache = threading.local()
+
+# The Twisted service that consumers are registered with.
+_twisted_service = None
+
+
+def _check_callback(callback):
+    """
+    Turns a callback that is potentially a class into a callable object.
+
+    Args:
+        callback (object): An object that might be a class, method, or function.
+        if the object is a class, this creates an instance of it.
+
+    Raises:
+        ValueError: If an instance can't be created or it isn't a callable object.
+        TypeError: If the class requires arguments to be instantiated.
+
+    Returns:
+        callable: A callable object suitable for use as the consumer callback.
+    """
+    # If the callback is a class, create an instance of it first
+    if inspect.isclass(callback):
+        callback_object = callback()
+        if not callable(callback_object):
+            raise ValueError(
+                "Callback must be a class that implements __call__ or a function."
+            )
+    elif callable(callback):
+        callback_object = callback
+    else:
+        raise ValueError(
+            "Callback must be a class that implements __call__ or a function."
+        )
+
+    return callback_object
+
+
+def twisted_consume(callback, bindings=None, queues=None):
+    """
+    Start a consumer using the provided callback and run it using the Twisted
+    event loop (reactor).
+
+    .. note:: Callbacks run in a Twisted-managed thread pool using the
+        :func:`twisted.internet.threads.deferToThread` API to avoid them blocking
+        the event loop. If you wish to use Twisted APIs in your callback you must
+        use the :func:`twisted.internet.threads.blockingCallFromThread` or
+        :class:`twisted.internet.interfaces.IReactorFromThreads` APIs.
+
+    This API expects the caller to start the reactor.
+
+    Args:
+        callback (callable): A callable object that accepts one positional argument,
+            a :class:`.Message` or a class object that implements the ``__call__``
+            method. The class will be instantiated before use.
+        bindings (dict or list of dict): Bindings to declare before consuming. This
+            should be the same format as the :ref:`conf-bindings` configuration.
+        queues (dict): The queue to declare and consume from. Each key in this
+            dictionary should be a queue name to declare, and each value should
+            be a dictionary with the "durable", "auto_delete", "exclusive", and
+            "arguments" keys.
+    Returns:
+        twisted.internet.defer.Deferred:
+            A deferred that fires with the list of one or more
+            :class:`.Consumer` objects. Each consumer object has a
+            :attr:`.Consumer.result` instance variable that is a Deferred that
+            fires or errors when the consumer halts. Note that this API is
+            meant to survive network problems, so consuming will continue until
+            :meth:`.Consumer.cancel` is called or a fatal server error occurs.
+            The deferred returned by this function may error back with a
+            :class:`fedora_messaging.exceptions.BadDeclaration` if the consumer
+            cannot be registered on the broker.
+    """
+    if isinstance(bindings, dict):
+        bindings = [bindings]
+    callback = _check_callback(callback)
+
+    global _twisted_service
+    if _twisted_service is None:
+        _twisted_service = service.FedoraMessagingServiceV2(config.conf["amqp_url"])
+        reactor.callWhenRunning(_twisted_service.startService)
+        # Twisted is killing the underlying connection before stopService gets
+        # called, so we need to add it as a pre-shutdown event to gracefully
+        # finish up messages in progress.
+        reactor.addSystemEventTrigger(
+            "before", "shutdown", _twisted_service.stopService
+        )
+
+    return _twisted_service._service.factory.consume(callback, bindings, queues)
 
 
 def consume(callback, bindings=None, queues=None):
@@ -27,6 +123,15 @@ def consume(callback, bindings=None, queues=None):
 
     This API is blocking and will not return until the process receives a signal
     from the operating system.
+
+    .. warning:: This API is runs the callback in the IO loop thread. This means
+        if your callback could run for a length of time near the heartbeat interval,
+        which is likely on the order of 60 seconds, the broker will kill the TCP
+        connection and the message will be re-delivered on start-up.
+
+        For now, use the :func:`twisted_consume` API which runs the
+        callback in a thread and continues to handle AMQP events while the
+        callback runs if you have a long-running callback.
 
     The callback receives a single positional argument, the message:
 

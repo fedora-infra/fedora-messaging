@@ -2,6 +2,7 @@ coverage
 sphinx
 mock
 twisted
+treq
 pytest<=4.0
 pytest-twisted
 pyOpenSSL

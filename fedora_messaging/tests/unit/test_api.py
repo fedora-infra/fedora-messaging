@@ -30,6 +30,92 @@ from fedora_messaging.signals import (
 )
 
 
+class CheckCallbackTests(unittest.TestCase):
+    """Tests for :func:`api._check_callback`"""
+
+    def test_method(self):
+        """Assert methods are valid."""
+
+        class Callback(object):
+            def callback(self):
+                return
+
+        class_instance = Callback()
+
+        callback = api._check_callback(class_instance.callback)
+
+        self.assertIs(callback, callback)
+
+    def test_func(self):
+        """Assert functions are valid."""
+
+        def callback(message):
+            return
+
+        cb = api._check_callback(callback)
+
+        self.assertIs(cb, callback)
+
+    def test_class(self):
+        """Assert classes are instantiated."""
+
+        class Callback(object):
+            def __call__(self, message):
+                return "It worked"
+
+        callback = api._check_callback(Callback)
+
+        self.assertEqual(callback(None), "It worked")
+
+    def test_class_no_call(self):
+        """Assert classes are instantiated."""
+
+        class Callback(object):
+            pass
+
+        try:
+            api._check_callback(Callback)
+            self.fail("_check_callback failed to raise an exception")
+        except ValueError:
+            pass
+
+    def test_class_init_args(self):
+        """Assert classes are instantiated."""
+
+        class Callback(object):
+            def __init__(self, args):
+                self.args = args
+
+        try:
+            api._check_callback(Callback)
+            self.fail("_check_callback failed to raise a TypeError")
+        except TypeError:
+            pass
+
+    def test_not_callable(self):
+        """Assert a ValueError is raised for things that can't be called."""
+        try:
+            api._check_callback("")
+            self.fail("_check_callback failed to raise an ValueError")
+        except ValueError:
+            pass
+
+
+class TwistedConsumeTests(unittest.TestCase):
+    """Tests for :func:`api.twisted_consume`"""
+
+    @mock.patch("fedora_messaging.api._twisted_service")
+    def test_wrap_bindings(self, mock_service):
+        """Assert bindings are always passed to the factory as a list."""
+
+        def callback(msg):
+            pass
+
+        api.twisted_consume(callback, {}, {})
+
+        mock_service._service.factory.consume.called_once_with(callback, [{}], {})
+
+
 @mock.patch("fedora_messaging._session.ConsumerSession")
 class ConsumeTests(unittest.TestCase):
     def test_defaults(self, mock_session):

@@ -26,16 +26,17 @@ See https://twistedmatrix.com/documents/current/core/howto/application.html
 
 from __future__ import absolute_import, unicode_literals
 import locale
+import warnings
 
 import pika
 import six
 from twisted.application import service
 from twisted.application.internet import TCPClient, SSLClient
-from twisted.internet import ssl
+from twisted.internet import ssl, defer
 
 from .. import config
 from .._session import _configure_tls_parameters
-from .factory import FedoraMessagingFactory
+from .factory import FedoraMessagingFactory, FedoraMessagingFactoryV2
 
 
 class FedoraMessagingService(service.MultiService):
@@ -87,6 +88,11 @@ class FedoraMessagingService(service.MultiService):
         consumers = consumers or {}
         for queue, callback in consumers.items():
             self.factory.consume(callback, queue)
+        warnings.warn(
+            "The FedoraMessagingService class is deprecated and will be removed"
+            " in fedora-messaging v2.0, please use FedoraMessagingServiceV2 instead.",
+            DeprecationWarning,
+        )
 
     def startService(self):
         self.connect()
@@ -126,6 +132,63 @@ class FedoraMessagingService(service.MultiService):
         )
         serv.setName(name)
         serv.setServiceParent(self)
+
+
+class FedoraMessagingServiceV2(service.MultiService):
+    """
+    A Twisted service to connect to the Fedora Messaging broker.
+
+    Args:
+        amqp_url (str): URL to use for the AMQP server.
+        publish_confirms (bool): If true, use the RabbitMQ publisher confirms
+            AMQP extension.
+    """
+
+    name = "fedora-messaging-servicev2"
+
+    def __init__(self, amqp_url=None, publish_confirms=True):
+        """Initialize the service."""
+        service.MultiService.__init__(self)
+        self._parameters = pika.URLParameters(amqp_url or config.conf["amqp_url"])
+        self._confirms = publish_confirms
+        if amqp_url.startswith("amqps"):
+            _configure_tls_parameters(self._parameters)
+        if self._parameters.client_properties is None:
+            self._parameters.client_properties = config.conf["client_properties"]
+
+        factory = FedoraMessagingFactoryV2(self._parameters, self._confirms)
+        if self._parameters.ssl_options:
+            self._service = SSLClient(
+                host=self._parameters.host,
+                port=self._parameters.port,
+                factory=factory,
+                contextFactory=_ssl_context_factory(self._parameters),
+            )
+        else:
+            self._service = TCPClient(
+                host=self._parameters.host, port=self._parameters.port, factory=factory
+            )
+        self._service.factory = factory
+        name = "{}{}:{}".format(
+            "ssl:" if self._parameters.ssl_options else "",
+            self._parameters.host,
+            self._parameters.port,
+        )
+        self._service.setName(name)
+        self._service.setServiceParent(self)
+
+    @defer.inlineCallbacks
+    def stopService(self):
+        """
+        Gracefully stop the service.
+
+        Returns:
+            defer.Deferred: a Deferred which is triggered when the service has
+                finished shutting down.
+        """
+        self._service.factory.stopTrying()
+        yield self._service.factory.stopFactory()
+        yield service.MultiService.stopService(self)
 
 
 def _ssl_context_factory(parameters):

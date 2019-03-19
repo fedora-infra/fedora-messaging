@@ -27,17 +27,19 @@ documentation for more information.
 """
 
 from __future__ import absolute_import
+import collections
+import warnings
+import logging
 
 import pika
 from twisted.internet import defer, protocol, error
-
-from twisted.logger import Logger
+from twisted.python import log as _legacy_twisted_log
 
 from .. import config
 from ..exceptions import ConnectionException
-from .protocol import FedoraMessagingProtocol
+from .protocol import FedoraMessagingProtocol, FedoraMessagingProtocolV2
 
-_log = Logger(__name__)
+_std_log = logging.getLogger(__name__)
 
 
 class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
@@ -79,6 +81,11 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
         self.consumers = {}
         self.client = None
         self._client_ready = defer.Deferred()
+        warnings.warn(
+            "The FedoraMessagingFactory class is deprecated and will be removed"
+            " in fedora-messaging v2.0, please use FedoraMessagingFactoryV2 instead.",
+            DeprecationWarning,
+        )
 
     def startedConnecting(self, connector):
         """Called when the connection to the broker has started.
@@ -86,7 +93,7 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
         See the documentation of
         `twisted.internet.protocol.ReconnectingClientFactory` for details.
         """
-        _log.info("Started new connection to the AMQP broker")
+        _legacy_twisted_log.msg("Started new connection to the AMQP broker")
 
     def buildProtocol(self, addr):
         """Create the Protocol instance.
@@ -103,7 +110,7 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
     @defer.inlineCallbacks
     def _on_client_ready(self):
         """Called when the client is ready to send and receive messages."""
-        _log.info("Successfully connected to the AMQP broker.")
+        _legacy_twisted_log.msg("Successfully connected to the AMQP broker.")
         yield self.client.resumeProducing()
 
         yield self.client.declare_exchanges(self.exchanges)
@@ -112,7 +119,7 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
         for queue, callback in self.consumers.items():
             yield self.client.consume(callback, queue)
 
-        _log.info("Successfully declared all AMQP objects.")
+        _legacy_twisted_log.msg("Successfully declared all AMQP objects.")
         self._client_ready.callback(None)
 
     def clientConnectionLost(self, connector, reason):
@@ -122,8 +129,10 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
         `twisted.internet.protocol.ReconnectingClientFactory` for details.
         """
         if not isinstance(reason.value, error.ConnectionDone):
-            _log.warn(
-                "Lost connection to the AMQP broker ({reason})", reason=reason.value
+            _legacy_twisted_log.msg(
+                "Lost connection to the AMQP broker ({reason})",
+                reason=reason.value,
+                logLevel=logging.WARNING,
             )
         if self._client_ready.called:
             # Renew the ready deferred, it will callback when the
@@ -137,8 +146,10 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
         See the documentation of
         `twisted.internet.protocol.ReconnectingClientFactory` for details.
         """
-        _log.warn(
-            "Connection to the AMQP broker failed ({reason})", reason=reason.value
+        _legacy_twisted_log.msg(
+            "Connection to the AMQP broker failed ({reason})",
+            reason=reason.value,
+            logLevel=logging.WARNING,
         )
         protocol.ReconnectingClientFactory.clientConnectionFailed(
             self, connector, reason
@@ -249,3 +260,151 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
                 break
             except ConnectionException:
                 continue
+
+
+class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
+    """Reconnecting factory for the Fedora Messaging protocol."""
+
+    def __init__(self, parameters, confirms=True):
+        """
+        Create a new factory for protocol objects.
+
+        Any exchanges, queues, or bindings provided here will be declared and
+        set up each time a new protocol instance is created. In other words,
+        each time a new connection is set up to the broker, it will start with
+        the declaration of these objects.
+
+        Args:
+            parameters (pika.ConnectionParameters): The connection parameters.
+            confirms (bool): If true, attempt to turn on publish confirms extension.
+        """
+        self.confirms = confirms
+        self.protocol = FedoraMessagingProtocolV2
+        self._parameters = parameters
+        # Used to implement the when_connected API
+        self._client_deferred = defer.Deferred()
+        self._client = None
+        self._consumers = {}
+
+    def buildProtocol(self, addr):
+        """Create the Protocol instance.
+
+        See the documentation of
+        `twisted.internet.protocol.ReconnectingClientFactory` for details.
+        """
+        self._client = self.protocol(self._parameters, confirms=self.confirms)
+        self._client.factory = self
+
+        @defer.inlineCallbacks
+        def on_ready(unused_param=None):
+            """Reset the connection delay when the AMQP handshake is complete."""
+            _std_log.debug("AMQP handshake completed; connection ready for use")
+            self.resetDelay()
+            self._client_deferred.callback(self._client)
+            self._client_deferred = defer.Deferred()
+
+            # Restart any consumer from previous connections that wasn't canceled
+            # including queues and bindings, as the queue might not have been durable
+            for consumer, queue, bindings in self._consumers.values():
+                _std_log.info("Re-registering the %r consumer", consumer)
+                yield self._client.declare_queues([queue])
+                yield self._client.bind_queues(bindings)
+                yield self._client.consume(consumer.callback, consumer.queue, consumer)
+
+        self._client.ready.addCallback(on_ready)
+        return self._client
+
+    @defer.inlineCallbacks
+    def stopFactory(self):
+        """Stop the factory.
+
+        See the documentation of
+        `twisted.internet.protocol.ReconnectingClientFactory` for details.
+        """
+        if self._client:
+            yield self._client.halt()
+        protocol.ReconnectingClientFactory.stopFactory(self)
+
+    def when_connected(self):
+        """
+        Retrieve the currently-connected Protocol, or the next one to connect.
+
+        Returns:
+            defer.Deferred: A Deferred that fires with a connected
+                :class:`FedoraMessagingProtocolV2` instance. This is similar to
+                the whenConnected method from the Twisted endpoints APIs, which
+                is sadly isn't available before 16.1.0, which isn't available
+                in EL7.
+        """
+        if self._client and not self._client.is_closed:
+            return defer.succeed(self._client)
+        else:
+            return self._client_deferred
+
+    @defer.inlineCallbacks
+    def consume(self, callback, bindings, queues):
+        """
+        Start a consumer that lasts across individual connections.
+
+        Args:
+            callback (callable): A callable object that accepts one positional argument,
+                a :class:`Message` or a class object that implements the ``__call__``
+                method. The class will be instantiated before use.
+            bindings (dict or list of dict): Bindings to declare before consuming. This
+                should be the same format as the :ref:`conf-bindings` configuration.
+            queues (dict): The queues to declare and consume from. Each key in this
+                dictionary is a queue, and each value is its settings as a dictionary.
+                These settings dictionaries should have the "durable", "auto_delete",
+                "exclusive", and "arguments" keys. Refer to :ref:`conf-queues` for
+                details on their meanings.
+
+        Returns:
+            defer.Deferred:
+                A deferred that fires with the list of one or more
+                :class:`fedora_messaging.twisted.consumer.Consumer` objects.
+                These can be passed to the
+                :meth:`FedoraMessagingFactoryV2.cancel` API to halt them. Each
+                consumer object has a ``result`` instance variable that is a
+                Deferred that fires or errors when the consumer halts. The
+                Deferred may error back with a BadDeclaration if the user does
+                not have permissions to consume from the queue.
+        """
+        expanded_bindings = collections.defaultdict(list)
+        for binding in bindings:
+            for key in binding["routing_keys"]:
+                b = binding.copy()
+                del b["routing_keys"]
+                b["routing_key"] = key
+                expanded_bindings[b["queue"]].append(b)
+
+        expanded_queues = []
+        for name, settings in queues.items():
+            q = {"queue": name}
+            q.update(settings)
+            expanded_queues.append(q)
+
+        protocol = yield self.when_connected()
+
+        consumers = []
+        for queue in expanded_queues:
+            yield protocol.declare_queues([queue])
+            b = expanded_bindings.get(queue["queue"], [])
+            yield protocol.bind_queues(b)
+            consumer = yield protocol.consume(callback, queue["queue"])
+            self._consumers[queue["queue"]] = (consumer, queue, b)
+            consumers.append(consumer)
+
+        defer.returnValue(consumers)
+
+    @defer.inlineCallbacks
+    def cancel(self, consumers):
+        """
+        Cancel a consumer that was previously started with consume.
+
+        Args:
+            consumer (list of fedora_messaging.api.Consumer): The consumers to cancel.
+        """
+        for consumer in consumers:
+            del self._consumers[consumer.queue]
+            protocol = yield self.when_connected()
+            yield protocol.cancel(consumer)

@@ -2,6 +2,7 @@ blinker
 click
 jsonschema
 toml
+Twisted
 pytz
 pika>=0.12
 six

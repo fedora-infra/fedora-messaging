@@ -17,6 +17,7 @@
 
 from __future__ import absolute_import, unicode_literals
 
+import logging
 import unittest
 
 import mock
@@ -48,9 +49,11 @@ class FactoryTests(unittest.TestCase):
 
     def test_started_connection(self):
         """Assert connection attempts are logged."""
-        with mock.patch("fedora_messaging.twisted.factory._log") as mock_log:
+        with mock.patch(
+            "fedora_messaging.twisted.factory._legacy_twisted_log"
+        ) as mock_log:
             self.factory.startedConnecting(None)
-        mock_log.info.assert_called_once_with(
+        mock_log.msg.assert_called_once_with(
             "Started new connection to the AMQP broker"
         )
 
@@ -193,10 +196,14 @@ class FactoryTests(unittest.TestCase):
     )
     def test_connection_failed(self):
         """Assert when the connection fails it is logged."""
-        with mock.patch("fedora_messaging.twisted.factory._log") as mock_log:
+        with mock.patch(
+            "fedora_messaging.twisted.factory._legacy_twisted_log"
+        ) as mock_log:
             self.factory.clientConnectionFailed(None, mock.Mock(value="something"))
-        mock_log.warn.assert_called_once_with(
-            "Connection to the AMQP broker failed ({reason})", reason="something"
+        mock_log.msg.assert_called_once_with(
+            "Connection to the AMQP broker failed ({reason})",
+            reason="something",
+            logLevel=logging.WARNING,
         )
 
     def test_stopTrying(self):

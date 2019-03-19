@@ -23,6 +23,11 @@ Publishing
 Subscribing
 ===========
 
+.. autofunction:: fedora_messaging.api.twisted_consume
+
+.. autoclass:: fedora_messaging.api.Consumer
+   :members:
+
 .. autofunction:: fedora_messaging.api.consume
 
 
@@ -85,6 +90,8 @@ Twisted
 
 In addition to the synchronous API, a Twisted API is provided for applications
 that need an asynchronous API. This API requires Twisted 16.1.0 or greater.
+
+.. note:: This API is deprecated, please use :class:`fedora_messaging.api.twisted_consume`
 
 Protocol
 --------

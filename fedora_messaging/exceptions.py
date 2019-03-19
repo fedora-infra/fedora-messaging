@@ -76,6 +76,15 @@ class ConsumeException(BaseException):
     """Base class for exceptions related to consuming."""
 
 
+class ConsumerCanceled(ConsumeException):
+    """
+    Raised when the server has canceled the consumer.
+
+    This can happen when the queue the consumer is subscribed to is deleted,
+    or when the node the queue is located on fails.
+    """
+
+
 class Nack(ConsumeException):
     """
     Consumer callbacks should raise this to indicate they wish the message they
