@@ -7,11 +7,12 @@ import time
 
 from twisted.internet import reactor, defer, task
 import treq
+import pkg_resources
 import pytest
 import pytest_twisted
 
 from fedora_messaging import api, message, exceptions, config
-from fedora_messaging.twisted.protocol import _add_timeout
+from fedora_messaging.twisted.protocol import _add_timeout, _pika_version
 
 
 HTTP_API = "http://localhost:15672/api/"
@@ -495,12 +496,94 @@ def test_twisted_consume_serverside_cancel():
 
 
 @pytest_twisted.inlineCallbacks
-def test_twisted_consume_permission_denied(admin_user):
+def test_no_vhost_permissions(admin_user):
+    """Assert a hint is given if the user doesn't have any access to the vhost"""
+    url = "{base}permissions/%2F/{user}".format(base=HTTP_API, user=admin_user)
+    resp = yield treq.delete(url, auth=HTTP_AUTH, timeout=3)
+    assert resp.code == 204
+
+    queue = str(uuid.uuid4())
+    queues = {queue: {"auto_delete": False, "arguments": {"x-expires": 60 * 1000}}}
+
+    amqp_url = "amqp://{user}:guest@localhost:5672/%2F".format(user=admin_user)
+    with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
+        try:
+            yield api.twisted_consume(lambda x: x, [], queues)
+        except exceptions.ConnectionException as e:
+            assert e.reason == (
+                "The TCP connection appears to have started, but the TLS or AMQP "
+                "handshake with the broker failed; check your connection and "
+                "authentication parameters and ensure your user has permission "
+                "to access the vhost"
+            )
+
+
+@pytest_twisted.inlineCallbacks
+@pytest.mark.skipif(
+    _pika_version >= pkg_resources.parse_version("1.0.0b1"),
+    reason="This is currently broken in pika 1.0.0b1 and b2",
+)
+def test_no_read_permissions_queue_read_failure(admin_user):
     """
-    Assert the call to api.twisted_consume errbacks on permissions errors
+    Assert an errback occurs when unable to read from the queue due to
+    permissions. This is a bit weird because the consumer has permission to
+    register itself, but not to actually read from the queue so the result is
+    what errors back.
     """
     url = "{base}permissions/%2F/{user}".format(base=HTTP_API, user=admin_user)
-    body = {"configure": ".*", "write": "", "read": ""}
+    body = {"configure": ".*", "write": ".*", "read": ""}
+    resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
+    assert resp.code == 204
+
+    queue = str(uuid.uuid4())
+    queues = {queue: {"auto_delete": False, "arguments": {"x-expires": 60 * 1000}}}
+
+    amqp_url = "amqp://{user}:guest@localhost:5672/%2F".format(user=admin_user)
+    with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
+        consumers = yield api.twisted_consume(lambda x: x, [], queues)
+    _add_timeout(consumers[0].result, 5)
+    try:
+        yield consumers[0].result
+        pytest.fail("Call failed to raise an exception")
+    except exceptions.PermissionException as e:
+        assert e.reason == (
+            "ACCESS_REFUSED - access to queue '{}' in vhost '/' refused for user "
+            "'{}'".format(queue, admin_user)
+        )
+    except (defer.TimeoutError, defer.CancelledError):
+        pytest.fail("Timeout reached without consumer calling its errback!")
+
+
+@pytest_twisted.inlineCallbacks
+def test_no_read_permissions_bind_failure(admin_user):
+    """Assert the call to twisted_consume errbacks on read permissions errors on binding."""
+    url = "{base}permissions/%2F/{user}".format(base=HTTP_API, user=admin_user)
+    body = {"configure": ".*", "write": ".*", "read": ""}
+    resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
+    assert resp.code == 204
+
+    queue = str(uuid.uuid4())
+    queues = {queue: {"auto_delete": False, "arguments": {"x-expires": 60 * 1000}}}
+    bindings = [{"queue": queue, "exchange": "amq.topic", "routing_keys": ["#"]}]
+
+    amqp_url = "amqp://{user}:guest@localhost:5672/%2F".format(user=admin_user)
+    try:
+        with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
+            yield api.twisted_consume(lambda x: x, bindings, queues)
+        pytest.fail("Call failed to raise an exception")
+    except exceptions.BadDeclaration as e:
+        assert e.reason.args[0] == 403
+        assert e.reason.args[1] == (
+            "ACCESS_REFUSED - access to exchange 'amq.topic' in vhost '/' refused for user"
+            " '{}'".format(admin_user)
+        )
+
+
+@pytest_twisted.inlineCallbacks
+def test_no_write_permissions(admin_user):
+    """Assert the call to twisted_consume errbacks on write permissions errors."""
+    url = "{base}permissions/%2F/{user}".format(base=HTTP_API, user=admin_user)
+    body = {"configure": ".*", "write": "", "read": ".*"}
     resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
     assert resp.code == 204
 

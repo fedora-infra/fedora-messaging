@@ -189,6 +189,9 @@ def _consume_errback(failure):
             failure.value.reason,
         )
         _exit_code = 10
+    elif failure.check(exceptions.ConnectionException):
+        _exit_code = 14
+        _log.error(failure.value.reason)
     else:
         _exit_code = 11
         _log.exception(
@@ -196,7 +199,10 @@ def _consume_errback(failure):
             "consumer, please report this bug.",
             failure.value,
         )
-    reactor.stop()
+    try:
+        reactor.stop()
+    except error.ReactorNotRunning:
+        pass
 
 
 def _consume_callback(consumers):
@@ -227,12 +233,21 @@ def _consume_callback(consumers):
                 _log.error(
                     "The consumer was canceled server-side, check with system administrators."
                 )
+            elif failure.check(exceptions.PermissionException):
+                _exit_code = 15
+                _log.error(
+                    "The consumer could not proceed because of a permissions problem: %s",
+                    str(failure.value),
+                )
             else:
                 _exit_code = 13
                 _log.error(
                     "Unexpected error occurred in consumer %r: %r", consumer, failure
                 )
-            reactor.stop()
+            try:
+                reactor.stop()
+            except error.ReactorNotRunning:
+                pass
 
         def callback(consumer):
             _log.info("The %r consumer halted.", consumer)
