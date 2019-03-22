@@ -10,7 +10,6 @@ possible by implementing common boilerplate code and offering a command line
 interface to easily start a consumer as a service under init systems like
 systemd.
 
-
 Introduction
 ============
 
@@ -65,8 +64,40 @@ possible to consume from multiple queues and each queue can have multiple
 bindings.
 
 
-Handling Errors
+Command Line Interface
+======================
+
+A command line interface, :ref:`fm-cli`, is included to make running
+consumers easier. It's not necessary to write any boilerplate code calling the
+API, just run ``fedora-messaging consume`` and provide it the Python path to
+your callback::
+
+    $ fedora-messaging consume --callback=fedora_messaging.example:printer
+
+Consult the manual page for complete details on this command line interface.
+
+.. note:: For users of fedmsg, this is roughly equivalent to fedmsg-hub
+
+
+systemd Service
 ===============
+
+A systemd service file is also included in the Python package for your
+convenience. It is called ``fm-consumer@.service`` and simply runs
+``fedora-messaging consume`` with a configuration file from
+``/etc/fedora-messaging/`` that matches the service name::
+
+    $ systemctl start fm-consumer@sample.service  # uses /etc/fedora-messaging/sample.toml
+
+
+Advanced Consumers
+==================
+
+Printing messages will only get you so far. This section includes details and
+hints for more useful consumers.
+
+Handling Errors
+---------------
 
 It's the responsibility of the callback to handle general exceptions. When the
 callback encounters an unrecoverable error, it can either opt to place the
@@ -80,26 +111,27 @@ the message and have it dropped, raise the
 
 If an unexpected exception is raised by the callable object, the API will log
 the complete traceback, return all pre-fetched messages to the queue, cancel
-the consumer, and exit.
+the consumer, and raise an exception.
 
 
-Blocking Calls
-==============
+Synchronous and Asynchronous Calls
+----------------------------------
 
-The consumer runs in an event loop. Other than the consumer, the only other
-tasks in the event loop are connection management tasks, including regular
-heartbeats to the broker. Blocking for too long will cause the broker to close
-the connection, remove the consumer from the queue, and re-queue any
-unacknowledged messages. This is recoverable, but has overhead and can result
-in an excessive number of messages being processed multiple times.
+The AMQP consumer runs in a Twisted event loop. When a message arrives, it
+calls the callback in a separate Python thread to avoid blocking vital
+operations like the connection heartbeat. The callback is free to use any
+blocking (synchronous) calls it likes.
 
-Because of this, your callback should ensure there are reasonably short
-timeouts on any blocking calls (less than 30 seconds). If timeouts occur,
-simply raise the :class:`fedora_messaging.exceptions.Nack` and try again later.
+.. note:: Your callback does not need to be thread-safe. By default, messages
+          are processed serially.
+
+If you wish to make use of a Twisted API, you must use the
+:func:`twisted.internet.threads.blockingCallFromThread` or
+:class:`twisted.internet.interfaces.IReactorFromThreads` APIs.
 
 
 Halting
-=======
+-------
 
 Consumers can signal that they would like to stop consuming messages by raising
 the :class:`fedora_messaging.exceptions.HaltConsumer` exception. When stopping
@@ -109,15 +141,15 @@ details.
 
 
 Consumer Configuration
-======================
+----------------------
 
-A special section of the configuration will be available for consumers to use
-if they need configuration options. Refer to the :ref:`sub-config` in the
-Configuration documentation for details.
+A special section of the fedora-messaging configuration will be available for
+consumers to use if they need configuration options. Refer to the
+:ref:`sub-config` in the Configuration documentation for details.
 
 
 State Across Messages
-=====================
+---------------------
 
 Some consumers need to store state across messages. To do this, you can
 implement your consumer callback as a class. The
