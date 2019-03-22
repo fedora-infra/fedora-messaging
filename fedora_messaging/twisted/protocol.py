@@ -41,6 +41,7 @@ import pkg_resources
 from pika.adapters.twisted_connection import TwistedProtocolConnection
 from twisted.internet import defer, error, threads, reactor
 from twisted.python import log as _legacy_twisted_log
+from twisted.python.failure import Failure
 
 from .consumer import Consumer as ConsumerV2
 from .. import config
@@ -55,6 +56,7 @@ from ..exceptions import (
     PublishReturned,
     ConnectionException,
     ConsumerCanceled,
+    PermissionException,
 )
 
 
@@ -400,19 +402,34 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
                 failure (twisted.python.failure.Failure): The exception raised by
                     the read loop encapsulated in a Failure.
             """
+            exc = failure.value
             if failure.check(pika.exceptions.ConsumerCancelled):
                 # Pika 1.0.0+ raises this exception. To support previous versions
                 # we register a callback (called below) ourselves with the channel.
                 on_cancel_callback(None)
-            elif failure.check(
-                pika.exceptions.ChannelClosed,
-                error.ConnectionDone,
-                error.ConnectionLost,
-            ):
+            elif failure.check(pika.exceptions.ChannelClosed):
+                if exc.args[0] == 403:
+                    # This is a mis-configuration, the consumer can register itself,
+                    # but it doesn't have permissions to read from the queue,
+                    # so no amount of restarting will help.
+                    e = PermissionException(
+                        obj_type="queue",
+                        description=queue,
+                        reason=failure.value.args[1],
+                    )
+                    consumer.result.errback(Failure(e, PermissionException))
+                    consumer.cancel()
+                else:
+                    _std_log.exception(
+                        "Consumer halted (%r) unexpectedly; "
+                        "the connection should restart.",
+                        failure,
+                    )
+            elif failure.check(error.ConnectionDone, error.ConnectionLost):
                 _std_log.warning(
-                    "Consumer halted (%r) unexpectedly; "
-                    "the connection should restart.",
-                    failure,
+                    "The connection to the broker was lost (%r), consumer halted; "
+                    "the connection should restart and consuming will resume.",
+                    exc,
                 )
             elif failure.check(pika.exceptions.AMQPError):
                 _std_log.exception(

@@ -24,9 +24,9 @@ import pytest
 import requests
 
 from fedora_messaging import api, exceptions, message
+from fedora_messaging.tests import FIXTURES_DIR
 
 
-FIXTURES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../fixtures/"))
 CLI_CONF = os.path.join(FIXTURES_DIR, "cli_integration.toml")
 
 

@@ -26,9 +26,9 @@ from twisted.python import failure
 import mock
 
 from fedora_messaging import cli, config, exceptions
+from fedora_messaging.tests import FIXTURES_DIR
 from fedora_messaging.twisted import consumer
 
-FIXTURES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../fixtures/"))
 GOOD_CONF = os.path.join(FIXTURES_DIR, "good_conf.toml")
 BAD_CONF = os.path.join(FIXTURES_DIR, "bad_conf.toml")
 

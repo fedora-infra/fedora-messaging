@@ -35,11 +35,14 @@ class Consumer(object):
             A deferred that runs the callbacks if the consumer exits gracefully
             after being canceled by a call to :meth:`Consumer.cancel` and
             errbacks if the consumer stops for any other reason. The reasons a
-            consumer could stop are: a :class:`.HaltConsumer` is raised by the
-            consumer indicating it wishes to halt, an unexpected
-            :class:`Exception` is raised by the consumer, or if the consumer is
-            canceled by the server which happens if the queue is deleted by an
-            administrator or if the node the queue lives on fails.
+            consumer could stop are: a
+            :class:`fedora_messaging.exceptions.PermissionExecption` if the
+            consumer does not have permissions to read from the queue it is
+            subscribed to, a :class:`.HaltConsumer` is raised by the consumer
+            indicating it wishes to halt, an unexpected :class:`Exception` is
+            raised by the consumer, or if the consumer is canceled by the
+            server which happens if the queue is deleted by an administrator or
+            if the node the queue lives on fails.
     """
 
     def __init__(self, queue=None, callback=None):

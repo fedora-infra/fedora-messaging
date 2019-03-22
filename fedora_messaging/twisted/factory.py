@@ -34,6 +34,7 @@ import logging
 import pika
 from twisted.internet import defer, protocol, error
 from twisted.python import log as _legacy_twisted_log
+from twisted.python.failure import Failure
 
 from .. import config
 from ..exceptions import ConnectionException
@@ -317,7 +318,31 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
                 yield self._client.bind_queues(bindings)
                 yield self._client.consume(consumer.callback, consumer.queue, consumer)
 
+        def on_ready_errback(failure):
+            """If opening the connection fails or is lost, this errback is called."""
+            if failure.check(pika.exceptions.AMQPConnectionError, error.ConnectionDone):
+                # In this case the connection failed to open. This will be called
+                # if the TLS handshake goes wrong (likely) and it may be called if
+                # the AMQP handshake fails. It's *probably* a problem with the
+                # credentials.
+                msg = (
+                    "The TCP connection appears to have started, but the TLS or AMQP handshake "
+                    "with the broker failed; check your connection and authentication "
+                    "parameters and ensure your user has permission to access the vhost"
+                )
+                wrapped_failure = Failure(
+                    exc_value=ConnectionException(reason=msg, original=failure),
+                    exc_type=ConnectionException,
+                )
+                self._client_deferred.errback(wrapped_failure)
+            else:
+                # Some unexpected exception happened
+                _std_log.exception(
+                    "The connection failed with an unexpected exception; please report this bug."
+                )
+
         self._client.ready.addCallback(on_ready)
+        self._client.ready.addErrback(on_ready_errback)
         return self._client
 
     @defer.inlineCallbacks

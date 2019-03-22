@@ -9,7 +9,34 @@ class NoFreeChannels(BaseException):
     """Raised when a connection has reached its channel limit"""
 
 
-class BadDeclaration(BaseException):
+class PermissionException(BaseException):
+    """
+    Generic permissions exception.
+
+    Args:
+        obj_type (str): The type of object being accessed that caused the
+            permission error. May be None if the cause is unknown.
+        description (object): The description of the object, if any. May be None.
+        reason (str): The reason the server gave for the permission error, if
+            any. If no reason is supplied by the server, this should be the best
+            guess for what caused the error.
+    """
+
+    def __init__(self, obj_type=None, description=None, reason=None):
+        self.obj_type = obj_type
+        self.description = description
+        self.reason = reason
+
+    def __str__(self):
+        return self.description
+
+    def __repr__(self):
+        return "PermissionException(obj_type={}, description={}, reason={})".format(
+            self.obj_type, self.description, self.reason
+        )
+
+
+class BadDeclaration(PermissionException):
     """
     Raised when declaring an object in AMQP fails.
 
@@ -20,10 +47,15 @@ class BadDeclaration(BaseException):
         reason (str): The reason the server gave for rejecting the declaration.
     """
 
-    def __init__(self, obj_type, description, reason):
-        self.obj_type = obj_type
-        self.description = description
-        self.reason = reason
+    def __str__(self):
+        return "Unable to declare the {} object ({}) because {}".format(
+            self.obj_type, self.description, self.reason
+        )
+
+    def __repr__(self):
+        return "BadDeclaration(obj_type={}, description={}, reason={})".format(
+            self.obj_type, self.description, self.reason
+        )
 
 
 class ConfigurationException(BaseException):
@@ -67,9 +99,9 @@ class ConnectionException(BaseException):
     message.
     """
 
-    def __init__(self, reason=None, **kwargs):
-        super(ConnectionException, self).__init__(**kwargs)
-        self.reason = reason
+    def __init__(self, *args, **kwargs):
+        super(ConnectionException, self).__init__(*args)
+        self.reason = kwargs.get("reason")
 
 
 class ConsumeException(BaseException):
