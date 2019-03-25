@@ -24,6 +24,7 @@ User Guide
    consuming
    messages
    testing
+   fedora-broker
    changelog
 
 

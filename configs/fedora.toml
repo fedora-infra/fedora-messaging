@@ -1,9 +1,9 @@
-# A sample configuration for fedora-messaging. This file is in the TOML format.
-amqp_url = "amqp://"
+# A basic configuration for Fedora's message broker, using the example callback
+# which simply prints messages to standard output.
+#
+# This file is in the TOML format.
+amqp_url = "amqps://fedora:@rabbitmq.fedoraproject.org/%2Fpublic_pubsub"
 callback = "fedora_messaging.example:printer"
-passive_declares = false
-publish_exchange = "amq.topic"
-topic_prefix = ""
 
 [tls]
 ca_cert = "/etc/fedora-messaging/cacert.pem"
@@ -13,25 +13,30 @@ certfile = "/etc/fedora-messaging/fedora-cert.pem"
 [client_properties]
 app = "Example Application"
 
-# If the exchange or queue name  has a "." in it, use quotes as seen here.
 [exchanges."amq.topic"]
 type = "topic"
 durable = true
 auto_delete = false
 arguments = {}
 
-[queues.my_queue]
-durable = true
-auto_delete = false
-exclusive = false
+# Queue names *must* be in the normal UUID format: run "uuidgen" and use the
+# output as your queue name. If your queue is not exclusive, anyone can connect
+# and consume from it, causing you to miss messages, so do not share your queue
+# name. Any queues that are not auto-deleted on disconnect are garbage-collected
+# after approximately one hour.
+#
+# If you require a stronger guarantee about delivery, please talk to Fedora's
+# Infrastructure team.
+[queues.00000000-0000-0000-0000-000000000000]
+durable = false
+auto_delete = true
+exclusive = true
 arguments = {}
 
-# Note the double brackets below. To add another binding, add another
-# [[bindings]] section. To use multiple routing keys, just expand the list here.
 [[bindings]]
-queue = "my_queue"
+queue = "00000000-0000-0000-0000-000000000000"
 exchange = "amq.topic"
-routing_keys = ["#"]
+routing_keys = ["#"]  # Set this to the specific topics you are interested in.
 
 [consumer_config]
 example_key = "for my consumer"
@@ -57,15 +62,11 @@ level = "INFO"
 propagate = false
 handlers = ["console"]
 
-# Twisted is the asynchronous framework that manages the TCP/TLS connection, as well
-# as the consumer event loop. When debugging you may want to lower this log level.
 [log_config.loggers.twisted]
 level = "INFO"
 propagate = false
 handlers = ["console"]
 
-# Pika is the underlying AMQP client library. When debugging you may want to
-# lower this log level.
 [log_config.loggers.pika]
 level = "WARNING"
 propagate = false
