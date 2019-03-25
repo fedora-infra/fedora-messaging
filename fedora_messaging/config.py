@@ -43,6 +43,10 @@ The AMQP broker to connect to. This URL should be in the format described by
 the :class:`pika.connection.URLParameters` documentation. This defaults to
 ``'amqp://?connection_attempts=3&retry_delay=5``.
 
+.. note:: When using the Twisted consumer API, which the CLI does by default,
+          any connection-related setting won't apply as Twisted manages the
+          TCP/TLS connection.
+
 
 .. _conf-passive-declares:
 
