@@ -238,7 +238,15 @@ consumer_config
 ---------------
 A dictionary for the consumer to use as configuration. The consumer should
 access this key in its callback for any configuration it needs. Defaults to
-an empty dictionary.
+an empty dictionary. If, for example, this dictionary contains the
+``print_messages`` key, the callback can access this configuration with::
+
+    from fedora_messaging import config
+
+    def callback(message):
+        if config.conf["consumer_config"]["print_messages"]:
+            print(message)
+
 
 .. _conf-qos:
 
