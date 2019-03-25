@@ -22,6 +22,14 @@ file.
 
 Each configuration option has a default value.
 
+.. contents:: Table of Configuration Options
+    :local:
+
+A complete example TOML configuration:
+
+.. literalinclude:: ../config.toml.example
+
+
 Generic Options
 ===============
 
@@ -35,7 +43,13 @@ The AMQP broker to connect to. This URL should be in the format described by
 the :class:`pika.connection.URLParameters` documentation. This defaults to
 ``'amqp://?connection_attempts=3&retry_delay=5``.
 
-.. _conf-client-properties:
+
+.. _conf-passive-declares:
+
+passive_declares
+----------------
+A boolean to specify if queues and exchanges should be declared passively (i.e
+checked, but not actually created on the server). Defaults to ``False``.
 
 
 .. _conf-tls:
@@ -59,6 +73,9 @@ when authenticating with the broker.
 .. note:: The broker URL must use the ``amqps`` scheme. It is also possible to
           provide these setting via the ``amqp_url`` setting using a URL-encoded
           JSON object. This setting is provided as a convenient way to avoid that.
+
+
+.. _conf-client-properties:
 
 client_properties
 -----------------
@@ -130,18 +147,14 @@ publish_exchange
 A string that identifies the exchange to publish to. The default is
 ``amq.topic``.
 
+
+.. _conf-topic-prefix:
+
 topic_prefix
 ------------
 A string that will be prepended to topics on sent messages.
 This is useful to migrate from fedmsg, but should not be used otherwise.
 The default is an empty string.
-
-.. _conf-passive-declares:
-
-passive_declares
-----------------
-A boolean to specify if queues and exchanges should be declared passively (i.e
-checked, but not actually created on the server). Defaults to ``False``.
 
 .. _sub-config:
 
@@ -203,6 +216,8 @@ routing keys. For example::
 This would create two bindings for the ``my_queue`` queue, both to the
 ``amq.topic`` exchange. Consumers will consume from both queues.
 
+.. _conf-callback:
+
 callback
 --------
 The Python path of the callback. This should be in the format
@@ -220,6 +235,8 @@ consumer_config
 A dictionary for the consumer to use as configuration. The consumer should
 access this key in its callback for any configuration it needs. Defaults to
 an empty dictionary.
+
+.. _conf-qos:
 
 qos
 ---

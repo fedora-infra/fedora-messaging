@@ -1,34 +1,22 @@
 # A sample configuration for fedora-messaging. This file is in the TOML format.
-# For complete details on all configuration options, see the documentation.
-
 amqp_url = "amqp://"
-
-publish_exchange = "amq.topic"
-
 callback = "fedora_messaging.example:printer"
-
-# The topic_prefix configuration value will add a prefix to the topics of every sent message.
-# This is used for migrating from fedmsg, and should not be used afterwards.
+passive_declares = false
+publish_exchange = "amq.topic"
 topic_prefix = ""
 
-# Note the double brackets below.
-# To add another binding, add another [[bindings]] section.
-[[bindings]]
-queue = "my_queue"
-exchange = "amq.topic"
-routing_keys = ["#"]
-
 [tls]
-ca_cert = "/etc/pki/tls/certs/ca-bundle.crt"
-keyfile = "/my/client/key.pem"
-certfile = "/my/client/cert.pem"
+ca_cert = "/etc/fedora-messaging/fedora.cacert.pem"
+keyfile = "/etc/fedora-messaging/fedora.key.pem"
+certfile = "/etc/fedora-messaging/fedora.cert.pem"
 
 [client_properties]
-app = "Example App"
+app = "Example Application"
 
-[exchanges.custom_exchange]
-type = "fanout"
-durable = false
+# If the exchange or queue name  has a "." in it, use quotes as seen here.
+[exchanges."amq.topic"]
+type = "topic"
+durable = true
 auto_delete = false
 arguments = {}
 
@@ -38,19 +26,26 @@ auto_delete = false
 exclusive = false
 arguments = {}
 
-[qos]
-prefetch_size = 0
-prefetch_count = 25
+# Note the double brackets below. To add another binding, add another
+# [[bindings]] section. To use multiple routing keys, just expand the list here.
+[[bindings]]
+queue = "my_queue"
+exchange = "amq.topic"
+routing_keys = ["#"]
 
 [consumer_config]
 example_key = "for my consumer"
+
+[qos]
+prefetch_size = 0
+prefetch_count = 25
 
 [log_config]
 version = 1
 disable_existing_loggers = true
 
 [log_config.formatters.simple]
-format = "[%(name)s %(levelname)s] %(message)s"
+format = "[%(levelname)s %(name)s] %(message)s"
 
 [log_config.handlers.console]
 class = "logging.StreamHandler"
@@ -62,6 +57,20 @@ level = "INFO"
 propagate = false
 handlers = ["console"]
 
-[log_config.root]
+# Twisted is the asynchronous framework that manages the TCP/TLS connection, as well
+# as the consumer event loop. When debugging you may want to lower this log level.
+[log_config.loggers.twisted]
+level = "INFO"
+propagate = false
+handlers = ["console"]
+
+# Pika is the underlying AMQP client library. When debugging you may want to
+# lower this log level.
+[log_config.loggers.pika]
 level = "WARNING"
+propagate = false
+handlers = ["console"]
+
+[log_config.root]
+level = "ERROR"
 handlers = ["console"]
