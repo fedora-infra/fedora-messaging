@@ -286,6 +286,12 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
         self._client = None
         self._consumers = {}
 
+    def __repr__(self):
+        """Return the representation of the factory as a string"""
+        return "FedoraMessagingFactoryV2(parameters={}, confirms={})".format(
+            self._parameters, self.confirms
+        )
+
     def buildProtocol(self, addr):
         """Create the Protocol instance.
 
