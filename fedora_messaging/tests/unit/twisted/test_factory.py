@@ -27,7 +27,10 @@ from twisted.internet import defer
 from twisted.python.failure import Failure
 
 from fedora_messaging import config
-from fedora_messaging.twisted.factory import FedoraMessagingFactory
+from fedora_messaging.twisted.factory import (
+    FedoraMessagingFactory,
+    FedoraMessagingFactoryV2,
+)
 from fedora_messaging.exceptions import ConnectionException
 
 
@@ -323,3 +326,35 @@ class FactoryTests(unittest.TestCase):
 
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
+
+
+@pytest.mark.parametrize(
+    "parameters,confirms,msg",
+    [
+        (
+            pika.ConnectionParameters(),
+            True,
+            (
+                "FedoraMessagingFactoryV2(parameters=<ConnectionParameters host=localhost"
+                " port=5672 virtual_host=/ ssl=False>, confirms=True)"
+            ),
+        ),
+        (
+            pika.ConnectionParameters(
+                host="example.com",
+                credentials=pika.PlainCredentials("user", "secret"),
+                port=5671,
+                virtual_host="/pub",
+            ),
+            True,
+            (
+                "FedoraMessagingFactoryV2(parameters=<ConnectionParameters host=example.com"
+                " port=5671 virtual_host=/pub ssl=False>, confirms=True)"
+            ),
+        ),
+    ],
+)
+def test_repr(parameters, confirms, msg):
+    """Assert __repr__ prints useful information"""
+    f = FedoraMessagingFactoryV2(parameters, confirms)
+    assert repr(f) == msg
