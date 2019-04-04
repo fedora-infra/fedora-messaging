@@ -4,6 +4,7 @@ jsonschema
 toml
 Twisted
 pytz
+PyOpenSSL
 pika>=0.12
 six
 service_identity
