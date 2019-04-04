@@ -4,6 +4,56 @@ Release Notes
 
 .. towncrier release notes start
 
+v1.6.0 (2019-04-04)
+===================
+
+Dependency Changes
+------------------
+
+* Twisted is no longer an optional dependency: fedora-messaging requires Twisted
+  12.2 or greater.
+
+Features
+--------
+
+* A new API, :func:`fedora_messaging.api.twisted_consume`, has been added to
+  support consuming using the popular async framework Twisted. The
+  fedora-messaging command-line interface has been switched to use this API. As
+  a result, Twisted 12.2+ is now a dependency of fedora-messsaging. Users of
+  this new API are not affected by `Issue #130
+  <https://github.com/fedora-infra/fedora-messaging/issues/130>`_ (`PR#139
+  <https://github.com/fedora-infra/fedora-messaging/pull/139>`_).
+
+Bug Fixes
+---------
+
+* Only prepend the topic_prefix on outgoing messages. Previously, the topic
+  prefix was incorrectly applied to incoming messages (`#143
+  <https://github.com/fedora-infra/fedora-messaging/issues/143>`_).
+
+Documentation
+-------------
+
+* Add a note to the tutorial on how to instal the library and RabbitMQ in
+  containers (`PR#141
+  <https://github.com/fedora-infra/fedora-messaging/pull/141>`_).
+
+* Document how to access the Fedora message broker from outside the Fedora
+  infrastructure VPN. Users of fedmsg can now migrate to fedora-messaging for
+  consumers outside Fedora's infrastructure. Consult the new documentation at
+  :ref:`fedora-broker` for details (`PR#149
+  <https://github.com/fedora-infra/fedora-messaging/pull/149>`_).
+
+Contributors
+------------
+Many thanks to the contributors of bug reports, pull requests, and pull request
+reviews for this release:
+
+* Aurélien Bompard
+* Jeremy Cline
+* Shraddha Agrawal
+
+
 v1.5.0 (2019-02-28)
 ===================
 
