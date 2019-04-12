@@ -150,7 +150,10 @@ class PublisherSession(object):
         message.validate()
         try:
             self._connect_and_publish(exchange, message)
-        except (pika_errs.ConnectionClosed, pika_errs.ChannelClosed):
+        except (pika_errs.NackError, pika_errs.UnroutableError) as e:
+            _log.warning("Message was rejected by the broker (%s)", str(e))
+            raise PublishReturned(reason=e)
+        except (pika_errs.ConnectionClosed, pika_errs.AMQPChannelError):
             # Because this is a blocking connection (and thus can't heartbeat)
             # we might need to restart the connection.
             _log.info("Resetting connection to %s", self._parameters.host)
@@ -165,9 +168,6 @@ class PublisherSession(object):
                 if self._connection and self._connection.is_open:
                     self._connection.close()
                 raise ConnectionException(reason=e)
-        except (pika_errs.NackError, pika_errs.UnroutableError) as e:
-            _log.warning("Message was rejected by the broker (%s)", str(e))
-            raise PublishReturned(reason=e)
         except pika_errs.AMQPError as e:
             if self._connection and self._connection.is_open:
                 self._connection.close()
