@@ -226,6 +226,27 @@ class PublisherSessionTests(unittest.TestCase):
             publish_mock_method = channel_mock.basic_publish
         publish_mock_method.assert_called_once()
 
+    def test_publish_generic_channel_error(self):
+        # The publisher must try to re-establish a connection on publish.
+        self.publisher_channel_publish.side_effect = pika_errs.AMQPChannelError(
+            200, "I wanted to"
+        )
+        connection_class_mock = mock.Mock()
+        connection_mock = mock.Mock()
+        channel_mock = mock.Mock()
+        connection_class_mock.return_value = connection_mock
+        connection_mock.channel.return_value = channel_mock
+        with mock.patch(
+            "fedora_messaging._session.pika.BlockingConnection", connection_class_mock
+        ):
+            self.publisher.publish(self.message)
+        # Check that the connection was reestablished
+        if _session._pika_version < pkg_resources.parse_version("1.0.0b1"):
+            publish_mock_method = channel_mock.publish
+        else:
+            publish_mock_method = channel_mock.basic_publish
+        publish_mock_method.assert_called_once()
+
     def test_publish_reconnect_failed_generic_error(self):
         # The publisher must try to re-establish a connection on publish, and
         # close the connection if it can't be established.
