@@ -58,7 +58,7 @@ class ConsumeCliTests(unittest.TestCase):
     def tearDown(self):
         """Make sure each test has a fresh default configuration."""
         config.conf = config.LazyConfig()
-        config.conf.load_config()
+        config.conf.load_config(config_path="")
 
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
     def test_good_conf(self, mock_consume):
