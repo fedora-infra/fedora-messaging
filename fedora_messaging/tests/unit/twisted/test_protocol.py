@@ -28,9 +28,16 @@ from twisted.internet import defer, error
 
 from fedora_messaging import config
 from fedora_messaging.message import Message
-from fedora_messaging.exceptions import Nack, Drop, HaltConsumer, NoFreeChannels
+from fedora_messaging.exceptions import (
+    Nack,
+    Drop,
+    HaltConsumer,
+    NoFreeChannels,
+    ConnectionException,
+)
 from fedora_messaging.twisted.protocol import (
     FedoraMessagingProtocol,
+    FedoraMessagingProtocolV2,
     _pika_version,
     Consumer,
 )
@@ -538,4 +545,29 @@ class ProtocolOnMessageTests(unittest.TestCase):
             channel.close.assert_called_once_with()
 
         d.addCallback(_check)
+        return pytest_twisted.blockon(d)
+
+
+class ProtocolV2Tests(unittest.TestCase):
+    """Unit tests for the ProtocolV2 class."""
+
+    @pytest.mark.skipif(
+        _pika_version < pkg_resources.parse_version("1.0.1"),
+        reason="Pika-1.0.1+ raises its permission exception on consume",
+    )
+    def test_consume_connection_exception(self):
+        """If consuming fails due to a non-permission error, a ConnectionException happens."""
+        proto = FedoraMessagingProtocolV2(None)
+        mock_channel = mock.Mock()
+        mock_channel.basic_consume.side_effect = pika.exceptions.ChannelClosed(
+            400, "Bad Request!"
+        )
+        deferred_channel = defer.succeed(mock_channel)
+        proto._allocate_channel = mock.Mock(return_value=deferred_channel)
+
+        def check(failure):
+            assert isinstance(failure.value, ConnectionException)
+
+        d = proto.consume(lambda x: x, "test_queue")
+        d.addBoth(check)
         return pytest_twisted.blockon(d)

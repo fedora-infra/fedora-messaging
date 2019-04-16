@@ -95,8 +95,10 @@ def twisted_consume(callback, bindings=None, queues=None):
             meant to survive network problems, so consuming will continue until
             :meth:`.Consumer.cancel` is called or a fatal server error occurs.
             The deferred returned by this function may error back with a
-            :class:`fedora_messaging.exceptions.BadDeclaration` queues or
-            bindings cannot be declared on the broker, or
+            :class:`fedora_messaging.exceptions.BadDeclaration` if queues or
+            bindings cannot be declared on the broker, a
+            :class:`fedora_messaging.exceptions.PermissionException` if the user
+            doesn't have access to the queue, or
             :class:`fedora_messaging.exceptions.ConnectionException` if the TLS
             or AMQP handshake fails.
 

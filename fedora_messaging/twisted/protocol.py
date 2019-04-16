@@ -335,6 +335,11 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
             Deferred: A Deferred that fires when the consumer is successfully
                 registered with the message broker. The callback receives a
                 :class:`.ConsumerV2` object that represents the AMQP consumer.
+                The Deferred may error back with a :class:`PermissionException`
+                if the user cannot read from the queue, a
+                :class:`NoFreeChannels` if this connection has hit its channel
+                limit, or a :class:`ConnectionException` if the connection dies
+                before the consumer is successfully registered.
 
         NoFreeChannels: If there are no available channels on this connection.
             If this occurs, you can either reduce the number of consumers on this
@@ -350,9 +355,17 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
             consumer = ConsumerV2(queue=queue, callback=callback)
         consumer._protocol = self
         consumer._channel = yield self._allocate_channel()
-        queue_object, _ = yield consumer._channel.basic_consume(
-            queue=consumer.queue, consumer_tag=consumer._tag
-        )
+        try:
+            queue_object, _ = yield consumer._channel.basic_consume(
+                queue=consumer.queue, consumer_tag=consumer._tag
+            )
+        except pika.exceptions.ChannelClosed as exc:
+            if exc.args[0] == 403:
+                raise PermissionException(
+                    obj_type="queue", description=queue, reason=exc.args[1]
+                )
+            else:
+                raise ConnectionException(reason=exc)
 
         def on_cancel_callback(frame):
             """

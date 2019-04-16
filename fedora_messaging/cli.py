@@ -189,6 +189,12 @@ def _consume_errback(failure):
             failure.value.reason,
         )
         _exit_code = 10
+    elif failure.check(exceptions.PermissionException):
+        _exit_code = 15
+        _log.error(
+            "The consumer could not proceed because of a permissions problem: %s",
+            str(failure.value),
+        )
     elif failure.check(exceptions.ConnectionException):
         _exit_code = 14
         _log.error(failure.value.reason)
