@@ -398,3 +398,49 @@ class ConsumeCallbackTests(unittest.TestCase):
         mock_log.error.assert_called_once_with(
             "Unexpected error occurred in consumer %r: %r", consumers[0], f
         )
+
+
+class ConsumeErrbackTests(unittest.TestCase):
+    """Unit tests for the twisted_consume errback."""
+
+    def setUp(self):
+        cli._exit_code = 0
+
+    def tearDown(self):
+        cli._exit_code = 0
+
+    @mock.patch("fedora_messaging.cli.reactor")
+    def test_errback_permission(self, mock_reactor):
+        """Assert permission exceptions are caught and exit with 15."""
+        f = failure.Failure(exceptions.PermissionException("queue", "boop", "none"))
+
+        cli._consume_errback(f)
+
+        self.assertEqual(15, cli._exit_code)
+
+    @mock.patch("fedora_messaging.cli.reactor")
+    def test_errback_bad_declaration(self, mock_reactor):
+        """Assert declaration exceptions are caught and exit with 10."""
+        f = failure.Failure(exceptions.BadDeclaration("queue", "boop", "none"))
+
+        cli._consume_errback(f)
+
+        self.assertEqual(10, cli._exit_code)
+
+    @mock.patch("fedora_messaging.cli.reactor")
+    def test_errback_connection_exception(self, mock_reactor):
+        """Assert connection exceptions are caught and exit with 14."""
+        f = failure.Failure(exceptions.ConnectionException(reason="eh"))
+
+        cli._consume_errback(f)
+
+        self.assertEqual(14, cli._exit_code)
+
+    @mock.patch("fedora_messaging.cli.reactor")
+    def test_errback_general_exception(self, mock_reactor):
+        """Assert general exceptions are caught and exit with 11."""
+        f = failure.Failure(Exception("boop"))
+
+        cli._consume_errback(f)
+
+        self.assertEqual(11, cli._exit_code)

@@ -521,7 +521,7 @@ def test_no_vhost_permissions(admin_user):
 @pytest_twisted.inlineCallbacks
 @pytest.mark.skipif(
     _pika_version >= pkg_resources.parse_version("1.0.0b1"),
-    reason="This is currently broken in pika 1.0.0b1 and b2",
+    reason="This only works in pika-0.13 and lower",
 )
 def test_no_read_permissions_queue_read_failure(admin_user):
     """
@@ -552,6 +552,42 @@ def test_no_read_permissions_queue_read_failure(admin_user):
         )
     except (defer.TimeoutError, defer.CancelledError):
         pytest.fail("Timeout reached without consumer calling its errback!")
+
+
+@pytest_twisted.inlineCallbacks
+@pytest.mark.skipif(
+    _pika_version < pkg_resources.parse_version("1.0.1"),
+    reason="Pika-1.0.1+ raises its permission exception on consume",
+)
+def test_no_read_permissions_queue_read_failure_pika1(admin_user):
+    """
+    Assert an errback occurs when unable to read from the queue due to
+    permissions. This is a bit weird because the consumer has permission to
+    register itself, but not to actually read from the queue so the result is
+    what errors back.
+    """
+    url = "{base}permissions/%2F/{user}".format(base=HTTP_API, user=admin_user)
+    body = {"configure": ".*", "write": ".*", "read": ""}
+    resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
+    assert resp.code == 204
+
+    queue = str(uuid.uuid4())
+    queues = {queue: {"auto_delete": False, "arguments": {"x-expires": 60 * 1000}}}
+
+    amqp_url = "amqp://{user}:guest@localhost:5672/%2F".format(user=admin_user)
+    with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
+        try:
+            consumers = api.twisted_consume(lambda x: x, [], queues)
+            _add_timeout(consumers, 5)
+            yield consumers
+            pytest.fail("Call failed to raise an exception")
+        except exceptions.PermissionException as e:
+            assert e.reason == (
+                "ACCESS_REFUSED - access to queue '{}' in vhost '/' refused for user "
+                "'{}'".format(queue, admin_user)
+            )
+        except (defer.TimeoutError, defer.CancelledError):
+            pytest.fail("Timeout reached without consumer calling its errback!")
 
 
 @pytest_twisted.inlineCallbacks
