@@ -205,6 +205,15 @@ convenience. It is called ``fm-consumer@.service`` and simply runs
     $ systemctl start fm-consumer@sample.service  # uses /etc/fedora-messaging/sample.toml
 
 
+Common Consumers
+================
+
+Several generally useful consumers are shipped with fedora-messaging.
+
+.. autofunction:: fedora_messaging.callbacks.printer
+.. autofunction:: fedora_messaging.callbacks.run
+
+
 .. _AMQP overview: https://www.rabbitmq.com/tutorials/amqp-concepts.html
 .. _RabbitMQ tutorials: https://www.rabbitmq.com/getstarted.html
 .. _pika: https://pika.readthedocs.io/
