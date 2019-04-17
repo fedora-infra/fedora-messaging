@@ -51,6 +51,13 @@ _callback_help = (
     "and should point to either a function or a class. Consult the API "
     "documentation for the interface required for these objects."
 )
+_callback_file_help = (
+    "The path of a Python file that contains the callable object to"
+    " execute when the message arrives. This should be in the format "
+    '"my/script.py:object_in_file". Providing this overrides the callback set '
+    'by the "--callback" argument or configuration file. It executes the entire '
+    "Python file to load the callable object."
+)
 _routing_key_help = (
     "The AMQP routing key to use with the queue. This controls what messages are "
     "delivered to the consumer. Can be specified multiple times; any message "
@@ -91,11 +98,12 @@ def cli(conf):
 
 @cli.command()
 @click.option("--app-name", help=_app_name_help)
+@click.option("--callback-file", help=_callback_file_help)
 @click.option("--callback", help=_callback_help)
 @click.option("--routing-key", help=_routing_key_help, multiple=True)
 @click.option("--queue-name", help=_queue_name_help)
 @click.option("--exchange", help=_exchange_help)
-def consume(exchange, queue_name, routing_key, callback, app_name):
+def consume(exchange, queue_name, routing_key, callback, callback_file, app_name):
     """Consume messages from an AMQP queue using a Python callback."""
     # The configuration validates these are not null and contain all required keys
     # when it is loaded.
@@ -123,6 +131,94 @@ def consume(exchange, queue_name, routing_key, callback, app_name):
         for binding in bindings:
             binding["routing_keys"] = routing_key
 
+    if callback_file:
+        callback = _callback_from_filesystem(callback_file)
+    else:
+        callback = _callback_from_python_path(callback)
+
+    if app_name:
+        config.conf["client_properties"]["app"] = app_name
+
+    try:
+        deferred_consumers = api.twisted_consume(
+            callback, bindings=bindings, queues=queues
+        )
+        deferred_consumers.addCallback(_consume_callback)
+        deferred_consumers.addErrback(_consume_errback)
+    except ValueError as e:
+        click_version = pkg_resources.get_distribution("click").parsed_version
+        if click_version < pkg_resources.parse_version("7.0"):
+            raise click.exceptions.BadOptionUsage(str(e))
+        else:
+            raise click.exceptions.BadOptionUsage("callback", str(e))
+
+    reactor.run()
+    sys.exit(_exit_code)
+
+
+def _callback_from_filesystem(callback_file):
+    """
+    Load a callable from a Python script on the file system.
+
+    Args:
+        callback_file (str): The callback as a filesystem path and callable name
+            separated by a ":". For example, "my/python/file.py:printer".
+
+    Raises:
+        click.ClickException: If the object cannot be loaded.
+
+    Returns:
+        callable: The callable object.
+    """
+    try:
+        file_path, callable_name = callback_file.strip().split(":")
+    except ValueError:
+        raise click.ClickException(
+            "Unable to parse the '--callback-file' option; the "
+            'expected format is "path/to/file.py:callable_object" where '
+            '"callable_object" is the name of the function or class in the '
+            "Python file"
+        )
+
+    try:
+        file_namespace = {}
+        with open(file_path, "rb") as fd:
+            try:
+                # Using "exec" is generally a Bad Idea (TM), so bandit is upset at
+                # us. In this case, it seems like a Good Idea (TM), but I might be
+                # wrong. Sorry.
+                exec(compile(fd.read(), file_path, "exec"), file_namespace)  # nosec
+            except Exception as e:
+                raise click.ClickException(
+                    "The {} file raised the following exception during execution:"
+                    " {}".format(file_path, str(e))
+                )
+
+        if callable_name not in file_namespace:
+            err = "The '{}' object was not found in the '{}' file.".format(
+                callable_name, file_path
+            )
+            raise click.ClickException(err)
+        else:
+            return file_namespace[callable_name]
+    except IOError as e:
+        raise click.ClickException("An IO error occurred: {}".format(str(e)))
+
+
+def _callback_from_python_path(callback):
+    """
+    Load a callable from a Python path.
+
+    Args:
+        callback_file (str): The callback as a Python path and callable name
+            separated by a ":". For example, "my_package.my_module:printer".
+
+    Raises:
+        click.ClickException: If the object cannot be loaded.
+
+    Returns:
+        callable: The callable object.
+    """
     callback_path = callback or config.conf["callback"]
     if not callback_path:
         raise click.ClickException(
@@ -148,7 +244,7 @@ def consume(exchange, queue_name, routing_key, callback, app_name):
         )
 
     try:
-        callback = getattr(module, cls)
+        callback_object = getattr(module, cls)
     except AttributeError as e:
         raise click.ClickException(
             "Unable to import {} ({}); is the package installed? The python path should "
@@ -156,26 +252,8 @@ def consume(exchange, queue_name, routing_key, callback, app_name):
                 callback_path, str(e)
             )
         )
-
-    if app_name:
-        config.conf["client_properties"]["app"] = app_name
-
     _log.info("Starting consumer with %s callback", callback_path)
-    try:
-        deferred_consumers = api.twisted_consume(
-            callback, bindings=bindings, queues=queues
-        )
-        deferred_consumers.addCallback(_consume_callback)
-        deferred_consumers.addErrback(_consume_errback)
-    except ValueError as e:
-        click_version = pkg_resources.get_distribution("click").parsed_version
-        if click_version < pkg_resources.parse_version("7.0"):
-            raise click.exceptions.BadOptionUsage(str(e))
-        else:
-            raise click.exceptions.BadOptionUsage("callback", str(e))
-
-    reactor.run()
-    sys.exit(_exit_code)
+    return callback_object
 
 
 def _consume_errback(failure):
