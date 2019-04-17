@@ -4,6 +4,47 @@ Release Notes
 
 .. towncrier release notes start
 
+v1.6.1 (2019-04-17)
+===================
+
+Bug Fixes
+---------
+
+* Fix a bug in publishing where if the broker closed the connection, the client
+  would not properly dispose of the connection object and publishing would fail
+  forever (`PR#157 <https://github.com/fedora-infra/fedora-messaging/pull/157>`_).
+
+* Fix a bug in the :func:`fedora_messaging.api.twisted_consume` function where
+  if the user did not have permissions to read from the specified queue which
+  had already been declared, the Deferred that was returned never fired. It now
+  errors back with a :class:`fedora_messaging.exceptions.PermissionException`
+  (`PR#160 <https://github.com/fedora-infra/fedora-messaging/pull/160>`_).
+
+
+Development Changes
+-------------------
+
+* Stop pinning pytest to 4.0 or less as the incompatibility with pytest-twisted
+  has been resolved
+  (`PR#158 <https://github.com/fedora-infra/fedora-messaging/pull/158>`_).
+
+
+Other Changes
+-------------
+
+* Include commands to connect to the Fedora broker in the documentation
+  (`PR#154 <https://github.com/fedora-infra/fedora-messaging/pull/154>`_).
+
+
+Contributors
+------------
+Many thanks to the contributors of bug reports, pull requests, and pull request
+reviews for this release:
+
+* Aurélien Bompard
+* Jeremy Cline
+
+
 v1.6.0 (2019-04-04)
 ===================
 
