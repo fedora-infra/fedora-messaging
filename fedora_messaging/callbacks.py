@@ -1,5 +1,5 @@
 # This file is part of fedora_messaging.
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,10 +14,19 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-"""
-Example consumers that can be used when starting out with the library to test.
+"""This module contains a set of callbacks that are generally useful."""
+from __future__ import print_function
 
-.. note:: This module is deprecated in favor of :mod:`fedora_messaging.callbacks`.
-"""
+import six
 
-from .callbacks import printer  # noqa: F401
+
+def printer(message):
+    """
+    A simple callback that prints the message to standard output.
+
+    Usage: ``fedora-messaging consume --callback="fedora_messaging.callbacks:printer"``
+
+    Args:
+        message (fedora_messaging.api.Message): The message that was received.
+    """
+    print(six.text_type(message))
