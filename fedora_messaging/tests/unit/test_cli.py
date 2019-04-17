@@ -23,6 +23,7 @@ import unittest
 from click.testing import CliRunner
 from twisted.internet import error
 from twisted.python import failure
+import click
 import mock
 
 from fedora_messaging import cli, config, exceptions
@@ -444,3 +445,65 @@ class ConsumeErrbackTests(unittest.TestCase):
         cli._consume_errback(f)
 
         self.assertEqual(11, cli._exit_code)
+
+
+class CallbackFromFilesytem(unittest.TestCase):
+    """Unit tests for :func:`fedora_messaging.cli._callback_from_filesystem`."""
+
+    def test_good_callback(self):
+        """Assert loading a callback from a file works."""
+        cb = cli._callback_from_filesystem(
+            os.path.join(FIXTURES_DIR, "callback.py") + ":rand"
+        )
+        self.assertEqual(4, cb(None))
+
+    def test_bad_format(self):
+        """Assert an exception is raised if the format is bad."""
+        with self.assertRaises(click.ClickException) as cm:
+            cli._callback_from_filesystem("file/with/no/function.py")
+
+        self.assertEqual(
+            "Unable to parse the '--callback-file' option; the "
+            'expected format is "path/to/file.py:callable_object" where '
+            '"callable_object" is the name of the function or class in the '
+            "Python file",
+            cm.exception.message,
+        )
+
+    def test_invalid_file(self):
+        """Assert an exception is raised if the Python file can't be executed."""
+        with self.assertRaises(click.ClickException) as cm:
+            cli._callback_from_filesystem(
+                os.path.join(FIXTURES_DIR, "bad_cb") + ":missing"
+            )
+
+        self.assertEqual(
+            "The {} file raised the following exception during execution: "
+            "invalid syntax (bad_cb, line 1)".format(
+                os.path.join(FIXTURES_DIR, "bad_cb")
+            ),
+            cm.exception.message,
+        )
+
+    def test_callable_does_not_exist(self):
+        """Assert an exception is raised if the callable is missing."""
+        with self.assertRaises(click.ClickException) as cm:
+            cli._callback_from_filesystem(
+                os.path.join(FIXTURES_DIR, "callback.py") + ":missing"
+            )
+
+        self.assertEqual(
+            "The 'missing' object was not found in the '{}' file."
+            "".format(os.path.join(FIXTURES_DIR, "callback.py")),
+            cm.exception.message,
+        )
+
+    def test_file_does_not_exist(self):
+        """Assert an exception is raised if the file doesn't exist."""
+        with self.assertRaises(click.ClickException) as cm:
+            cli._callback_from_filesystem("file/that/is/missing.py:callable")
+
+        self.assertEqual(
+            "An IO error occurred: [Errno 2] No such file or directory: 'file/that/is/missing.py'",
+            cm.exception.message,
+        )
