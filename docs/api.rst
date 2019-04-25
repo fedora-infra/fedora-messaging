@@ -9,12 +9,18 @@ This documentation covers the public interfaces fedora_messaging provides.
 
 .. _semantic versioning 2.0.0: http://semver.org/
 
+.. contents:: API Table of Contents
+    :local:
+    :depth: 4
+
 
 .. _pub-api:
 
 Publishing
 ==========
 
+publish
+-------
 .. autofunction:: fedora_messaging.api.publish
 
 
@@ -23,11 +29,17 @@ Publishing
 Subscribing
 ===========
 
+twisted_consume
+---------------
 .. autofunction:: fedora_messaging.api.twisted_consume
 
+Consumer
+--------
 .. autoclass:: fedora_messaging.api.Consumer
    :members:
 
+consume
+-------
 .. autofunction:: fedora_messaging.api.consume
 
 
@@ -38,8 +50,16 @@ Signals
 
 .. automodule:: fedora_messaging.signals
 
+pre_publish_signal
+------------------
 .. autodata:: fedora_messaging.api.pre_publish_signal
+
+publish_signal
+--------------
 .. autodata:: fedora_messaging.api.publish_signal
+
+publish_failed_signal
+---------------------
 .. autodata:: fedora_messaging.api.publish_failed_signal
 
 
@@ -49,7 +69,13 @@ Message Schemas
 ===============
 
 .. automodule:: fedora_messaging.message
-   :members: Message, get_class
+
+Message
+-------
+
+.. autoclass:: fedora_messaging.message.Message
+   :members:
+   :special-members: __str__
 
 .. _message-severity:
 
@@ -61,9 +87,20 @@ applications like the notification service to determine what messages to send
 to users. The severity can be set at the class level, or on a message-by-message
 basis. The following are valid severity levels:
 
+DEBUG
+~~~~~
 .. autodata:: fedora_messaging.message.DEBUG
+
+INFO
+~~~~
 .. autodata:: fedora_messaging.message.INFO
+
+WARNING
+~~~~~~~
 .. autodata:: fedora_messaging.message.WARNING
+
+ERROR
+~~~~~
 .. autodata:: fedora_messaging.message.ERROR
 
 .. _exceptions-api:
@@ -73,8 +110,10 @@ Utilities
 ---------
 
 .. automodule:: fedora_messaging.schema_utils
-   :members:
 
+libravatar_url
+~~~~~~~~~~~~~~
+.. autofunction:: fedora_messaging.schema_utils.libravatar_url
 
 Exceptions
 ==========

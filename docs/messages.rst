@@ -25,7 +25,8 @@ Secondly, it allows you to change your message format in a controlled fashion
 by versioning your schema. You can then choose to implement methods one way or
 another based on the version of the schema used by a message.
 
-Message schema are defined using `JSON Schema`_.
+Message schema are defined using `JSON Schema`_. The complete API can be found
+in the :ref:`message-api` API documentation.
 
 
 .. _header-schema:

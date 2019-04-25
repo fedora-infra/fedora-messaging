@@ -331,34 +331,63 @@ class Message(object):
     from the user. This allows the schema to change and evolve without breaking
     the user-facing API.
 
-    A message class includes a topic. This topic is used by message consumers
-    to filter what messages they receive. Topics should be a string of words
-    separated by '.' characters, with a length limit of 255 bytes. Because of
-    this limit, it is best to avoid non-ASCII characters as well as
-    variable-length components where the total size of the topic would exceed
-    255 bytes.
-
-    Attributes:
-        id (six.text_type): The message id as a unicode string.
-        topic (six.text_type): The message topic as a unicode string.
-        headers_schema (dict): A `JSON schema <http://json-schema.org/>`_ to be used with
-            :func:`jsonschema.validate` to validate the message headers.
-        body_schema (dict): A `JSON schema <http://json-schema.org/>`_ to be used with
-            :func:`jsonschema.validate` to validate the message headers.
-        severity (int): An integer that indicates the severity of the message. This is
-            used to determine what messages to notify end users about and should be
-            :data:`DEBUG`, :data:`INFO`, :data:`WARNING`, or :data:`ERROR`.
-        queue (str): The name of the queue this message arrived through.
+    There are a number of properties that are intended to be overridden by
+    users.  These fields are used to sort messages for notifications or are
+    used to create human-readable versions of the messages. Properties that are
+    intended for this purpose are noted in their attribute documentation below.
 
     Args:
         headers (dict): A set of message headers. Consult the headers schema for
             expected keys and values.
         body (dict): The message body. Consult the body schema for expected keys
-            and values.
+            and values. This dictionary must be JSON-serializable by the default
+            serializer.
         topic (six.text_type): The message topic as a unicode string. If this is
-            not provided, the default topic for the class is used.
+            not provided, the default topic for the class is used. See the
+            attribute documentation below for details.
         properties (pika.BasicProperties): The AMQP properties. If this is not
-            provided, they will be generated.
+            provided, they will be generated. Most users should not need to provide
+            this, but it can be useful in testing scenarios.
+        severity (int): An integer that indicates the severity of the message. This is
+            used to determine what messages to notify end users about and should be
+            :data:`DEBUG`, :data:`INFO`, :data:`WARNING`, or :data:`ERROR`. The
+            default is :data:`INFO`, and can be set as a class attribute or on
+            an instance-by-instance basis.
+
+    Attributes:
+        id (six.text_type): The message id as a unicode string. This attribute is
+            automatically generated and set by the library and users should only
+            set it themselves in testing scenarios.
+        topic (six.text_type): The message topic as a unicode string. The topic
+            is used by message consumers to filter what messages they receive.
+            Topics should be a string of words separated by '.' characters,
+            with a length limit of 255 bytes. Because of this byte limit, it is
+            best to avoid non-ASCII character. Topics should start general and
+            get more specific each word. For example: "bodhi.update.kernel" is
+            a possible topic. "bodhi" identifies the application, "update"
+            identifies the message, and "kernel" identifies the package in the
+            update. This can be set at a class level or on a instance level.
+            Dynamic, specific topics that allow for fine-grain filtering are
+            preferred.
+        headers_schema (dict): A `JSON schema <http://json-schema.org/>`_ to be used with
+            :func:`jsonschema.validate` to validate the message headers. For
+            most users, the default definition should suffice.
+        body_schema (dict): A `JSON schema <http://json-schema.org/>`_ to be used with
+            :func:`jsonschema.validate` to validate the message body. The body_schema
+            is retrieved on a message instance so it is not required to be a
+            class attribute, although this is a convenient approach. Users are
+            also free to write the JSON schema as a file and load the file from
+            the filesystem or network if they prefer.
+        body (dict): The message body as a Python dictionary. This is validated by
+            the body schema before publishing and before consuming.
+        severity (int): An integer that indicates the severity of the message. This is
+            used to determine what messages to notify end users about and should be
+            :data:`DEBUG`, :data:`INFO`, :data:`WARNING`, or :data:`ERROR`. The
+            default is :data:`INFO`, and can be set as a class attribute or on
+            an instance-by-instance basis.
+        queue (str): The name of the queue this message arrived through. This
+            attribute is set automatically by the library and users should never
+            set it themselves.
     """
 
     severity = INFO
@@ -547,6 +576,10 @@ class Message(object):
         This should provide a short summary of the message, much like the subject line
         of an email.
 
+        .. note:: Sub-classes should override this method. It is used to create
+            the subject of email notifications, IRC notification, and by other
+            tools to display messages to humans in short form.
+
         The default implementation is to simply return the message topic.
         """
         return self.topic
@@ -555,11 +588,13 @@ class Message(object):
         """
         A human-readable representation of this message.
 
-        This should provide a detailed representation of the message, much like the body
-        of an email.
+        This should provide a detailed, long-form representation of the
+        message. The default implementation is to format the raw message id,
+        topic, headers, and body.
 
-        The default implementation is to format the raw message id, topic, headers, and
-        body. Applications use this to present messages to users.
+        .. note:: Sub-classes should override this method. It is used to create
+            the body of email notifications and by other tools to display messages
+            to humans.
         """
         return "Id: {i}\nTopic: {t}\nHeaders: {h}\nBody: {b}".format(
             i=self.id,
@@ -575,6 +610,9 @@ class Message(object):
         """
         An URL to the action that caused this message to be emitted.
 
+        .. note:: Sub-classes should override this method if there is a URL
+            associated with message.
+
         Returns:
             str or None: A relevant URL.
         """
@@ -583,6 +621,10 @@ class Message(object):
     @property
     def app_icon(self):
         """An URL to the icon of the application that generated the message.
+
+        .. note:: Sub-classes should override this method if their application
+            has an icon and they wish that image to appear in applications that
+            consume messages.
 
         Returns:
             str or None: The URL to the app's icon.
@@ -593,6 +635,9 @@ class Message(object):
     def agent_avatar(self):
         """An URL to the avatar of the user who caused the action.
 
+        .. note:: Sub-classes should override this method if the message was
+            triggered by a particular user.
+
         Returns:
             str or None: The URL to the user's avatar.
         """
@@ -602,6 +647,10 @@ class Message(object):
     def usernames(self):
         """List of users affected by the action that generated this message.
 
+        .. note:: Sub-classes should override this method if the message pertains
+            to a user or users. The data returned from this property is used to
+            filter notifications.
+
         Returns:
             list(str): A list of affected usernames.
         """
@@ -609,7 +658,11 @@ class Message(object):
 
     @property
     def packages(self):
-        """List of packages affected by the action that generated this message.
+        """List of RPM packages affected by the action that generated this message.
+
+        .. note:: Sub-classes should override this method if the message pertains
+            to one or more RPM packages. The data returned from this property
+            is used to filter notifications.
 
         Returns:
             list(str): A list of affected package names.
@@ -620,6 +673,10 @@ class Message(object):
     def containers(self):
         """List of containers affected by the action that generated this message.
 
+        .. note:: Sub-classes should override this method if the message pertains
+            to one or more container images. The data returned from this property
+            is used to filter notifications.
+
         Returns:
             list(str): A list of affected container names.
         """
@@ -629,6 +686,10 @@ class Message(object):
     def modules(self):
         """List of modules affected by the action that generated this message.
 
+        .. note:: Sub-classes should override this method if the message pertains
+            to one or more modules. The data returned from this property is
+            used to filter notifications.
+
         Returns:
             list(str): A list of affected module names.
         """
@@ -637,6 +698,10 @@ class Message(object):
     @property
     def flatpaks(self):
         """List of flatpaks affected by the action that generated this message.
+
+        .. note:: Sub-classes should override this method if the message pertains
+            to one or more flatpaks. The data returned from this property is
+            used to filter notifications.
 
         Returns:
             list(str): A list of affected flatpaks names.
