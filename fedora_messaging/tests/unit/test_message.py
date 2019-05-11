@@ -102,12 +102,34 @@ class MessageDumpsTests(unittest.TestCase):
 class MessageLoadsTests(unittest.TestCase):
     """Tests for the :func:`fedora_messaging.message.loads` function."""
 
-    def test_proper_json(self):
+    def test_proper_json_with_list(self):
         """Assert loading message from json work."""
         message_json = (
             '[{"topic": "test topic", "headers": {"fedora_messaging_schema": "base.message", '
             '"fedora_messaging_severity": 30}, "id": "test id", "body": '
             '{"test_key": "test_value"}, "queue": "test queue"}]'
+        )
+        messages = message.loads(message_json)
+        test_message = messages[0]
+        self.assertEqual(len(messages), 1)
+        self.assertIsInstance(test_message, message.Message)
+        self.assertEqual("test topic", test_message.topic)
+        self.assertEqual("test id", test_message.id)
+        self.assertEqual({"test_key": "test_value"}, test_message.body)
+        self.assertEqual("test queue", test_message.queue)
+        self.assertEqual(
+            message.WARNING, test_message._headers["fedora_messaging_severity"]
+        )
+        self.assertEqual(
+            "base.message", test_message._headers["fedora_messaging_schema"]
+        )
+
+    def test_proper_json_with_dict(self):
+        """Assert loading message from json work."""
+        message_json = (
+            '{"topic": "test topic", "headers": {"fedora_messaging_schema": "base.message", '
+            '"fedora_messaging_severity": 30}, "id": "test id", "body": '
+            '{"test_key": "test_value"}, "queue": "test queue"}'
         )
         messages = message.loads(message_json)
         test_message = messages[0]

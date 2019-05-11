@@ -244,10 +244,11 @@ def dumps(messages):
 
 def loads(serialized_messages):
     """
-    Deserialize messages from a JSON formatted str
+    Deserialize messages from a JSON formatted str.
 
     Args:
-        serialized_messages (JSON str):
+        serialized_messages (JSON str): JSON string containing list of messages to deserialize
+            or dictionary with one serialized message to deserialize.
 
     Returns:
         list: Deserialized message objects.
@@ -262,6 +263,9 @@ def loads(serialized_messages):
     except ValueError:
         _log.error("Loading serialized messages failed.")
         raise
+
+    if isinstance(messages_dicts, dict):
+        messages_dicts = [messages_dicts]
 
     messages = []
     for message_dict in messages_dicts:
