@@ -153,7 +153,7 @@ class PublisherSession(object):
         except (pika_errs.NackError, pika_errs.UnroutableError) as e:
             _log.warning("Message was rejected by the broker (%s)", str(e))
             raise PublishReturned(reason=e)
-        except (pika_errs.ConnectionClosed, pika_errs.AMQPChannelError):
+        except (pika_errs.AMQPConnectionError, pika_errs.AMQPChannelError):
             # Because this is a blocking connection (and thus can't heartbeat)
             # we might need to restart the connection.
             _log.info("Resetting connection to %s", self._parameters.host)
