@@ -203,7 +203,7 @@ class PublisherSessionTests(unittest.TestCase):
 
     def test_publish_disconnected(self):
         # The publisher must try to re-establish a connection on publish.
-        self.publisher_channel_publish.side_effect = pika_errs.ConnectionClosed(
+        self.publisher_channel_publish.side_effect = pika_errs.AMQPConnectionError(
             200, "I wanted to"
         )
         connection_class_mock = mock.Mock()
