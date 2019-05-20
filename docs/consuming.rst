@@ -79,39 +79,89 @@ Consult the manual page for complete details on this command line interface.
 .. note:: For users of fedmsg, this is roughly equivalent to fedmsg-hub
 
 
-systemd Service
-===============
+Consumer API
+============
 
-A systemd service file is also included in the Python package for your
-convenience. It is called ``fm-consumer@.service`` and simply runs
-``fedora-messaging consume`` with a configuration file from
-``/etc/fedora-messaging/`` that matches the service name::
+The introduction contains a very minimal callback. This section covers the
+complete API for consumers.
 
-    $ systemctl start fm-consumer@sample.service  # uses /etc/fedora-messaging/sample.toml
+The Callback
+------------
+
+The callback provided to :func:`fedora_messaging.api.consume` or the command-line
+interface can be any callable Python object, so long as it accepts the message
+object as a single positional argument.
+
+The API will also accept a Python class, which it will instantiate before
+using as a callable object. This allows you to write a callback with easy
+one-time initialization or a callback that maintains state between calls::
+
+    import os
+
+    from fedora_messaging import api, config
 
 
-Advanced Consumers
-==================
+    class SaveMessage(object):
+        """
+        A fedora-messaging consumer that saves the message to a file.
 
-Printing messages will only get you so far. This section includes details and
-hints for more useful consumers.
+        A single configuration key is used from fedora-messaging's
+        "consumer_config" key, "path", which is where the consumer will save
+        the messages::
 
-Handling Errors
----------------
+            [consumer_config]
+            path = "/tmp/fedora-messaging/messages.txt"
+        """
 
-It's the responsibility of the callback to handle general exceptions. When the
-callback encounters an unrecoverable error, it can either opt to place the
-message back in the queue for later processing or it can reject the message
-which drops it.
+        def __init__(self):
+            """Perform some one-time initialization for the consumer."""
+            self.path = config.conf["consumer_config"]["path"]
 
-To place the message back on the queue (a send "nack" to AMQP), raise the
-:class:`fedora_messaging.exceptions.Nack` exception in your callback. To reject
-the message and have it dropped, raise the
-:class:`fedora_messaging.exceptions.Drop` exception.
+            # Ensure the path exists before the consumer starts
+            if not os.path.exists(os.path.dirname(self.path)):
+                os.mkdir(os.path.dirname(self.path))
 
-If an unexpected exception is raised by the callable object, the API will log
-the complete traceback, return all pre-fetched messages to the queue, cancel
-the consumer, and raise an exception.
+        def __call__(self, message):
+            """
+            Invoked when a message is received by the consumer.
+
+            Args:
+                message (fedora_messaging.api.Message): The message from AMQP.
+            """
+            with open(self.path, "a") as fd:
+                fd.write(str(message))
+
+    api.consume(SaveMessage)
+
+When running this type of callback from the command-line interface, specify
+the Python path to the class object, not the ``__call__`` method::
+
+    $ fedora-messaging consume --callback=package_name.module:SaveMessage
+
+
+Exceptions
+----------
+
+* Consumers should raise the :class:`fedora_messaging.exceptions.Nack`
+  exception if the consumer cannot handle the message at this time. The message
+  will be re-queued, and the server will attempt to re-deliver it at a later
+  time.
+
+* Consumers should raise the :class:`fedora_messaging.exceptions.Drop` exception
+  when they wish to explicitly indicate they do not want handle the message. This
+  is similar to simply calling ``return``, but the server is informed the client
+  dropped the message. What the server does depends on configuration.
+
+* Consumers should raise the :class:`fedora_messaging.exceptions.HaltConsumer`
+  exception if they wish to stop consuming messages.
+
+If a consumer raises any other exception, a traceback will be logged at the
+error level, the message being processed and any pre-fetched messages will be
+returned to the queue for later delivery, and the consumer will be canceled.
+
+If the CLI is being used, it will halt with a non-zero exit code. If the API
+is being used directly, consult the API documentation for exact results, as
+the synchronous and asynchronous APIs communicate failures differently.
 
 
 Synchronous and Asynchronous Calls
@@ -125,19 +175,10 @@ blocking (synchronous) calls it likes.
 .. note:: Your callback does not need to be thread-safe. By default, messages
           are processed serially.
 
-If you wish to make use of a Twisted API, you must use the
+It is safe to start threads to perform IO-blocking work concurrently. If you
+wish to make use of a Twisted API, you must use the
 :func:`twisted.internet.threads.blockingCallFromThread` or
 :class:`twisted.internet.interfaces.IReactorFromThreads` APIs.
-
-
-Halting
--------
-
-Consumers can signal that they would like to stop consuming messages by raising
-the :class:`fedora_messaging.exceptions.HaltConsumer` exception. When stopping
-the message can either be re-queued for reprocessing at a later time, or marked
-as successfully processed. Consult the API documentation of ``HaltConsumer`` for
-details.
 
 
 Consumer Configuration
@@ -145,56 +186,18 @@ Consumer Configuration
 
 A special section of the fedora-messaging configuration will be available for
 consumers to use if they need configuration options. Refer to the
-:ref:`sub-config` in the Configuration documentation for details.
+:ref:`conf-consumer-config` in the Configuration documentation for details.
 
 
-State Across Messages
----------------------
+systemd Service
+===============
 
-Some consumers need to store state across messages. To do this, you can
-implement your consumer callback as a class. The
-:class:`fedora_messaging.api.consume` API will create an instance of the class
-and use that as the callable. The ``__init__`` function of the class should
-accept no arguments and rely on the configuration in
-:ref:`conf-consumer-config` for initialization. It must also define the
-``__call__`` method which accepts the message as its argument. This will be
-called when a message arrives::
+A systemd service file is also included in the Python package for your
+convenience. It is called ``fm-consumer@.service`` and simply runs
+``fedora-messaging consume`` with a configuration file from
+``/etc/fedora-messaging/`` that matches the service name::
 
-    from fedora_messaging import api, config
-
-    class PrintMessage(object):
-        """
-        A fedora-messaging consumer that prints the message to stdout.
-
-        A single configuration key is used from fedora-messaging's "consumer_config"
-        key, "summary", which should be a boolean. If true, just the message summary
-        is printed. Place the following in your fedora-messaging configuration file::
-
-            [consumer_config]
-            summary = true
-
-        The default is false.
-        """
-
-        def __init__(self):
-            try:
-                self.summary = config.conf['consumer_config']['summary']
-            except KeyError:
-                self.summary = False
-
-        def __call__(self, message):
-            """
-            Invoked when a message is received by the consumer.
-
-            Args:
-                message (fedora_messaging.api.Message): The message from AMQP.
-            """
-            if self.summary:
-                print(message.summary)
-            else:
-                print(message)
-
-    api.consume(PrintMessage)
+    $ systemctl start fm-consumer@sample.service  # uses /etc/fedora-messaging/sample.toml
 
 
 .. _AMQP overview: https://www.rabbitmq.com/tutorials/amqp-concepts.html
