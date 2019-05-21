@@ -167,10 +167,13 @@ class PublisherSession(object):
                 _log.error(str(e))
                 if self._connection and self._connection.is_open:
                     self._connection.close()
+                self._connection = self._channel = None
                 raise ConnectionException(reason=e)
         except pika_errs.AMQPError as e:
+            _log.info("Resetting connection to %s", self._parameters.host)
             if self._connection and self._connection.is_open:
                 self._connection.close()
+            self._connection = self._channel = None
             raise ConnectionException(reason=e)
 
     def _connect_and_publish(self, exchange, message):
