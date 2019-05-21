@@ -167,13 +167,12 @@ class PublisherSessionTests(unittest.TestCase):
 
     def test_publish_generic_error(self):
         # Check that the correct exception is raised when the publication has
-        # failed for an unknown reason, and that the connection is closed.
+        # failed for an unknown reason, and that the connection state is reset.
         self.publisher._connection.is_open = False
         self.publisher_channel_publish.side_effect = pika_errs.AMQPError()
         self.assertRaises(ConnectionException, self.publisher.publish, self.message)
-        self.publisher._connection.is_open = True
-        self.assertRaises(ConnectionException, self.publisher.publish, self.message)
-        self.publisher._connection.close.assert_called_once()
+        self.assertEqual(self.publisher._connection, None)
+        self.assertEqual(self.publisher._channel, None)
 
     def test_connect_and_publish_not_connnected(self):
         self.publisher._connection = None
@@ -263,8 +262,9 @@ class PublisherSessionTests(unittest.TestCase):
             self.assertRaises(ConnectionException, self.publisher.publish, self.message)
         # Check that the connection was reestablished
         connection_class_mock.assert_called_with(self.publisher._parameters)
-        self.assertEqual(self.publisher._connection, connection_mock)
         connection_mock.close.assert_called_once()
+        self.assertEqual(self.publisher._connection, None)
+        self.assertEqual(self.publisher._channel, None)
 
     def test_publish_reconnect_failed_rejected(self):
         # The publisher must try to re-establish a connection on publish, and
