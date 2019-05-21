@@ -22,6 +22,11 @@ template = "news/_template.rst"
   showcontent = true
 
   [[tool.towncrier.type]]
+  directory = "docs"
+  name = "Documentation Improvements"
+  showcontent = true
+
+  [[tool.towncrier.type]]
   directory = "dev"
   name = "Development Changes"
   showcontent = true

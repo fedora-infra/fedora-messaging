@@ -4,6 +4,55 @@ Release Notes
 
 .. towncrier release notes start
 
+v1.7.0 (2019-05-21)
+===================
+
+Features
+--------
+
+* "fedora-messaging consume" now accepts a "--callback-file" argument which will
+  load a callback function from an arbitrary Python file. Previously, it was
+  required that the callback be in the Python path
+  (`#159 <https://github.com/fedora-infra/fedora-messaging/issues/159>`_).
+
+
+Bug Fixes
+---------
+
+* Fix a bug where publishes that failed due to certain connection errors were not
+  retried
+  (`#175 <https://github.com/fedora-infra/fedora-messaging/issues/175>`_).
+
+* Fix a bug where AMQP protocol errors did not reset the connection used for
+  publishing messages. This would result in publishes always failing with a
+  ConnectionError
+  (`#178 <https://github.com/fedora-infra/fedora-messaging/pull/178>`_).
+
+
+Documentation Improvements
+--------------------------
+
+* Document the ``body`` attribute on the ``Message`` class
+  (`#164 <https://github.com/fedora-infra/fedora-messaging/issues/164>`_).
+
+* Clearly document what properties message schema classes should override
+  (`#166 <https://github.com/fedora-infra/fedora-messaging/issues/166>`_).
+
+* Re-organize the consumer documentation to make the consuming API clearer
+  (`#168 <https://github.com/fedora-infra/fedora-messaging/issues/168>`_).
+
+
+Contributors
+------------
+Many thanks to the contributors of bug reports, pull requests, and pull request
+reviews for this release:
+
+* Randy Barlow
+* Aurélien Bompard
+* Jeremy Cline
+* Dusty Mabe
+
+
 v1.6.1 (2019-04-17)
 ===================
 
