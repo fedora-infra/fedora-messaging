@@ -138,6 +138,8 @@ log_config
 A dictionary describing the logging configuration to use, in a format accepted
 by :func:`logging.config.dictConfig`.
 
+.. note:: Logging is only configured for consumers, not for producers.
+
 
 Publisher Options
 =================
