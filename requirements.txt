@@ -1,5 +1,6 @@
 blinker
 click
+crochet
 jsonschema
 toml
 Twisted

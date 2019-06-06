@@ -66,23 +66,25 @@ def mock_sends(*expected_messages):
     Raises:
         AssertionError: If the messages published don't match the messages asserted.
     """
-    with mock.patch("fedora_messaging.api._session_cache") as mock_cache:
-        yield
-        messages = [call[0][0] for call in mock_cache.session.publish.call_args_list]
-        if len(expected_messages) != len(messages):
-            raise AssertionError(
-                "Expected {} messages to be sent, but {} were sent".format(
-                    len(expected_messages), len(messages)
-                )
+    with mock.patch("fedora_messaging.api.crochet"):
+        with mock.patch("fedora_messaging.api._twisted_publish") as mock_pub:
+            yield
+
+    messages = [call[0][0] for call in mock_pub.call_args_list]
+    if len(expected_messages) != len(messages):
+        raise AssertionError(
+            "Expected {} messages to be sent, but {} were sent".format(
+                len(expected_messages), len(messages)
             )
-        for msg, expected in zip(messages, expected_messages):
-            if inspect.isclass(expected):
-                if not isinstance(msg, expected):
-                    raise AssertionError(
-                        "Expected message of type {}, but {} was sent".format(
-                            expected, msg.__class__
-                        )
+        )
+    for msg, expected in zip(messages, expected_messages):
+        if inspect.isclass(expected):
+            if not isinstance(msg, expected):
+                raise AssertionError(
+                    "Expected message of type {}, but {} was sent".format(
+                        expected, msg.__class__
                     )
-            else:
-                assert msg == expected
-            msg.validate()
+                )
+        else:
+            assert msg == expected
+        msg.validate()

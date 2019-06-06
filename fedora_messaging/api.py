@@ -1,16 +1,19 @@
 """The API for publishing messages and consuming from message queues."""
 from __future__ import absolute_import
 
-import threading
 import inspect
+import logging
 
-from twisted.internet import reactor
+from twisted.internet import reactor, defer
+import crochet
 
-from . import _session, exceptions, config
+from . import exceptions, config
 from .signals import pre_publish_signal, publish_signal, publish_failed_signal
 from .message import Message, SEVERITIES  # noqa: F401
 from .twisted import service
 from .twisted.consumer import Consumer  # noqa: F401
+
+_log = logging.getLogger(__name__)
 
 
 __all__ = (
@@ -24,11 +27,21 @@ __all__ = (
     "publish_failed_signal",
 )
 
-# Sessions aren't thread-safe, so each thread gets its own
-_session_cache = threading.local()
-
 # The Twisted service that consumers are registered with.
 _twisted_service = None
+
+
+def _init_twisted_service():
+    global _twisted_service
+    if _twisted_service is None:
+        _twisted_service = service.FedoraMessagingServiceV2(config.conf["amqp_url"])
+        reactor.callWhenRunning(_twisted_service.startService)
+        # Twisted is killing the underlying connection before stopService gets
+        # called, so we need to add it as a pre-shutdown event to gracefully
+        # finish up messages in progress.
+        reactor.addSystemEventTrigger(
+            "before", "shutdown", _twisted_service.stopService
+        )
 
 
 def _check_callback(callback):
@@ -86,6 +99,10 @@ def twisted_consume(callback, bindings=None, queues=None):
             dictionary should be a queue name to declare, and each value should
             be a dictionary with the "durable", "auto_delete", "exclusive", and
             "arguments" keys.
+
+    Raises:
+        ValueError: If the callback, bindings, or queues are invalid.
+
     Returns:
         twisted.internet.defer.Deferred:
             A deferred that fires with the list of one or more
@@ -101,24 +118,49 @@ def twisted_consume(callback, bindings=None, queues=None):
             doesn't have access to the queue, or
             :class:`fedora_messaging.exceptions.ConnectionException` if the TLS
             or AMQP handshake fails.
-
     """
     if isinstance(bindings, dict):
         bindings = [bindings]
+    if bindings is None:
+        bindings = config.conf["bindings"]
+    else:
+        try:
+            config.validate_bindings(bindings)
+        except exceptions.ConfigurationException as e:
+            raise ValueError(e.message)
+
+    if queues is None:
+        queues = config.conf["queues"]
+    else:
+        try:
+            config.validate_queues(queues)
+        except exceptions.ConfigurationException as e:
+            raise ValueError(e.message)
+
     callback = _check_callback(callback)
 
-    global _twisted_service
-    if _twisted_service is None:
-        _twisted_service = service.FedoraMessagingServiceV2(config.conf["amqp_url"])
-        reactor.callWhenRunning(_twisted_service.startService)
-        # Twisted is killing the underlying connection before stopService gets
-        # called, so we need to add it as a pre-shutdown event to gracefully
-        # finish up messages in progress.
-        reactor.addSystemEventTrigger(
-            "before", "shutdown", _twisted_service.stopService
-        )
+    _init_twisted_service()
+    return _twisted_service._service.factory.consume(
+        callback, bindings or config.conf["bindings"], queues or config.conf["queues"]
+    )
 
-    return _twisted_service._service.factory.consume(callback, bindings, queues)
+
+@crochet.run_in_reactor
+@defer.inlineCallbacks
+def _twisted_consume_wrapper(callback, bindings, queues):
+    """
+    Wrap the :func:`twisted_consume` function for a synchronous API.
+
+    Returns:
+        defer.Deferred: Fires with the consumers once all consumers have halted
+            or a consumer encounters an error.
+    """
+    consumers = yield twisted_consume(callback, bindings=bindings, queues=queues)
+    try:
+        yield defer.gatherResults([c.result for c in consumers])
+    except defer.FirstError as e:
+        e.subFailure.raiseException()
+    defer.returnValue(consumers)
 
 
 def consume(callback, bindings=None, queues=None):
@@ -174,30 +216,44 @@ def consume(callback, bindings=None, queues=None):
             is not a dict or list of dicts with the proper keys, or if the queues
             argument isn't a dict with the proper keys.
     """
-    if isinstance(bindings, dict):
-        bindings = [bindings]
-
-    if bindings is None:
-        bindings = config.conf["bindings"]
-    else:
-        try:
-            config.validate_bindings(bindings)
-        except exceptions.ConfigurationException as e:
-            raise ValueError(e.message)
-
-    if queues is None:
-        queues = config.conf["queues"]
-    else:
-        try:
-            config.validate_queues(queues)
-        except exceptions.ConfigurationException as e:
-            raise ValueError(e.message)
-
-    session = _session.ConsumerSession()
-    session.consume(callback, bindings=bindings, queues=queues)
+    crochet.setup()
+    eventual_result = _twisted_consume_wrapper(callback, bindings, queues)
+    try:
+        # Waiting indefinitely on crochet is deprecated, but this is a common value
+        # used in the code base which is equivalent to 68 years, which I believe to
+        # be an acceptably long amount of time. If you hit this limit you
+        # should know that I'll feel no sympathy for you as I'll almost
+        # certainly be dead.
+        eventual_result.wait(timeout=2 ** 31)
+    except (ValueError, exceptions.HaltConsumer):
+        raise
+    except Exception:
+        # https://crochet.readthedocs.io/en/stable/workarounds.html#missing-tracebacks
+        _log.error(
+            "Consuming raised an unexpected error, please report a bug:\n%s",
+            eventual_result.original_failure().getTraceback(),
+        )
+        raise
 
 
-def publish(message, exchange=None):
+@crochet.run_in_reactor
+@defer.inlineCallbacks
+def _twisted_publish(message, exchange):
+    """
+    Wrapper to provide a synchronous API for publishing messages via Twisted.
+
+    Returns:
+        defer.Deferred: A deferred that fires when a message has been published
+            and confirmed by the broker.
+    """
+    _init_twisted_service()
+    try:
+        yield _twisted_service._service.factory.publish(message, exchange=exchange)
+    except defer.CancelledError:
+        _log.debug("Canceled publish of %r to %s due to timeout", message, exchange)
+
+
+def publish(message, exchange=None, timeout=30):
     """
     Publish a message to an exchange.
 
@@ -223,28 +279,35 @@ def publish(message, exchange=None):
         message (message.Message): The message to publish.
         exchange (str): The name of the AMQP exchange to publish to; defaults to
             :ref:`conf-publish-exchange`
+        timeout (int): The maximum time in seconds to wait before giving up attempting
+            to publish the message. If the timeout is reached, a PublishTimeout exception
+            is raised.
 
     Raises:
         fedora_messaging.exceptions.PublishReturned: Raised if the broker rejects the
             message.
-        fedora_messaging.exceptions.ConnectionException: Raised if a connection error
-            occurred before the publish confirmation arrived.
+        fedora_messaging.exceptions.PublishTimeout: Raised if the broker could not be
+            contacted in the given timeout time.
         fedora_messaging.exceptions.ValidationError: Raised if the message
             fails validation with its JSON schema. This only depends on the
             message you are trying to send, the AMQP server is not involved.
     """
+    crochet.setup()
     pre_publish_signal.send(publish, message=message)
 
     if exchange is None:
         exchange = config.conf["publish_exchange"]
 
-    global _session_cache
-    if not hasattr(_session_cache, "session"):
-        _session_cache.session = _session.PublisherSession()
-
+    eventual_result = _twisted_publish(message, exchange)
     try:
-        _session_cache.session.publish(message, exchange=exchange)
+        eventual_result.wait(timeout=timeout)
         publish_signal.send(publish, message=message)
-    except exceptions.PublishException as e:
+    except crochet.TimeoutError:
+        eventual_result.cancel()
+        wrapper = exceptions.PublishTimeout()
+        publish_failed_signal.send(publish, message=message, reason=wrapper)
+        raise wrapper
+    except Exception as e:
+        _log.error(eventual_result.original_failure().getTraceback())
         publish_failed_signal.send(publish, message=message, reason=e)
         raise

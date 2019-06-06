@@ -114,6 +114,7 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         TwistedProtocolConnection.__init__(self, parameters)
         self._confirms = confirms
         self._channel = None
+        self._publish_channel = None
         # Map queue names to fedora_messaging.twisted.consumer.Consumer objects
         self._consumers = {}
         self.factory = None
@@ -283,8 +284,11 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         .. _exchange: https://www.rabbitmq.com/tutorials/amqp-concepts.html#exchanges
         """
         message.validate()
+        if self._publish_channel is None:
+            self._publish_channel = yield self._allocate_channel()
+
         try:
-            yield self._channel.basic_publish(
+            yield self._publish_channel.basic_publish(
                 exchange=exchange,
                 routing_key=message._encoded_routing_key,
                 body=message._encoded_body,
@@ -294,9 +298,13 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
             _std_log.error("Message was rejected by the broker (%s)", str(e))
             raise PublishReturned(reason=e)
         except pika.exceptions.ChannelClosed:
-            self._channel = yield self._allocate_channel()
+            self._publish_channel = None
             yield self.publish(message, exchange)
-        except pika.exceptions.ConnectionClosed as e:
+        except (
+            pika.exceptions.ConnectionClosed,
+            error.ConnectionLost,
+            error.ConnectionDone,
+        ) as e:
             raise ConnectionException(reason=e)
 
     @defer.inlineCallbacks

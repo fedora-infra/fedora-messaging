@@ -299,24 +299,24 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
         See the documentation of
         `twisted.internet.protocol.ReconnectingClientFactory` for details.
         """
-        self._client = self.protocol(self._parameters, confirms=self.confirms)
-        self._client.factory = self
+        client = self.protocol(self._parameters, confirms=self.confirms)
+        client.factory = self
 
         @defer.inlineCallbacks
         def on_ready(unused_param=None):
             """Reset the connection delay when the AMQP handshake is complete."""
             _std_log.debug("AMQP handshake completed; connection ready for use")
             self.resetDelay()
-            self._client_deferred.callback(self._client)
-            self._client_deferred = defer.Deferred()
+            self._client = client
+            self._client_deferred.callback(client)
 
             # Restart any consumer from previous connections that wasn't canceled
             # including queues and bindings, as the queue might not have been durable
             for consumer, queue, bindings in self._consumers.values():
                 _std_log.info("Re-registering the %r consumer", consumer)
-                yield self._client.declare_queues([queue])
-                yield self._client.bind_queues(bindings)
-                yield self._client.consume(consumer.callback, consumer.queue, consumer)
+                yield client.declare_queues([queue])
+                yield client.bind_queues(bindings)
+                yield client.consume(consumer.callback, consumer.queue, consumer)
 
         def on_ready_errback(failure):
             """If opening the connection fails or is lost, this errback is called."""
@@ -336,14 +336,14 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
                 )
                 self._client_deferred.errback(wrapped_failure)
             else:
-                # Some unexpected exception happened
                 _std_log.exception(
                     "The connection failed with an unexpected exception; please report this bug."
                 )
+                self._client_deferred.errback(failure)
 
-        self._client.ready.addCallback(on_ready)
-        self._client.ready.addErrback(on_ready_errback)
-        return self._client
+        client.ready.addCallback(on_ready)
+        client.ready.addErrback(on_ready_errback)
+        return client
 
     @defer.inlineCallbacks
     def stopFactory(self):
@@ -356,6 +356,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             yield self._client.halt()
         protocol.ReconnectingClientFactory.stopFactory(self)
 
+    @defer.inlineCallbacks
     def when_connected(self):
         """
         Retrieve the currently-connected Protocol, or the next one to connect.
@@ -368,9 +369,53 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
                 in EL7.
         """
         if self._client and not self._client.is_closed:
-            return defer.succeed(self._client)
+            _std_log.debug("Already connected with %r", self._client)
         else:
-            return self._client_deferred
+            # This is pretty hideous, but this deferred is fired by the ready
+            # callback and self._client is set, so after the yield it's a valid
+            # connection.
+            self._client_deferred = defer.Deferred()
+            self._client = None
+            _std_log.debug(
+                "Waiting for %r to fire with new connection", self._client_deferred
+            )
+            yield self._client_deferred
+        defer.returnValue(self._client)
+
+    @defer.inlineCallbacks
+    def publish(self, message, exchange):
+        """
+        Publish a :class:`fedora_messaging.message.Message` to an `exchange`_
+        on the message broker. This call will survive connection failures and try
+        until it succeeds or is canceled.
+
+        Args:
+            message (message.Message): The message to publish.
+            exchange (str): The name of the AMQP exchange to publish to.
+
+        returns:
+            defer.Deferred: A deferred that fires when the message is published.
+
+        Raises:
+            NoFreeChannels: If there are no available channels on this connection.
+                If this occurs, you can either reduce the number of consumers on this
+                connection or create an additional connection.
+            PublishReturned: If the published message is rejected by the broker.
+            ConnectionException: If a connection error occurs while publishing. Calling
+                this method again will wait for the next connection and publish when it
+                is available.
+
+        .. _exchange: https://www.rabbitmq.com/tutorials/amqp-concepts.html#exchanges
+        """
+        while True:
+            protocol = yield self.when_connected()
+            try:
+                yield protocol.publish(message, exchange)
+                break
+            except ConnectionException:
+                _std_log.info(
+                    "Publish failed on %r, waiting for new connection", protocol
+                )
 
     @defer.inlineCallbacks
     def consume(self, callback, bindings, queues):

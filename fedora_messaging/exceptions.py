@@ -91,6 +91,15 @@ class PublishReturned(PublishException):
     """
 
 
+class PublishTimeout(PublishException):
+    """
+    Raised when the message could not be published in the given timeout.
+
+    This means the message was either never delivered to the broker, or that it
+    was delivered, but never acknowledged by the broker.
+    """
+
+
 class ConnectionException(BaseException):
     """
     Raised if a general connection error occurred.
