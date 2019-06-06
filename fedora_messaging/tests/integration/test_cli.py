@@ -20,7 +20,9 @@ import subprocess
 import time
 import uuid
 
+from twisted.internet import threads
 import pytest
+import pytest_twisted
 import requests
 
 from fedora_messaging import api, exceptions, message
@@ -60,6 +62,7 @@ def queue(scope="function"):
         ("halt_exit_42", 42, b"Life, the universe, and everything"),
     ],
 )
+@pytest_twisted.inlineCallbacks
 def test_consume_halt_with_exitcode(callback, exit_code, msg, queue):
     """Assert user execution halt with reason and exit_code is reported."""
     args = [
@@ -75,7 +78,7 @@ def test_consume_halt_with_exitcode(callback, exit_code, msg, queue):
     process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     time.sleep(5)
 
-    api.publish(message.Message())
+    yield threads.deferToThread(api.publish, message.Message())
     for _ in range(5):
         time.sleep(1)
         if process.poll() is not None:

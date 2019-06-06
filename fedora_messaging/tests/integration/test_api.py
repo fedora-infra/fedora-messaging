@@ -1,16 +1,20 @@
-"""Test the Twisted consume APIs on a real broker running on localhost."""
+"""Test the :mod:`fedora_messaging.api` APIs on a real broker running on localhost."""
 
+from collections import defaultdict
 import uuid
 import six
 import mock
 import time
 
-from twisted.internet import reactor, defer, task
+from twisted.internet import reactor, defer, task, threads
 import treq
+import pika
 import pytest
 import pytest_twisted
+import socket
 
 from fedora_messaging import api, message, exceptions, config
+from fedora_messaging.twisted import service
 from fedora_messaging.twisted.protocol import _add_timeout
 
 
@@ -62,7 +66,7 @@ def admin_user():
 
 
 @pytest_twisted.inlineCallbacks
-def get_queue(name, delay=10):
+def get_queue(queue_dict, delay=10):
     """
     Retrieve data about a queue in the broker in the default vhost ("/").
 
@@ -74,6 +78,8 @@ def get_queue(name, delay=10):
     Returns:
         dict: A dictionary representation of the queue.
     """
+    queues = list(queue_dict.keys())
+    name = queues[0]
     # Assert both messages are delivered, no messages are un-acked, and only one
     # message got a positive acknowledgment.
     url = "{base}queues/%2F/{queue}".format(base=HTTP_API, queue=name)
@@ -84,15 +90,28 @@ def get_queue(name, delay=10):
     defer.returnValue(server_queue)
 
 
+@pytest.fixture
+def queue_and_binding():
+    queue = str(uuid.uuid4())
+    queues = {
+        queue: {
+            "durable": False,
+            "exclusive": False,
+            "auto_delete": False,
+            "arguments": {"x-expires": 60 * 1000},
+        }
+    }
+    bindings = [{"queue": queue, "exchange": "amq.topic", "routing_keys": ["#"]}]
+    yield queues, bindings
+
+
 @pytest_twisted.inlineCallbacks
-def test_twisted_consume_halt_consumer():
+def test_twisted_consume_halt_consumer(queue_and_binding):
     """
     Assert raising HaltConsumer works with :func:`fedora_messaging.api.twisted_consume`
     API.
     """
-    queue = str(uuid.uuid4())
-    queues = {queue: {"auto_delete": False, "arguments": {"x-expires": 60 * 1000}}}
-    bindings = [{"queue": queue, "exchange": "amq.topic", "routing_keys": ["#"]}]
+    queues, bindings = queue_and_binding
     msg = message.Message(
         topic=u"nice.message",
         headers={u"niceness": u"very"},
@@ -114,11 +133,11 @@ def test_twisted_consume_halt_consumer():
     consumers = yield api.twisted_consume(callback, bindings, queues)
 
     # Assert the server reports a consumer
-    server_queue = yield get_queue(queue)
+    server_queue = yield get_queue(queues)
     assert server_queue["consumers"] == 1
 
     for _ in range(0, 3):
-        api.publish(msg, "amq.topic")
+        yield threads.deferToThread(api.publish, msg, "amq.topic")
 
     _add_timeout(consumers[0].result, 10)
     try:
@@ -132,7 +151,7 @@ def test_twisted_consume_halt_consumer():
             assert "sent-at" in m._headers
             del m._headers["sent-at"]
             assert expected_headers == m._headers
-        server_queue = yield get_queue(queue)
+        server_queue = yield get_queue(queues)
         assert server_queue["consumers"] == 0
     except (defer.TimeoutError, defer.CancelledError):
         yield consumers[0].cancel()
@@ -140,14 +159,12 @@ def test_twisted_consume_halt_consumer():
 
 
 @pytest_twisted.inlineCallbacks
-def test_twisted_stop_service():
+def test_twisted_stop_service(queue_and_binding):
     """
     Assert stopping the service, which happens when the reactor shuts down, waits
     for consumers to finish processing and then cancels them before closing the connection.
     """
-    queue = str(uuid.uuid4())
-    queues = {queue: {"auto_delete": False, "arguments": {"x-expires": 60 * 1000}}}
-    bindings = [{"queue": queue, "exchange": "amq.topic", "routing_keys": ["#"]}]
+    queues, bindings = queue_and_binding
     message_received, message_processed = defer.Deferred(), defer.Deferred()
 
     def callback(message):
@@ -157,7 +174,7 @@ def test_twisted_stop_service():
         reactor.callFromThread(message_processed.callback, None)
 
     consumers = yield api.twisted_consume(callback, bindings, queues)
-    api.publish(message.Message(), "amq.topic")
+    yield threads.deferToThread(api.publish, message.Message(), "amq.topic")
 
     _add_timeout(consumers[0].result, 10)
     _add_timeout(message_received, 10)
@@ -181,11 +198,9 @@ def test_twisted_stop_service():
 
 
 @pytest_twisted.inlineCallbacks
-def test_twisted_consume_cancel():
+def test_twisted_consume_cancel(queue_and_binding):
     """Assert canceling works with :func:`fedora_messaging.api.twisted_consume` API."""
-    queue = str(uuid.uuid4())
-    queues = {queue: {"auto_delete": False, "arguments": {"x-expires": 60 * 1000}}}
-    bindings = [{"queue": queue, "exchange": "amq.topic", "routing_keys": ["#"]}]
+    queues, bindings = queue_and_binding
 
     # Assert that the number of consumers we think we started is the number the
     # server things we started. This will fail if other tests don't clean up properly.
@@ -193,7 +208,7 @@ def test_twisted_consume_cancel():
     consumers = yield api.twisted_consume(lambda m: m, bindings, queues)
     consumers[0].result.addErrback(pytest.fail)
 
-    server_queue = yield get_queue(queue)
+    server_queue = yield get_queue(queues)
     assert server_queue["consumers"] == 1
 
     try:
@@ -206,18 +221,16 @@ def test_twisted_consume_cancel():
         assert consumers[0].result.called
 
         # Finally make sure the server agrees that the consumer is canceled.
-        server_queue = yield get_queue(queue)
+        server_queue = yield get_queue(queues)
         assert server_queue["consumers"] == 0
     except (defer.TimeoutError, defer.CancelledError):
         pytest.fail("Timeout reached without consumer halting!")
 
 
 @pytest_twisted.inlineCallbacks
-def test_twisted_consume_halt_consumer_requeue():
+def test_twisted_consume_halt_consumer_requeue(queue_and_binding):
     """Assert raising HaltConsumer with requeue=True re-queues the message."""
-    queue = str(uuid.uuid4())
-    queues = {queue: {"auto_delete": False, "arguments": {"x-expires": 60 * 1000}}}
-    bindings = [{"queue": queue, "exchange": "amq.topic", "routing_keys": ["#"]}]
+    queues, bindings = queue_and_binding
     msg = message.Message(
         topic=u"nice.message",
         headers={u"niceness": u"very"},
@@ -232,7 +245,7 @@ def test_twisted_consume_halt_consumer_requeue():
     # server things we started. This will fail if other tests don't clean up properly.
     # If it becomes problematic perhaps each test should have a vhost.
     consumers = yield api.twisted_consume(callback, bindings, queues)
-    api.publish(msg, "amq.topic")
+    yield threads.deferToThread(api.publish, msg, "amq.topic")
 
     _add_timeout(consumers[0].result, 10)
     try:
@@ -241,7 +254,7 @@ def test_twisted_consume_halt_consumer_requeue():
         # Assert there are no consumers for the queue, and that there's a ready message
         assert e.exit_code == 1
 
-        server_queue = yield get_queue(queue)
+        server_queue = yield get_queue(queues)
         assert server_queue["consumers"] == 0
         assert server_queue["messages_ready"] == 1
     except (defer.TimeoutError, defer.CancelledError):
@@ -250,11 +263,9 @@ def test_twisted_consume_halt_consumer_requeue():
 
 
 @pytest_twisted.inlineCallbacks
-def test_twisted_consume_drop_message():
+def test_twisted_consume_drop_message(queue_and_binding):
     """Assert raising Drop causes the message to be dropped, but processing continues."""
-    queue = str(uuid.uuid4())
-    queues = {queue: {"auto_delete": False, "arguments": {"x-expires": 60 * 1000}}}
-    bindings = [{"queue": queue, "exchange": "amq.topic", "routing_keys": ["#"]}]
+    queues, bindings = queue_and_binding
     msg = message.Message(
         topic=u"nice.message",
         headers={u"niceness": u"very"},
@@ -273,8 +284,8 @@ def test_twisted_consume_drop_message():
     # server things we started. This will fail if other tests don't clean up properly.
     # If it becomes problematic perhaps each test should have a vhost.
     consumers = yield api.twisted_consume(callback, bindings, queues)
-    api.publish(msg, "amq.topic")
-    api.publish(msg, "amq.topic")
+    yield threads.deferToThread(api.publish, msg, "amq.topic")
+    yield threads.deferToThread(api.publish, msg, "amq.topic")
 
     _add_timeout(consumers[0].result, 10)
     try:
@@ -282,15 +293,7 @@ def test_twisted_consume_drop_message():
     except exceptions.HaltConsumer:
         # Assert both messages are delivered, no messages are un-acked, and only one
         # message got a positive acknowledgment.
-        server_queue = yield task.deferLater(
-            reactor,
-            5,
-            treq.get,
-            HTTP_API + "queues/%2F/" + queue,
-            auth=HTTP_AUTH,
-            timeout=3,
-        )
-        server_queue = yield server_queue.json()
+        server_queue = yield get_queue(queues)
         assert server_queue["consumers"] == 0
         assert server_queue["messages"] == 0
     except (defer.TimeoutError, defer.CancelledError):
@@ -300,11 +303,9 @@ def test_twisted_consume_drop_message():
 
 
 @pytest_twisted.inlineCallbacks
-def test_twisted_consume_nack_message():
+def test_twisted_consume_nack_message(queue_and_binding):
     """Assert raising Nack causes the message to be replaced in the queue."""
-    queue = str(uuid.uuid4())
-    queues = {queue: {"auto_delete": False, "arguments": {"x-expires": 60 * 1000}}}
-    bindings = [{"queue": queue, "exchange": "amq.topic", "routing_keys": ["#"]}]
+    queues, bindings = queue_and_binding
     msg = message.Message(
         topic=u"nice.message",
         headers={u"niceness": u"very"},
@@ -323,22 +324,14 @@ def test_twisted_consume_nack_message():
     # server things we started. This will fail if other tests don't clean up properly.
     # If it becomes problematic perhaps each test should have a vhost.
     consumers = yield api.twisted_consume(callback, bindings, queues)
-    api.publish(msg, "amq.topic")
+    yield threads.deferToThread(api.publish, msg, "amq.topic")
 
     _add_timeout(consumers[0].result, 10)
     try:
         yield consumers[0].result
     except exceptions.HaltConsumer:
         # Assert the message was delivered, redelivered when Nacked, then acked by HaltConsumer
-        server_queue = yield task.deferLater(
-            reactor,
-            5,
-            treq.get,
-            HTTP_API + "queues/%2F/" + queue,
-            auth=HTTP_AUTH,
-            timeout=3,
-        )
-        server_queue = yield server_queue.json()
+        server_queue = yield get_queue(queues)
         assert server_queue["consumers"] == 0
         assert server_queue["messages"] == 0
     except (defer.TimeoutError, defer.CancelledError):
@@ -348,14 +341,12 @@ def test_twisted_consume_nack_message():
 
 
 @pytest_twisted.inlineCallbacks
-def test_twisted_consume_general_exception():
+def test_twisted_consume_general_exception(queue_and_binding):
     """
     Assert if the callback raises an unhandled exception, it is passed on to the
     consumer.result and the message is re-queued.
     """
-    queue = str(uuid.uuid4())
-    queues = {queue: {"auto_delete": False, "arguments": {"x-expires": 60 * 1000}}}
-    bindings = [{"queue": queue, "exchange": "amq.topic", "routing_keys": ["#"]}]
+    queues, bindings = queue_and_binding
     msg = message.Message(
         topic=u"nice.message",
         headers={u"niceness": u"very"},
@@ -370,7 +361,7 @@ def test_twisted_consume_general_exception():
     # server things we started. This will fail if other tests don't clean up properly.
     # If it becomes problematic perhaps each test should have a vhost.
     consumers = yield api.twisted_consume(callback, bindings, queues)
-    api.publish(msg, "amq.topic")
+    yield threads.deferToThread(api.publish, msg, "amq.topic")
 
     _add_timeout(consumers[0].result, 10)
     try:
@@ -381,15 +372,7 @@ def test_twisted_consume_general_exception():
     except Exception as e:
         # Assert the message was delivered and re-queued when the consumer crashed.
         assert e.args[0] == "Oh the huge manatee"
-        server_queue = yield task.deferLater(
-            reactor,
-            10,
-            treq.get,
-            HTTP_API + "queues/%2F/" + queue,
-            auth=HTTP_AUTH,
-            timeout=3,
-        )
-        server_queue = yield server_queue.json()
+        server_queue = yield get_queue(queues)
         assert server_queue["consumers"] == 0
         assert server_queue["messages"] == 1
     finally:
@@ -397,7 +380,7 @@ def test_twisted_consume_general_exception():
 
 
 @pytest_twisted.inlineCallbacks
-def test_twisted_consume_connection_reset():
+def test_twisted_consume_connection_reset(queue_and_binding):
     """
     Assert consuming works across connections and handles connection resets.
 
@@ -405,9 +388,7 @@ def test_twisted_consume_connection_reset():
     connections on the broker. It then sends a third message and asserts the consumer
     gets it.
     """
-    queue = str(uuid.uuid4())
-    queues = {queue: {"auto_delete": False, "arguments": {"x-expires": 60 * 1000}}}
-    bindings = [{"queue": queue, "exchange": "amq.topic", "routing_keys": ["#"]}]
+    queues, bindings = queue_and_binding
     msg = message.Message(
         topic=u"nice.message",
         headers={u"niceness": u"very"},
@@ -428,8 +409,8 @@ def test_twisted_consume_connection_reset():
 
     # Wait for two messages to get through, kill the connection, and then send
     # the third and wait for the consumer to finish
-    api.publish(msg, "amq.topic")
-    api.publish(msg, "amq.topic")
+    yield threads.deferToThread(api.publish, msg, "amq.topic")
+    yield threads.deferToThread(api.publish, msg, "amq.topic")
     _add_timeout(two_received, 10)
     try:
         yield two_received
@@ -444,7 +425,8 @@ def test_twisted_consume_connection_reset():
         this_conn = [
             c
             for c in conns
-            if c["client_properties"]["app"] == "test_twisted_consume_connection_reset"
+            if "app" in c["client_properties"]
+            and c["client_properties"]["app"] == "test_twisted_consume_connection_reset"
         ]
         if this_conn:
             cname = six.moves.urllib.parse.quote(this_conn[0]["name"])
@@ -457,7 +439,7 @@ def test_twisted_consume_connection_reset():
 
     # The consumer should receive this third message after restarting its connection
     # and then it should exit gracefully.
-    api.publish(msg, "amq.topic")
+    yield threads.deferToThread(api.publish, msg, "amq.topic")
     _add_timeout(consumers[0].result, 10)
     try:
         yield consumers[0].result
@@ -469,19 +451,17 @@ def test_twisted_consume_connection_reset():
 
 
 @pytest_twisted.inlineCallbacks
-def test_twisted_consume_serverside_cancel():
+def test_twisted_consume_serverside_cancel(queue_and_binding):
     """
     Assert the consumer halts and ``consumer.result`` errbacks when the server
     explicitly cancels the consumer (by deleting the queue).
     """
-    queue = str(uuid.uuid4())
-    queues = {queue: {"auto_delete": False, "arguments": {"x-expires": 60 * 1000}}}
-    bindings = [{"queue": queue, "exchange": "amq.topic", "routing_keys": ["#"]}]
+    queues, bindings = queue_and_binding
 
     consumers = yield api.twisted_consume(lambda x: x, bindings, queues)
 
     # Delete the queue and assert the consumer errbacks
-    url = "{base}queues/%2F/{queue}".format(base=HTTP_API, queue=queue)
+    url = "{base}queues/%2F/{queue}".format(base=HTTP_API, queue=list(queues.keys())[0])
     yield treq.delete(url, auth=HTTP_AUTH, timeout=3)
 
     _add_timeout(consumers[0].result, 10)
@@ -495,14 +475,13 @@ def test_twisted_consume_serverside_cancel():
 
 
 @pytest_twisted.inlineCallbacks
-def test_no_vhost_permissions(admin_user):
+def test_no_vhost_permissions(admin_user, queue_and_binding):
     """Assert a hint is given if the user doesn't have any access to the vhost"""
     url = "{base}permissions/%2F/{user}".format(base=HTTP_API, user=admin_user)
     resp = yield treq.delete(url, auth=HTTP_AUTH, timeout=3)
     assert resp.code == 204
 
-    queue = str(uuid.uuid4())
-    queues = {queue: {"auto_delete": False, "arguments": {"x-expires": 60 * 1000}}}
+    queues, _ = queue_and_binding
 
     amqp_url = "amqp://{user}:guest@localhost:5672/%2F".format(user=admin_user)
     with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
@@ -518,20 +497,18 @@ def test_no_vhost_permissions(admin_user):
 
 
 @pytest_twisted.inlineCallbacks
-def test_no_read_permissions_queue_read_failure_pika1(admin_user):
+def test_no_read_permissions_queue_read_failure_pika1(admin_user, queue_and_binding):
     """
     Assert an errback occurs when unable to read from the queue due to
     permissions. This is a bit weird because the consumer has permission to
     register itself, but not to actually read from the queue so the result is
     what errors back.
     """
+    queues, bindings = queue_and_binding
     url = "{base}permissions/%2F/{user}".format(base=HTTP_API, user=admin_user)
     body = {"configure": ".*", "write": ".*", "read": ""}
     resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
     assert resp.code == 204
-
-    queue = str(uuid.uuid4())
-    queues = {queue: {"auto_delete": False, "arguments": {"x-expires": 60 * 1000}}}
 
     amqp_url = "amqp://{user}:guest@localhost:5672/%2F".format(user=admin_user)
     with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
@@ -543,23 +520,20 @@ def test_no_read_permissions_queue_read_failure_pika1(admin_user):
         except exceptions.PermissionException as e:
             assert e.reason == (
                 "ACCESS_REFUSED - access to queue '{}' in vhost '/' refused for user "
-                "'{}'".format(queue, admin_user)
+                "'{}'".format(list(queues.keys())[0], admin_user)
             )
         except (defer.TimeoutError, defer.CancelledError):
             pytest.fail("Timeout reached without consumer calling its errback!")
 
 
 @pytest_twisted.inlineCallbacks
-def test_no_read_permissions_bind_failure(admin_user):
+def test_no_read_permissions_bind_failure(admin_user, queue_and_binding):
     """Assert the call to twisted_consume errbacks on read permissions errors on binding."""
+    queues, bindings = queue_and_binding
     url = "{base}permissions/%2F/{user}".format(base=HTTP_API, user=admin_user)
     body = {"configure": ".*", "write": ".*", "read": ""}
     resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
     assert resp.code == 204
-
-    queue = str(uuid.uuid4())
-    queues = {queue: {"auto_delete": False, "arguments": {"x-expires": 60 * 1000}}}
-    bindings = [{"queue": queue, "exchange": "amq.topic", "routing_keys": ["#"]}]
 
     amqp_url = "amqp://{user}:guest@localhost:5672/%2F".format(user=admin_user)
     try:
@@ -575,16 +549,13 @@ def test_no_read_permissions_bind_failure(admin_user):
 
 
 @pytest_twisted.inlineCallbacks
-def test_no_write_permissions(admin_user):
+def test_no_write_permissions(admin_user, queue_and_binding):
     """Assert the call to twisted_consume errbacks on write permissions errors."""
+    queues, bindings = queue_and_binding
     url = "{base}permissions/%2F/{user}".format(base=HTTP_API, user=admin_user)
     body = {"configure": ".*", "write": "", "read": ".*"}
     resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
     assert resp.code == 204
-
-    queue = str(uuid.uuid4())
-    queues = {queue: {"auto_delete": False, "arguments": {"x-expires": 60 * 1000}}}
-    bindings = [{"queue": queue, "exchange": "amq.topic", "routing_keys": ["#"]}]
 
     amqp_url = "amqp://{user}:guest@localhost:5672/%2F".format(user=admin_user)
     try:
@@ -595,22 +566,15 @@ def test_no_write_permissions(admin_user):
         assert e.reason.args[0] == 403
         assert e.reason.args[1] == (
             "ACCESS_REFUSED - access to queue '{}' in vhost '/' refused for user"
-            " '{}'".format(queue, admin_user)
+            " '{}'".format(list(queues.keys())[0], admin_user)
         )
 
 
 @pytest_twisted.inlineCallbacks
-def test_twisted_consume_invalid_message():
+def test_twisted_consume_invalid_message(queue_and_binding):
     """Assert messages that fail validation are nacked."""
-    queue = str(uuid.uuid4())
-    queues = {queue: {"auto_delete": False, "arguments": {"x-expires": 60 * 1000}}}
-    bindings = [
-        {
-            "queue": queue,
-            "exchange": "amq.topic",
-            "routing_keys": ["test_twisted_invalid_message"],
-        }
-    ]
+    queues, bindings = queue_and_binding
+    bindings[0]["routing_keys"] = ["test_twisted_invalid_message"]
 
     consumers = yield api.twisted_consume(
         lambda x: pytest.fail("Message should be nacked"), bindings, queues
@@ -630,11 +594,9 @@ def test_twisted_consume_invalid_message():
 
 
 @pytest_twisted.inlineCallbacks
-def test_twisted_consume_update_callback():
+def test_twisted_consume_update_callback(queue_and_binding):
     """Assert a second call to consume updates an existing callback."""
-    queue = str(uuid.uuid4())
-    queues = {queue: {"auto_delete": False, "arguments": {"x-expires": 60 * 1000}}}
-    bindings = [{"queue": queue, "exchange": "amq.topic", "routing_keys": ["#"]}]
+    queues, bindings = queue_and_binding
 
     callback1 = defer.Deferred()
     callback2 = defer.Deferred()
@@ -642,7 +604,7 @@ def test_twisted_consume_update_callback():
     consumers1 = yield api.twisted_consume(
         lambda m: reactor.callFromThread(callback1.callback, m), bindings, queues
     )
-    api.publish(message.Message(), "amq.topic")
+    yield threads.deferToThread(api.publish, message.Message(), "amq.topic")
     _add_timeout(callback1, 10)
     try:
         yield callback1
@@ -652,7 +614,7 @@ def test_twisted_consume_update_callback():
     consumers2 = yield api.twisted_consume(
         lambda m: reactor.callFromThread(callback2.callback, m), bindings, queues
     )
-    api.publish(message.Message(), "amq.topic")
+    yield threads.deferToThread(api.publish, message.Message(), "amq.topic")
     _add_timeout(callback2, 10)
     try:
         yield callback2
@@ -662,3 +624,298 @@ def test_twisted_consume_update_callback():
     assert consumers1[0]._tag == consumers2[0]._tag
 
     yield consumers2[0].cancel()
+
+
+@pytest_twisted.inlineCallbacks
+def test_pub_sub_default_settings(queue_and_binding):
+    """
+    Assert publishing and subscribing works with the default configuration.
+
+    This should work because the publisher uses the 'amq.topic' exchange by
+    default and the consumer also uses the 'amq.topic' exchange with its
+    auto-named queue and a default subscription key of '#'.
+    """
+    queues, bindings = queue_and_binding
+
+    # Consumer setup
+    def counting_callback(message, storage=defaultdict(int)):
+        storage[message.topic] += 1
+        if storage[message.topic] == 3:
+            raise exceptions.HaltConsumer()
+
+    deferred_consume = threads.deferToThread(
+        api.consume, counting_callback, bindings, queues
+    )
+
+    @pytest_twisted.inlineCallbacks
+    def delayed_publish():
+        """Give the consumer time to setup."""
+        msg = message.Message(
+            topic=u"nice.message",
+            headers={u"niceness": u"very"},
+            body={u"encouragement": u"You're doing great!"},
+        )
+        for _ in range(0, 3):
+            try:
+                yield threads.deferToThread(api.publish, msg, "amq.topic")
+            except exceptions.ConnectionException:
+                pytest.fail("Failed to publish message, is the broker running?")
+
+    reactor.callLater(5, delayed_publish)
+    deferred_consume.addTimeout(30, reactor)
+    try:
+        yield deferred_consume
+        pytest.fail("consume should have raised an exception")
+    except (defer.TimeoutError, defer.CancelledError):
+        pytest.fail("Timeout reached without consumer halting!")
+    except exceptions.HaltConsumer as e:
+        assert 0 == e.exit_code
+
+
+@pytest_twisted.inlineCallbacks
+def test_pub_timeout():
+    """Assert PublishTimeout is raised if a connection just hangs."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("", 0))
+    config.conf["amqp_url"] = "amqp://localhost:{port}/".format(
+        port=sock.getsockname()[1]
+    )
+
+    try:
+        yield threads.deferToThread(api.publish, api.Message(), 5)
+    except Exception as e:
+        if not isinstance(e, exceptions.PublishTimeout):
+            pytest.fail("Expected a timeout exception, not {}".format(e))
+    finally:
+        sock.close()
+
+
+@pytest_twisted.inlineCallbacks
+def test_check_confirms():
+    """Assert confirmations are enabled by default."""
+    serv = service.FedoraMessagingService(amqp_url="amqp://")
+    serv.startService()
+    client = yield serv.getFactory().whenConnected()
+    channel = yield client._allocate_channel()
+    assert channel._delivery_confirmation is True
+    serv.stopService()
+
+
+@pytest_twisted.inlineCallbacks
+def test_basic_pub_sub():
+    """Basic test of the Twisted publishing/subscribing support"""
+    queue = str(uuid.uuid4())
+    queues = [
+        {
+            "queue": queue,
+            "auto_delete": True,
+            "durable": False,
+            "exclusive": False,
+            "arguments": {"x-expires": 60 * 1000},
+        }
+    ]
+    msg = message.Message(
+        topic=u"nice.message",
+        headers={u"niceness": u"very"},
+        body={u"encouragement": u"You're doing great!"},
+    )
+    expected_headers = {
+        u"fedora_messaging_severity": 20,
+        u"fedora_messaging_schema": u"base.message",
+        u"niceness": u"very",
+    }
+    messages_received = []
+    serv = service.FedoraMessagingService(amqp_url="amqp://")
+
+    serv.startService()
+    client = yield serv.getFactory().whenConnected()
+    yield client.declare_queues(queues)
+    yield client.bind_queues(
+        [{"queue": queue, "exchange": "amq.topic", "routing_key": "#"}]
+    )
+
+    def callback(message):
+        messages_received.append(message)
+        if len(messages_received) == 3:
+            raise exceptions.HaltConsumer()
+
+    yield client.consume(callback, queue)
+    for _ in range(0, 3):
+        yield client.publish(msg, "amq.topic")
+    yield task.deferLater(reactor, 3.0, lambda: True)
+    yield serv.stopService()
+
+    assert len(messages_received) == 3
+    for m in messages_received:
+        assert u"nice.message" == m.topic
+        assert {u"encouragement": u"You're doing great!"} == m.body
+        assert "sent-at" in m._headers
+        del m._headers["sent-at"]
+        assert expected_headers == m._headers
+
+
+@pytest_twisted.inlineCallbacks
+def test_unhandled_exception_cancels_consumer():
+    """Assert any unhandled Exception results in the consumer being canceled."""
+    queue = str(uuid.uuid4())
+    queues = [
+        {
+            "queue": queue,
+            "auto_delete": True,
+            "durable": False,
+            "exclusive": False,
+            "arguments": {"x-expires": 60 * 1000},
+        }
+    ]
+    serv = service.FedoraMessagingService(amqp_url="amqp://")
+
+    serv.startService()
+    client = yield serv.getFactory().whenConnected()
+    yield client.declare_queues(queues)
+    yield client.bind_queues(
+        [{"queue": queue, "exchange": "amq.topic", "routing_key": "#"}]
+    )
+
+    def callback(message):
+        raise Exception("Panic!")
+
+    yield client.consume(callback, queue)
+    assert len(client._consumers) == 1
+
+    yield client.publish(message.Message(), "amq.topic")
+    yield task.deferLater(reactor, 3.0, lambda: True)
+    assert len(client._consumers) == 0
+    yield serv.stopService()
+
+
+@pytest_twisted.inlineCallbacks
+def test_nack_handled():
+    """Assert raising Nack in a consumer works and messages are re-delivered"""
+    queue = str(uuid.uuid4())
+    queues = [
+        {
+            "queue": queue,
+            "auto_delete": True,
+            "durable": False,
+            "exclusive": False,
+            "arguments": {"x-expires": 60 * 1000},
+        }
+    ]
+    messages = []
+    serv = service.FedoraMessagingService(amqp_url="amqp://")
+
+    serv.startService()
+    client = yield serv.getFactory().whenConnected()
+    yield client.declare_queues(queues)
+    yield client.bind_queues(
+        [{"queue": queue, "exchange": "amq.topic", "routing_key": "#"}]
+    )
+
+    def callback(message):
+        messages.append(message)
+        if len(messages) < 3:
+            raise exceptions.Nack()
+
+    yield client.consume(callback, queue)
+    assert len(client._consumers) == 1
+
+    yield client.publish(message.Message(), "amq.topic")
+    yield task.deferLater(reactor, 3.0, lambda: True)
+
+    assert len(messages) == 3
+    assert len(set([m.id for m in messages])) == 1
+    assert len(client._consumers) == 1
+
+    yield client.cancel(queue)
+    serv.stopService()
+
+
+@pytest_twisted.inlineCallbacks
+def test_drop_handled():
+    """Assert raising Drop in a consumer works and messages are not re-delivered"""
+    queue = str(uuid.uuid4())
+    messages = []
+    serv = service.FedoraMessagingService(amqp_url="amqp://")
+    serv.startService()
+    client = yield serv.getFactory().whenConnected()
+    queues = [
+        {
+            "queue": queue,
+            "auto_delete": True,
+            "durable": False,
+            "exclusive": False,
+            "arguments": {"x-expires": 60 * 1000},
+        }
+    ]
+    yield client.declare_queues(queues)
+    yield client.bind_queues(
+        [{"queue": queue, "exchange": "amq.topic", "routing_key": "#"}]
+    )
+
+    def callback(message):
+        messages.append(message)
+        raise exceptions.Drop()
+
+    yield client.consume(callback, queue)
+    assert len(client._consumers) == 1
+
+    yield client.publish(message.Message(), "amq.topic")
+    yield task.deferLater(reactor, 3.0, lambda: True)  # Just wait a few seconds
+
+    assert len(messages) == 1
+    assert len(client._consumers) == 1
+    yield client.cancel(queue)
+    yield serv.stopService()
+
+
+@pytest_twisted.inlineCallbacks
+def test_declare_queue_failures():
+    """Assert that if a queue can't be declared, it results in an exception."""
+    serv = service.FedoraMessagingService(amqp_url="amqp://")
+    serv.startService()
+    client = yield serv.getFactory().whenConnected()
+
+    queues = [{"queue": str(uuid.uuid4()), "passive": True}]
+    try:
+        yield client.declare_queues(queues)
+    except exceptions.BadDeclaration as e:
+        assert "queue" == e.obj_type
+        assert queues[0] == e.description
+        assert isinstance(e.reason, pika.exceptions.ChannelClosed)
+    yield serv.stopService()
+
+
+@pytest_twisted.inlineCallbacks
+def test_declare_exchange_failures():
+    """Assert that if an exchange can't be declared, it results in an exception."""
+    serv = service.FedoraMessagingService(amqp_url="amqp://")
+    serv.startService()
+    client = yield serv.getFactory().whenConnected()
+
+    exchanges = [{"exchange": str(uuid.uuid4()), "passive": True}]
+    try:
+        yield client.declare_exchanges(exchanges)
+    except exceptions.BadDeclaration as e:
+        assert "exchange" == e.obj_type
+        assert exchanges[0] == e.description
+        assert isinstance(e.reason, pika.exceptions.ChannelClosed)
+    yield serv.stopService()
+
+
+@pytest_twisted.inlineCallbacks
+def test_declare_binding_failure():
+    """Assert that if a binding can't be declared, it results in an exception."""
+    serv = service.FedoraMessagingService(amqp_url="amqp://")
+    serv.startService()
+    client = yield serv.getFactory().whenConnected()
+
+    binding = [
+        {"exchange": str(uuid.uuid4()), "queue": str(uuid.uuid4()), "routing_key": "#"}
+    ]
+    try:
+        yield client.bind_queues(binding)
+    except exceptions.BadDeclaration as e:
+        assert "binding" == e.obj_type
+        assert binding[0] == e.description
+        assert isinstance(e.reason, pika.exceptions.ChannelClosed)
+    yield serv.stopService()

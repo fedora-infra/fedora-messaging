@@ -26,17 +26,22 @@ See https://twistedmatrix.com/documents/current/core/howto/application.html
 
 from __future__ import absolute_import, unicode_literals
 import locale
+import logging
+import ssl
 import warnings
 
+from pika import SSLOptions
 import pika
 import six
 from twisted.application import service
 from twisted.application.internet import TCPClient, SSLClient
-from twisted.internet import ssl, defer
+from twisted.internet import ssl as twisted_ssl, defer
 
-from .. import config
-from .._session import _configure_tls_parameters
+from .. import config, exceptions
 from .factory import FedoraMessagingFactory, FedoraMessagingFactoryV2
+
+
+_log = logging.getLogger(__name__)
 
 
 class FedoraMessagingService(service.MultiService):
@@ -191,6 +196,54 @@ class FedoraMessagingServiceV2(service.MultiService):
         yield service.MultiService.stopService(self)
 
 
+def _configure_tls_parameters(parameters):
+    """
+    Configure the pika connection parameters for TLS based on the configuration.
+
+    This modifies the object provided to it. This accounts for whether or not
+    the new API based on the standard library's SSLContext is available for
+    pika.
+
+    Args:
+        parameters (pika.ConnectionParameters): The connection parameters to apply
+            TLS connection settings to.
+    """
+    cert = config.conf["tls"]["certfile"]
+    key = config.conf["tls"]["keyfile"]
+    if cert and key:
+        _log.info(
+            "Authenticating with server using x509 (certfile: %s, keyfile: %s)",
+            cert,
+            key,
+        )
+        parameters.credentials = pika.credentials.ExternalCredentials()
+    else:
+        cert, key = None, None
+
+    ssl_context = ssl.create_default_context()
+    if config.conf["tls"]["ca_cert"]:
+        try:
+            ssl_context.load_verify_locations(cafile=config.conf["tls"]["ca_cert"])
+        except ssl.SSLError as e:
+            raise exceptions.ConfigurationException(
+                'The "ca_cert" setting in the "tls" section is invalid ({})'.format(e)
+            )
+    ssl_context.options |= ssl.OP_NO_SSLv2
+    ssl_context.options |= ssl.OP_NO_SSLv3
+    ssl_context.options |= ssl.OP_NO_TLSv1
+    ssl_context.options |= ssl.OP_NO_TLSv1_1
+    ssl_context.verify_mode = ssl.CERT_REQUIRED
+    ssl_context.check_hostname = True
+    if cert and key:
+        try:
+            ssl_context.load_cert_chain(cert, key)
+        except ssl.SSLError as e:
+            raise exceptions.ConfigurationException(
+                'The "keyfile" setting in the "tls" section is invalid ({})'.format(e)
+            )
+    parameters.ssl_options = SSLOptions(ssl_context, server_hostname=parameters.host)
+
+
 def _ssl_context_factory(parameters):
     """
     Produce a Twisted SSL context object from a pika connection parameter object.
@@ -210,7 +263,7 @@ def _ssl_context_factory(parameters):
             # Open it in binary mode since otherwise Twisted will immediately
             # re-encode it as ASCII, which won't work if the cert bundle has
             # comments that can't be encoded with ASCII.
-            ca_cert = ssl.Certificate.loadPEM(fd.read())
+            ca_cert = twisted_ssl.Certificate.loadPEM(fd.read())
     if key and cert:
         # Note that _configure_tls_parameters sets the auth mode to EXTERNAL
         # if both key and cert are defined, so we don't need to do that here.
@@ -218,7 +271,7 @@ def _ssl_context_factory(parameters):
             client_keypair = fd.read()
         with open(cert) as fd:
             client_keypair += fd.read()
-        client_cert = ssl.PrivateCertificate.loadPEM(client_keypair)
+        client_cert = twisted_ssl.PrivateCertificate.loadPEM(client_keypair)
 
     hostname = parameters.host
     if not isinstance(hostname, six.text_type):
@@ -227,18 +280,18 @@ def _ssl_context_factory(parameters):
         # Python 2, die.
         hostname = hostname.decode(locale.getdefaultlocale()[1])
     try:
-        context_factory = ssl.optionsForClientTLS(
+        context_factory = twisted_ssl.optionsForClientTLS(
             hostname,
-            trustRoot=ca_cert or ssl.platformTrust(),
+            trustRoot=ca_cert or twisted_ssl.platformTrust(),
             clientCertificate=client_cert,
-            extraCertificateOptions={"raiseMinimumTo": ssl.TLSVersion.TLSv1_2},
+            extraCertificateOptions={"raiseMinimumTo": twisted_ssl.TLSVersion.TLSv1_2},
         )
     except AttributeError:
         # Twisted 12.2 path for EL7 :(
-        context_factory = ssl.CertificateOptions(
+        context_factory = twisted_ssl.CertificateOptions(
             certificate=client_cert.original,
             privateKey=client_cert.privateKey.original,
-            caCerts=[ca_cert.original] or ssl.platformTrust(),
+            caCerts=[ca_cert.original] or twisted_ssl.platformTrust(),
             verify=True,
             requireCertificate=True,
             verifyOnce=False,

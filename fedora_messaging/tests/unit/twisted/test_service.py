@@ -21,16 +21,19 @@ import unittest
 import os
 
 from twisted.application.internet import TCPClient, SSLClient
-from twisted.internet import ssl
+from twisted.internet import ssl as twisted_ssl
+from pika import URLParameters
 import mock
 import pika
 
-from fedora_messaging import config
+from fedora_messaging import config, exceptions
 from fedora_messaging.twisted.factory import FedoraMessagingFactory
 from fedora_messaging.twisted.service import (
     FedoraMessagingService,
     FedoraMessagingServiceV2,
+    _configure_tls_parameters,
     _ssl_context_factory,
+    SSLOptions,
 )
 from fedora_messaging.tests import FIXTURES_DIR
 
@@ -126,9 +129,59 @@ class ServiceV2Tests(unittest.TestCase):
         self.assertIsNotNone(service._parameters.ssl_options)
 
 
+class ConfigureTlsParameters(unittest.TestCase):
+    """Tests for :func:`fedora_messaging._session._configure_tls_parameters`"""
+
+    def test_key_and_cert(self):
+        """Assert configuring a cert and key results in a TLS connection with new pika versions."""
+        params = URLParameters("amqps://myhost")
+        tls_conf = {
+            "keyfile": os.path.join(FIXTURES_DIR, "key.pem"),
+            "certfile": os.path.join(FIXTURES_DIR, "cert.pem"),
+            "ca_cert": os.path.join(FIXTURES_DIR, "ca_bundle.pem"),
+        }
+
+        with mock.patch.dict(config.conf, {"tls": tls_conf}):
+            _configure_tls_parameters(params)
+
+        self.assertTrue(isinstance(params.ssl_options, SSLOptions))
+
+    def test__invalid_key(self):
+        """Assert a ConfigurationException is raised when the key can't be opened."""
+        params = URLParameters("amqps://myhost")
+        tls_conf = {
+            "keyfile": os.path.join(FIXTURES_DIR, "invalid_key.pem"),
+            "certfile": os.path.join(FIXTURES_DIR, "cert.pem"),
+            "ca_cert": os.path.join(FIXTURES_DIR, "ca_bundle.pem"),
+        }
+
+        with mock.patch.dict(config.conf, {"tls": tls_conf}):
+            self.assertRaises(
+                exceptions.ConfigurationException, _configure_tls_parameters, params
+            )
+
+        self.assertTrue(isinstance(params.ssl_options, SSLOptions))
+
+    def test_invalid_ca_cert(self):
+        """Assert a ConfigurationException is raised when the CA can't be opened."""
+        params = URLParameters("amqps://myhost")
+        tls_conf = {
+            "keyfile": os.path.join(FIXTURES_DIR, "key.pem"),
+            "certfile": os.path.join(FIXTURES_DIR, "cert.pem"),
+            "ca_cert": os.path.join(FIXTURES_DIR, "invalid_ca.pem"),
+        }
+
+        with mock.patch.dict(config.conf, {"tls": tls_conf}):
+            self.assertRaises(
+                exceptions.ConfigurationException, _configure_tls_parameters, params
+            )
+
+        self.assertTrue(isinstance(params.ssl_options, SSLOptions))
+
+
 class SslContextFactoryTests(unittest.TestCase):
-    @mock.patch("fedora_messaging.twisted.service.ssl.Certificate.loadPEM")
-    @mock.patch("fedora_messaging.twisted.service.ssl.optionsForClientTLS")
+    @mock.patch("fedora_messaging.twisted.service.twisted_ssl.Certificate.loadPEM")
+    @mock.patch("fedora_messaging.twisted.service.twisted_ssl.optionsForClientTLS")
     def test_no_key(self, mock_opts, mock_load_pem):
         """Assert if there's no client key, the factory isn't configured to use it."""
         tls_conf = {
@@ -144,12 +197,12 @@ class SslContextFactoryTests(unittest.TestCase):
             "dummy_host",
             trustRoot=mock_load_pem.return_value,
             clientCertificate=None,
-            extraCertificateOptions={"raiseMinimumTo": ssl.TLSVersion.TLSv1_2},
+            extraCertificateOptions={"raiseMinimumTo": twisted_ssl.TLSVersion.TLSv1_2},
         )
         self.assertEqual(factory, mock_opts.return_value)
 
-    @mock.patch("fedora_messaging.twisted.service.ssl.Certificate.loadPEM")
-    @mock.patch("fedora_messaging.twisted.service.ssl.optionsForClientTLS")
+    @mock.patch("fedora_messaging.twisted.service.twisted_ssl.Certificate.loadPEM")
+    @mock.patch("fedora_messaging.twisted.service.twisted_ssl.optionsForClientTLS")
     def test_no_cert(self, mock_opts, mock_load_pem):
         """Assert if there's no client cert, the factory isn't configured to use it."""
         tls_conf = {
@@ -165,13 +218,15 @@ class SslContextFactoryTests(unittest.TestCase):
             "dummy_host",
             trustRoot=mock_load_pem.return_value,
             clientCertificate=None,
-            extraCertificateOptions={"raiseMinimumTo": ssl.TLSVersion.TLSv1_2},
+            extraCertificateOptions={"raiseMinimumTo": twisted_ssl.TLSVersion.TLSv1_2},
         )
         self.assertEqual(factory, mock_opts.return_value)
 
-    @mock.patch("fedora_messaging.twisted.service.ssl.PrivateCertificate.loadPEM")
-    @mock.patch("fedora_messaging.twisted.service.ssl.Certificate.loadPEM")
-    @mock.patch("fedora_messaging.twisted.service.ssl.optionsForClientTLS")
+    @mock.patch(
+        "fedora_messaging.twisted.service.twisted_ssl.PrivateCertificate.loadPEM"
+    )
+    @mock.patch("fedora_messaging.twisted.service.twisted_ssl.Certificate.loadPEM")
+    @mock.patch("fedora_messaging.twisted.service.twisted_ssl.optionsForClientTLS")
     def test_key_and_cert(self, mock_opts, mock_load_pem, mock_priv_load_pem):
         """Assert if there's a client key and cert, the factory has both."""
         tls_conf = {
@@ -187,6 +242,6 @@ class SslContextFactoryTests(unittest.TestCase):
             "dummy_host",
             trustRoot=mock_load_pem.return_value,
             clientCertificate=mock_priv_load_pem.return_value,
-            extraCertificateOptions={"raiseMinimumTo": ssl.TLSVersion.TLSv1_2},
+            extraCertificateOptions={"raiseMinimumTo": twisted_ssl.TLSVersion.TLSv1_2},
         )
         self.assertEqual(factory, mock_opts.return_value)
