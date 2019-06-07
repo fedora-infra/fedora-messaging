@@ -124,6 +124,22 @@ Exceptions
 
 .. _twisted-api:
 
+
+Configuration
+=============
+
+conf
+----
+
+.. autodata:: fedora_messaging.config.conf
+
+
+DEFAULTS
+--------
+
+.. autodata:: fedora_messaging.config.DEFAULTS
+
+
 Twisted
 =======
 

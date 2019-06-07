@@ -290,7 +290,8 @@ _pika_version = pkg_resources.get_distribution("pika").version
 # A default, auto-deleted queue for consumers
 _default_queue_name = str(uuid.uuid4())
 
-#: A dictionary of application configuration defaults.
+#: The default configuration settings for fedora-messaging. This should not be
+#: modified and should be copied with :func:`copy.deepcopy`.
 DEFAULTS = dict(
     amqp_url="amqp://?connection_attempts=3&retry_delay=5",
     #: The default client properties reported to the AMQP broker in the "start-ok"
@@ -530,5 +531,5 @@ class LazyConfig(dict):
         return self
 
 
-#: The application configuration dictionary.
+#: The configuration dictionary used by fedora-messaging and consumers.
 conf = LazyConfig()
