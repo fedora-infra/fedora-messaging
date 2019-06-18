@@ -23,8 +23,6 @@ import ssl
 
 from pika import exceptions as pika_errs, SSLOptions
 import pika
-import pkg_resources
-
 
 from . import config
 from .message import get_message
@@ -39,13 +37,6 @@ from .exceptions import (
 )
 
 _log = logging.getLogger(__name__)
-
-# pika introduces the SSLOptions object in 0.12, but it doesn't have the
-# same API that 1.0.0 has. Additionally, the connection parameters still expect
-# the old dictionary, so mark SSLOptions as None if this is 0.x
-_pika_version = pkg_resources.get_distribution("pika").parsed_version
-if _pika_version < pkg_resources.parse_version("1.0.0b1"):
-    SSLOptions = None  # noqa: F811
 
 
 def _configure_tls_parameters(parameters):
@@ -72,44 +63,28 @@ def _configure_tls_parameters(parameters):
     else:
         cert, key = None, None
 
-    if SSLOptions is None:
-        parameters.ssl = True
-        parameters.ssl_options = {
-            "keyfile": key,
-            "certfile": cert,
-            "ca_certs": config.conf["tls"]["ca_cert"],
-            "cert_reqs": ssl.CERT_REQUIRED,
-            "ssl_version": ssl.PROTOCOL_TLSv1_2,
-        }
-    else:
-        ssl_context = ssl.create_default_context()
-        if config.conf["tls"]["ca_cert"]:
-            try:
-                ssl_context.load_verify_locations(cafile=config.conf["tls"]["ca_cert"])
-            except ssl.SSLError as e:
-                raise ConfigurationException(
-                    'The "ca_cert" setting in the "tls" section is invalid ({})'.format(
-                        e
-                    )
-                )
-        ssl_context.options |= ssl.OP_NO_SSLv2
-        ssl_context.options |= ssl.OP_NO_SSLv3
-        ssl_context.options |= ssl.OP_NO_TLSv1
-        ssl_context.options |= ssl.OP_NO_TLSv1_1
-        ssl_context.verify_mode = ssl.CERT_REQUIRED
-        ssl_context.check_hostname = True
-        if cert and key:
-            try:
-                ssl_context.load_cert_chain(cert, key)
-            except ssl.SSLError as e:
-                raise ConfigurationException(
-                    'The "keyfile" setting in the "tls" section is invalid ({})'.format(
-                        e
-                    )
-                )
-        parameters.ssl_options = SSLOptions(
-            ssl_context, server_hostname=parameters.host
-        )
+    ssl_context = ssl.create_default_context()
+    if config.conf["tls"]["ca_cert"]:
+        try:
+            ssl_context.load_verify_locations(cafile=config.conf["tls"]["ca_cert"])
+        except ssl.SSLError as e:
+            raise ConfigurationException(
+                'The "ca_cert" setting in the "tls" section is invalid ({})'.format(e)
+            )
+    ssl_context.options |= ssl.OP_NO_SSLv2
+    ssl_context.options |= ssl.OP_NO_SSLv3
+    ssl_context.options |= ssl.OP_NO_TLSv1
+    ssl_context.options |= ssl.OP_NO_TLSv1_1
+    ssl_context.verify_mode = ssl.CERT_REQUIRED
+    ssl_context.check_hostname = True
+    if cert and key:
+        try:
+            ssl_context.load_cert_chain(cert, key)
+        except ssl.SSLError as e:
+            raise ConfigurationException(
+                'The "keyfile" setting in the "tls" section is invalid ({})'.format(e)
+            )
+    parameters.ssl_options = SSLOptions(ssl_context, server_hostname=parameters.host)
 
 
 class PublisherSession(object):
@@ -183,11 +158,7 @@ class PublisherSession(object):
             if self._confirms:
                 self._channel.confirm_delivery()
 
-        if _pika_version < pkg_resources.parse_version("1.0.0b1"):
-            method = self._channel.publish
-        else:
-            method = self._channel.basic_publish
-        method(
+        self._channel.basic_publish(
             exchange=exchange,
             routing_key=message._encoded_routing_key,
             body=message._encoded_body,
@@ -411,12 +382,9 @@ class ConsumerSession(object):
                         exchange=binding["exchange"],
                         routing_key=key,
                     )
-                bc_args = dict(queue=frame.method.queue)
-                if _pika_version < pkg_resources.parse_version("1.0.0b1"):
-                    bc_args["consumer_callback"] = self._on_message
-                else:
-                    bc_args["on_message_callback"] = self._on_message
-                tag = self._channel.basic_consume(**bc_args)
+                tag = self._channel.basic_consume(
+                    queue=frame.method.queue, on_message_callback=self._on_message
+                )
                 self._consumers[tag] = binding["queue"]
 
     def _on_cancel(self, cancel_frame):

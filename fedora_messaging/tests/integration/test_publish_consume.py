@@ -11,13 +11,10 @@ import socket
 from twisted.internet import reactor, task
 import mock
 import pika
-import pkg_resources
-import pytest
 import pytest_twisted
 
 from fedora_messaging import api, message, exceptions
 from fedora_messaging.twisted import service
-from fedora_messaging.twisted.protocol import _pika_version
 
 
 class PubSubTests(unittest.TestCase):
@@ -71,10 +68,6 @@ class PubSubTests(unittest.TestCase):
         self.assertRaises(exceptions.ConnectionException, api.publish, api.Message())
 
 
-@pytest.mark.skipif(
-    _pika_version < pkg_resources.parse_version("1.0.0b1"),
-    reason="Twisted with confirms only supported on pika-1.0.0b1+",
-)
 @pytest_twisted.inlineCallbacks
 def test_check_confirms():
     """Assert confirmations are enabled by default."""

@@ -30,38 +30,26 @@ env:
 matrix:
   include:
     - python: "2.7"
-      env: TOXENV=py27-pika1-unittest
+      env: TOXENV=py27-unittest
     - python: "3.6"
-      env: TOXENV=py36-pika1-unittest
+      env: TOXENV=py36-unittest
     - python: "3.7"
-      env: TOXENV=py37-pika1-unittest
+      env: TOXENV=py37-unittest
       dist: xenial
       sudo: required  # Force Travis to use a Ubuntu 16.04 VM that can run 3.7
     - python: "2.7"
-      env: TOXENV=py27-pika0x-unittest
+      env: TOXENV=py27-integration
+      sudo: required
+      services:
+        - rabbitmq
     - python: "3.6"
-      env: TOXENV=py36-pika0x-unittest
+      env: TOXENV=py36-integration
+      sudo: required
+      services:
+        - rabbitmq
     - python: "3.7"
-      env: TOXENV=py37-pika0x-unittest
+      env: TOXENV=py37-integration
       dist: xenial
-      sudo: required  # Force Travis to use a Ubuntu 16.04 VM that can run 3.7
-    - python: "2.7"
-      env: TOXENV=py27-pika1-integration
-      sudo: required
-      services:
-        - rabbitmq
-    - python: "3.6"
-      env: TOXENV=py36-pika1-integration
-      sudo: required
-      services:
-        - rabbitmq
-    - python: "2.7"
-      env: TOXENV=py27-pika0x-integration
-      sudo: required
-      services:
-        - rabbitmq
-    - python: "3.6"
-      env: TOXENV=py36-pika0x-integration
       sudo: required
       services:
         - rabbitmq

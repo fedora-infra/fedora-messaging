@@ -37,8 +37,8 @@ import warnings
 import logging
 
 import pika
-import pkg_resources
 from pika.adapters.twisted_connection import TwistedProtocolConnection
+from pika.exceptions import ChannelClosedByClient
 from twisted.internet import defer, error, threads, reactor
 from twisted.python import log as _legacy_twisted_log
 from twisted.python.failure import Failure
@@ -61,12 +61,6 @@ from ..exceptions import (
 
 
 _std_log = logging.getLogger(__name__)
-
-_pika_version = pkg_resources.get_distribution("pika").parsed_version
-if _pika_version < pkg_resources.parse_version("1.0.0b1"):
-    ChannelClosedByClient = pika.exceptions.ChannelClosed
-else:
-    ChannelClosedByClient = pika.exceptions.ChannelClosedByClient
 
 
 def _add_timeout(deferred, timeout):
@@ -118,9 +112,6 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
 
     def __init__(self, parameters, confirms=True):
         TwistedProtocolConnection.__init__(self, parameters)
-        if confirms and _pika_version < pkg_resources.parse_version("1.0.0b1"):
-            _std_log.error("Message confirmation is only available with pika 1.0.0+")
-            confirms = False
         self._confirms = confirms
         self._channel = None
         # Map queue names to fedora_messaging.twisted.consumer.Consumer objects
@@ -156,17 +147,11 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
                 versions lower than 1.0.0.
         """
         self._channel = yield self._allocate_channel()
-        if _pika_version < pkg_resources.parse_version("1.0.0b1"):
-            extra_args = dict(all_channels=True)
-        else:
-            extra_args = dict(global_qos=True)
         yield self._channel.basic_qos(
             prefetch_count=config.conf["qos"]["prefetch_count"],
             prefetch_size=config.conf["qos"]["prefetch_size"],
-            **extra_args
+            global_qos=True,
         )
-        if _pika_version < pkg_resources.parse_version("1.0.0b1"):
-            TwistedProtocolConnection.connectionReady(self, res)
 
     @defer.inlineCallbacks
     def _read(self, queue_object, consumer):

@@ -19,12 +19,10 @@
 from __future__ import absolute_import, unicode_literals
 
 import os
-import ssl
 import unittest
 import signal
 
 import mock
-import pkg_resources
 from pika import exceptions as pika_errs, URLParameters, credentials
 from jsonschema.exceptions import ValidationError as JSONValidationError
 
@@ -45,10 +43,7 @@ class PublisherSessionTests(unittest.TestCase):
         self.publisher = _session.PublisherSession()
         self.publisher._connection = mock.Mock()
         self.publisher._channel = mock.Mock()
-        if _session._pika_version < pkg_resources.parse_version("1.0.0b1"):
-            self.publisher_channel_publish = self.publisher._channel.publish
-        else:
-            self.publisher_channel_publish = self.publisher._channel.basic_publish
+        self.publisher_channel_publish = self.publisher._channel.basic_publish
         self.message = mock.Mock()
         self.message._headers = {}
         self.message.topic = "test.topic"
@@ -142,10 +137,7 @@ class PublisherSessionTests(unittest.TestCase):
         ):
             self.publisher.publish(self.message)
         self.message.validate.assert_called_once()
-        if _session._pika_version < pkg_resources.parse_version("1.0.0b1"):
-            publish_mock_method = self.publisher._channel.publish
-        else:
-            publish_mock_method = self.publisher._channel.basic_publish
+        publish_mock_method = self.publisher._channel.basic_publish
         publish_mock_method.assert_called_once()
         self.publisher._channel.confirm_delivery.assert_not_called()
         publish_call = publish_mock_method.call_args_list[0][1]
@@ -189,10 +181,7 @@ class PublisherSessionTests(unittest.TestCase):
             self.publisher._connect_and_publish(None, self.message)
         connection_class_mock.assert_called_with(self.publisher._parameters)
         channel_mock.confirm_delivery.assert_called_once()
-        if _session._pika_version < pkg_resources.parse_version("1.0.0b1"):
-            publish_mock_method = channel_mock.publish
-        else:
-            publish_mock_method = channel_mock.basic_publish
+        publish_mock_method = channel_mock.basic_publish
         publish_mock_method.assert_called_with(
             exchange=None,
             routing_key=b"test.topic",
@@ -219,10 +208,7 @@ class PublisherSessionTests(unittest.TestCase):
         channel_mock.confirm_delivery.assert_called_once()
         self.assertEqual(self.publisher._connection, connection_mock)
         self.assertEqual(self.publisher._channel, channel_mock)
-        if _session._pika_version < pkg_resources.parse_version("1.0.0b1"):
-            publish_mock_method = channel_mock.publish
-        else:
-            publish_mock_method = channel_mock.basic_publish
+        publish_mock_method = channel_mock.basic_publish
         publish_mock_method.assert_called_once()
 
     def test_publish_generic_channel_error(self):
@@ -240,10 +226,7 @@ class PublisherSessionTests(unittest.TestCase):
         ):
             self.publisher.publish(self.message)
         # Check that the connection was reestablished
-        if _session._pika_version < pkg_resources.parse_version("1.0.0b1"):
-            publish_mock_method = channel_mock.publish
-        else:
-            publish_mock_method = channel_mock.basic_publish
+        publish_mock_method = channel_mock.basic_publish
         publish_mock_method.assert_called_once()
 
     def test_publish_reconnect_failed_generic_error(self):
@@ -498,14 +481,9 @@ class ConsumerSessionTests(unittest.TestCase):
             routing_key="testrk",
             callback=None,
         )
-        if _session._pika_version < pkg_resources.parse_version("1.0.0b1"):
-            self.consumer._channel.basic_consume.assert_called_with(
-                consumer_callback=self.consumer._on_message, queue="testqueue"
-            )
-        else:
-            self.consumer._channel.basic_consume.assert_called_with(
-                on_message_callback=self.consumer._on_message, queue="testqueue"
-            )
+        self.consumer._channel.basic_consume.assert_called_with(
+            on_message_callback=self.consumer._on_message, queue="testqueue"
+        )
 
     def test_declare_passive(self):
         # Test that the exchanges, queues and bindings are passively declared
@@ -978,76 +956,8 @@ class ConsumerSessionMessageTests(unittest.TestCase):
 class ConfigureTlsParameters(unittest.TestCase):
     """Tests for :func:`fedora_messaging._session._configure_tls_parameters`"""
 
-    @unittest.skipIf(_session.SSLOptions is not None, "Pika supports SSLContext")
-    def test_old_pika_approach(self):
-        """Assert if pika is pre-1.0.0, the TLS settings are applied."""
-        params = URLParameters("amqps://")
-        tls_conf = {
-            "keyfile": "key.pem",
-            "certfile": "cert.pem",
-            "ca_cert": "custom_ca_bundle.pem",
-        }
-        expected_options = {
-            "keyfile": "key.pem",
-            "certfile": "cert.pem",
-            "ca_certs": "custom_ca_bundle.pem",
-            "cert_reqs": ssl.CERT_REQUIRED,
-            "ssl_version": ssl.PROTOCOL_TLSv1_2,
-        }
-
-        with mock.patch.dict(config.conf, {"tls": tls_conf}):
-            _session._configure_tls_parameters(params)
-
-        self.assertTrue(params.ssl)
-        self.assertEqual(params.ssl_options, expected_options)
-
-    @unittest.skipIf(_session.SSLOptions is not None, "Pika supports SSLContext")
-    def test_old_pika_approach_no_key(self):
-        """Assert if no key is provided, no cert is passed to pika either."""
-        params = URLParameters("amqps://")
-        tls_conf = {
-            "keyfile": None,
-            "certfile": "cert.pem",
-            "ca_cert": "custom_ca_bundle.pem",
-        }
-        expected_options = {
-            "keyfile": None,
-            "certfile": None,
-            "ca_certs": "custom_ca_bundle.pem",
-            "cert_reqs": ssl.CERT_REQUIRED,
-            "ssl_version": ssl.PROTOCOL_TLSv1_2,
-        }
-
-        with mock.patch.dict(config.conf, {"tls": tls_conf}):
-            _session._configure_tls_parameters(params)
-
-        self.assertTrue(params.ssl)
-        self.assertEqual(params.ssl_options, expected_options)
-
-    @unittest.skipIf(_session.SSLOptions is not None, "Pika supports SSLContext")
-    def test_old_pika_approach_no_cert(self):
-        """Assert if no cert is provided, no key is passed to pika either."""
-        params = URLParameters("amqps://")
-        tls_conf = {"keyfile": "key.pem", "certfile": None, "ca_cert": "ca_bundle.pem"}
-        expected_options = {
-            "keyfile": None,
-            "certfile": None,
-            "ca_certs": "ca_bundle.pem",
-            "cert_reqs": ssl.CERT_REQUIRED,
-            "ssl_version": ssl.PROTOCOL_TLSv1_2,
-        }
-
-        with mock.patch.dict(config.conf, {"tls": tls_conf}):
-            _session._configure_tls_parameters(params)
-
-        self.assertTrue(params.ssl)
-        self.assertEqual(params.ssl_options, expected_options)
-
-    @unittest.skipIf(
-        _session.SSLOptions is None, "Pika version does not support SSLContext"
-    )
-    def test_new_pika(self):
-        """Assert configuring a cert and key results in a TLS connection with new pika versions."""
+    def test_cert_and_key(self):
+        """Assert configuring a cert and key results in a TLS connection."""
         params = URLParameters("amqps://myhost")
         tls_conf = {
             "keyfile": os.path.join(FIXTURES_DIR, "key.pem"),
@@ -1060,10 +970,7 @@ class ConfigureTlsParameters(unittest.TestCase):
 
         self.assertTrue(isinstance(params.ssl_options, _session.SSLOptions))
 
-    @unittest.skipIf(
-        _session.SSLOptions is None, "Pika version does not support SSLContext"
-    )
-    def test_new_pika_invalid_key(self):
+    def test_invalid_key(self):
         """Assert a ConfigurationException is raised when the key can't be opened."""
         params = URLParameters("amqps://myhost")
         tls_conf = {
@@ -1079,10 +986,7 @@ class ConfigureTlsParameters(unittest.TestCase):
 
         self.assertTrue(isinstance(params.ssl_options, _session.SSLOptions))
 
-    @unittest.skipIf(
-        _session.SSLOptions is None, "Pika version does not support SSLContext"
-    )
-    def test_new_pika_invalid_ca_cert(self):
+    def test_invalid_ca_cert(self):
         """Assert a ConfigurationException is raised when the CA can't be opened."""
         params = URLParameters("amqps://myhost")
         tls_conf = {
