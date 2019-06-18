@@ -30,7 +30,7 @@ Guidelines
 
 Python Support
 --------------
-fedora-messaging supports Python 2.7 and Python 3.4 or greater. This is
+fedora-messaging supports Python 2.7 and Python 3.6 or greater. This is
 automatically enforced by the continuous integration (CI) suite.
 
 
