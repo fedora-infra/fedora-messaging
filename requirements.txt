@@ -5,6 +5,6 @@ toml
 Twisted
 pytz
 PyOpenSSL
-pika>=0.12
+pika>=1.0.1
 six
 service_identity

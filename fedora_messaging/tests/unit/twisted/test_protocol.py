@@ -22,7 +22,6 @@ import unittest
 
 import mock
 import pika
-import pkg_resources
 import pytest
 from twisted.internet import defer, error
 
@@ -38,7 +37,6 @@ from fedora_messaging.exceptions import (
 from fedora_messaging.twisted.protocol import (
     FedoraMessagingProtocol,
     FedoraMessagingProtocolV2,
-    _pika_version,
     Consumer,
 )
 
@@ -214,23 +212,16 @@ class ProtocolTests(unittest.TestCase):
     def test_connection_ready(self):
         # Check the ready Deferred.
         def _check(_):
-            expected_args = dict(
+            self.protocol._channel.basic_qos.assert_called_with(
                 prefetch_count=config.conf["qos"]["prefetch_count"],
                 prefetch_size=config.conf["qos"]["prefetch_size"],
+                global_qos=True,
             )
-            if _pika_version < pkg_resources.parse_version("1.0.0b1"):
-                expected_args["all_channels"] = True
-            else:
-                expected_args["global_qos"] = True
-            self.protocol._channel.basic_qos.assert_called_with(**expected_args)
 
         d = self.protocol.ready
         d.addCallback(_check)
 
-        if _pika_version < pkg_resources.parse_version("1.0.0b1"):
-            self.protocol.connectionReady(None)
-        else:
-            self.protocol._on_connection_ready(None)
+        self.protocol._on_connection_ready(None)
 
         return pytest_twisted.blockon(d)
 
@@ -414,9 +405,8 @@ class ProtocolReadTests(unittest.TestCase):
             pika.exceptions.ChannelClosed(42, "testing"),
             pika.exceptions.ConsumerCancelled(),
             RuntimeError(),
+            pika.exceptions.ChannelClosedByClient(42, "testing"),
         ]
-        if _pika_version >= pkg_resources.parse_version("1.0.0b1"):
-            exceptions.append(pika.exceptions.ChannelClosedByClient(42, "testing"))
 
         deferreds = []
         for exc in exceptions:
@@ -551,10 +541,6 @@ class ProtocolOnMessageTests(unittest.TestCase):
 class ProtocolV2Tests(unittest.TestCase):
     """Unit tests for the ProtocolV2 class."""
 
-    @pytest.mark.skipif(
-        _pika_version < pkg_resources.parse_version("1.0.1"),
-        reason="Pika-1.0.1+ raises its permission exception on consume",
-    )
     def test_consume_connection_exception(self):
         """If consuming fails due to a non-permission error, a ConnectionException happens."""
         proto = FedoraMessagingProtocolV2(None)
