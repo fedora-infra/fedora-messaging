@@ -38,6 +38,7 @@ from fedora_messaging.twisted.protocol import (
     FedoraMessagingProtocol,
     FedoraMessagingProtocolV2,
     Consumer,
+    _add_timeout,
 )
 
 
@@ -557,3 +558,31 @@ class ProtocolV2Tests(unittest.TestCase):
         d = proto.consume(lambda x: x, "test_queue")
         d.addBoth(check)
         return pytest_twisted.blockon(d)
+
+
+class AddTimeoutTests(unittest.TestCase):
+    """Unit tests for the _add_timeout helper function."""
+
+    def test_twisted12_timeout(self):
+        """Assert timeouts work for Twisted 12.2 (EL7)"""
+        d = defer.Deferred()
+        d.addTimeout = mock.Mock(side_effect=AttributeError())
+        _add_timeout(d, 0.1)
+
+        d.addCallback(self.fail, "Expected errback to be called")
+        d.addErrback(
+            lambda failure: self.assertIsInstance(failure.value, defer.CancelledError)
+        )
+
+        return pytest_twisted.blockon(d)
+
+    def test_twisted12_cancel_cancel_callback(self):
+        """Assert canceling the cancel call for Twisted 12.2 (EL7) works."""
+        d = defer.Deferred()
+        d.addTimeout = mock.Mock(side_effect=AttributeError())
+        d.cancel = mock.Mock()
+        with mock.patch("fedora_messaging.twisted.protocol.reactor") as mock_reactor:
+            _add_timeout(d, 1)
+            delayed_cancel = mock_reactor.callLater.return_value
+            d.callback(None)
+            delayed_cancel.cancel.assert_called_once_with()
