@@ -378,7 +378,6 @@ class ConsumerSessionTests(unittest.TestCase):
             self.consumer.consume(callback)
             self.assertEqual(self.consumer._bindings, config.conf["bindings"])
             self.assertEqual(self.consumer._queues, config.conf["queues"])
-            self.assertEqual(self.consumer._exchanges, config.conf["exchanges"])
             # Configuration overrides
             test_value = [{"test": "test"}]
             self.consumer.consume(
@@ -386,7 +385,6 @@ class ConsumerSessionTests(unittest.TestCase):
             )
             self.assertEqual(self.consumer._bindings, test_value)
             self.assertEqual(self.consumer._queues, test_value)
-            self.assertEqual(self.consumer._exchanges, test_value)
 
     def test_consume_uncallable_callback(self):
         """Test the consume function with not callable callback."""
@@ -431,7 +429,6 @@ class ConsumerSessionTests(unittest.TestCase):
             self.consumer.consume(callback)
             self.assertEqual(self.consumer._bindings, config.conf["bindings"])
             self.assertEqual(self.consumer._queues, config.conf["queues"])
-            self.assertEqual(self.consumer._exchanges, config.conf["exchanges"])
             # Configuration overrides
             test_value = [{"test": "test"}]
             self.consumer.consume(
@@ -439,20 +436,11 @@ class ConsumerSessionTests(unittest.TestCase):
             )
             self.assertEqual(self.consumer._bindings, test_value)
             self.assertEqual(self.consumer._queues, test_value)
-            self.assertEqual(self.consumer._exchanges, test_value)
 
     def test_declare(self):
         # Test that the exchanges, queues and bindings are properly
         # declared.
         self.consumer._channel = mock.Mock()
-        self.consumer._exchanges = {
-            "testexchange": {
-                "type": "type",
-                "durable": "durable",
-                "auto_delete": "auto_delete",
-                "arguments": "arguments",
-            }
-        }
         self.consumer._queues = {
             "testqueue": {
                 "durable": "durable",
@@ -470,15 +458,6 @@ class ConsumerSessionTests(unittest.TestCase):
         ]
         # Declare exchanges and queues
         self.consumer._on_qosok(None)
-        self.consumer._channel.exchange_declare.assert_called_with(
-            exchange="testexchange",
-            exchange_type="type",
-            durable="durable",
-            auto_delete="auto_delete",
-            arguments="arguments",
-            passive=False,
-            callback=self.consumer._on_exchange_declareok,
-        )
         self.consumer._channel.queue_declare.assert_called_with(
             queue="testqueue",
             durable="durable",
@@ -511,14 +490,6 @@ class ConsumerSessionTests(unittest.TestCase):
         # Test that the exchanges, queues and bindings are passively declared
         # if configured so.
         self.consumer._channel = mock.Mock()
-        self.consumer._exchanges = {
-            "testexchange": {
-                "type": "type",
-                "durable": "durable",
-                "auto_delete": "auto_delete",
-                "arguments": "arguments",
-            }
-        }
         self.consumer._queues = {
             "testqueue": {
                 "durable": "durable",
@@ -530,8 +501,6 @@ class ConsumerSessionTests(unittest.TestCase):
         with mock.patch.dict(config.conf, {"passive_declares": True}):
             # Declare exchanges and queues
             self.consumer._on_qosok(None)
-            call_args = self.consumer._channel.exchange_declare.call_args_list[-1][1]
-            assert call_args.get("passive") is True
             call_args = self.consumer._channel.queue_declare.call_args_list[-1][1]
             assert call_args.get("passive") is True
 
@@ -607,12 +576,6 @@ class ConsumerSessionTests(unittest.TestCase):
         with mock.patch("fedora_messaging._session._log") as mock_log:
             self.consumer._on_cancel("cancel_frame")
         mock_log.info.assert_called_once_with("Server canceled consumer")
-
-    def test_on_exchange_declareok(self):
-        """Assert proper information is logged on callback _on_exchange_declareok call."""
-        with mock.patch("fedora_messaging._session._log") as mock_log:
-            self.consumer._on_exchange_declareok("declare_frame")
-        mock_log.info.assert_called_once_with("Exchange declared successfully")
 
     def test_connection_error_with_string_as_error(self):
         """Assert callback is called on connection error."""

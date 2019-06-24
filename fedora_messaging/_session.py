@@ -269,16 +269,6 @@ class ConsumerSession(object):
         Args:
             qosok_frame (pika.spec.Basic.Qos): The frame send from the server.
         """
-        for name, args in self._exchanges.items():
-            self._channel.exchange_declare(
-                exchange=name,
-                exchange_type=args["type"],
-                durable=args["durable"],
-                auto_delete=args["auto_delete"],
-                arguments=args["arguments"],
-                passive=config.conf["passive_declares"],
-                callback=self._on_exchange_declareok,
-            )
         for name, args in self._queues.items():
             self._channel.queue_declare(
                 queue=name,
@@ -374,19 +364,6 @@ class ConsumerSession(object):
             error_message = repr(error_message.args[0])
         _log.error(error_message)
         self.call_later(1, self.reconnect)  # TODO: exponential backoff?
-
-    def _on_exchange_declareok(self, declare_frame):
-        """
-        Callback invoked when an exchange is successfully declared.
-
-        It will declare the queues in the bindings dictionary with the
-        :meth:`_on_queue_declareok` callback.
-
-        Args:
-            frame (pika.spec.Exchange.DeclareOk): The DeclareOk frame from the
-                server.
-        """
-        _log.info("Exchange declared successfully")
 
     def _on_queue_declareok(self, frame):
         """
@@ -494,7 +471,6 @@ class ConsumerSession(object):
         """
         self._bindings = bindings or config.conf["bindings"]
         self._queues = queues or config.conf["queues"]
-        self._exchanges = exchanges or config.conf["exchanges"]
 
         # If the callback is a class, create an instance of it first
         if inspect.isclass(callback):
