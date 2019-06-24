@@ -24,7 +24,12 @@ the queue. All you need to do is to implement some code to run when a message
 is received. The API expects a callable object that accepts a single positional
 argument::
 
-    from fedora_messaging import api
+    from fedora_messaging import api, config
+
+    # The fedora_messaging API does not automatically configure logging so as
+    # to not destroy application logging setup. This is a convenience method
+    # to configure the Python logger with the fedora-messaging logging config.
+    config.conf.setup_logging()
 
     # First, define a function to be used as our callback. This will be called
     # whenever a message is received from the server.

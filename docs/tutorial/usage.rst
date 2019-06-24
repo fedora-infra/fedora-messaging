@@ -96,6 +96,8 @@ Now create the following script, called ``consume.py``::
     from fedora_messaging.api import consume
     from fedora_messaging.config import conf
 
+    conf.setup_logging()
+
     def print_message(message):
         print(message)
 
