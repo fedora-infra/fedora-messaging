@@ -4,6 +4,47 @@ Release Notes
 
 .. towncrier release notes start
 
+v1.7.1 (2019-06-24)
+===================
+
+Bug Fixes
+---------
+
+* Don't declare exchanges when consuming using the synchronous
+  :func:`fedora_messaging.api.consume` API, which was causing consuming to fail
+  from the Fedora broker
+  (`PR#191 <https://github.com/fedora-infra/fedora-messaging/pull/191>`_)
+
+Contributors
+------------
+Many thanks to the contributors of bug reports, pull requests, and pull request
+reviews for this release:
+
+* Randy Barlow
+* Aurélien Bompard
+* Jeremy Cline
+* Adam Williamson
+
+
+Documentation Improvements
+--------------------------
+
+* Document some additional app properties and add a note about setting up logging
+  in the fedora.toml and stg.fedora.toml configuration files
+  (`PR#188 <https://github.com/fedora-infra/fedora-messaging/pull/188>`_)
+
+* Document how to setup logging in the consuming snippets so any problems are
+  logged to stdout
+  (`PR#192 <https://github.com/fedora-infra/fedora-messaging/pull/192>`_)
+
+* Document that logging is only set up for consumers
+  (`#181 <https://github.com/fedora-infra/fedora-messaging/issues/181>`_)
+
+* Document the :data:`fedora_messaging.config.conf` and
+  :data:`fedora_messaging.config.DEFAULTS` variables in the API documentation
+  (`#182 <https://github.com/fedora-infra/fedora-messaging/issues/182>`_)
+
+
 v1.7.0 (2019-05-21)
 ===================
 
