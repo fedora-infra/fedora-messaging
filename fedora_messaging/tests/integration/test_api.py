@@ -627,6 +627,52 @@ def test_twisted_consume_update_callback(queue_and_binding):
 
 
 @pytest_twisted.inlineCallbacks
+def test_publish_channel_error(queue_and_binding):
+    """Assert publishing recovers from a channel error."""
+    queues, bindings = queue_and_binding
+
+    def counting_callback(message, storage=defaultdict(int)):
+        storage[message.topic] += 1
+        if storage[message.topic] == 2:
+            raise exceptions.HaltConsumer()
+
+    @pytest_twisted.inlineCallbacks
+    def delayed_publish():
+        """Publish, break the channel, and publish again."""
+        yield threads.deferToThread(api.publish, message.Message(), "amq.topic")
+        protocol = yield api._twisted_service._service.factory.when_connected()
+        yield protocol._publish_channel.close()
+        yield threads.deferToThread(api.publish, message.Message(), "amq.topic")
+
+    reactor.callLater(5, delayed_publish)
+
+    deferred_consume = threads.deferToThread(
+        api.consume, counting_callback, bindings, queues
+    )
+    deferred_consume.addTimeout(30, reactor)
+    try:
+        yield deferred_consume
+        pytest.fail("consume should have raised an exception")
+    except (defer.TimeoutError, defer.CancelledError):
+        pytest.fail("Consumer did not receive both messages")
+    except exceptions.HaltConsumer as e:
+        assert 0 == e.exit_code
+
+
+@pytest_twisted.inlineCallbacks
+def test_protocol_publish_connection_error(queue_and_binding):
+    """Assert individual protocols raise connection exceptions if closed."""
+    api._init_twisted_service()
+    protocol = yield api._twisted_service._service.factory.when_connected()
+    yield protocol.close()
+    try:
+        yield protocol.publish(message.Message(), "amq.topic")
+        pytest.fail("Expected a ConnectionException")
+    except exceptions.ConnectionException:
+        pass
+
+
+@pytest_twisted.inlineCallbacks
 def test_pub_sub_default_settings(queue_and_binding):
     """
     Assert publishing and subscribing works with the default configuration.

@@ -126,11 +126,14 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
 
         Raises:
             NoFreeChannels: If this connection has reached its maximum number of channels.
+            ConncetionException: If this connection is already closed.
         """
         try:
             channel = yield self.channel()
         except pika.exceptions.NoFreeChannels:
             raise NoFreeChannels()
+        except pika.exceptions.ConnectionWrongStateError as e:
+            raise ConnectionException(reason=e)
         _std_log.debug("Created AMQP channel id %d", channel.channel_number)
         if self._confirms:
             yield channel.confirm_delivery()
@@ -297,7 +300,7 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         except (pika.exceptions.NackError, pika.exceptions.UnroutableError) as e:
             _std_log.error("Message was rejected by the broker (%s)", str(e))
             raise PublishReturned(reason=e)
-        except pika.exceptions.ChannelClosed:
+        except (pika.exceptions.ChannelClosed, pika.exceptions.ChannelWrongStateError):
             self._publish_channel = None
             yield self.publish(message, exchange)
         except (
