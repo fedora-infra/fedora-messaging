@@ -17,12 +17,18 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """Tests for the :module:`fedora_messaging.api` module."""
+from __future__ import absolute_import
 
 import unittest
 import mock
 
+from twisted.internet import threads, defer
+import pytest
+import pytest_twisted
+
 from fedora_messaging import api, config
 from fedora_messaging.exceptions import PublishException
+from fedora_messaging.twisted import consumer, protocol
 from fedora_messaging.signals import (
     pre_publish_signal,
     publish_signal,
@@ -326,3 +332,30 @@ class PublishTests(unittest.TestCase):
         self.assertEqual(
             self.publish_failed_signal_data, expected_publish_failed_signal_data
         )
+
+
+@pytest_twisted.inlineCallbacks
+def test_consume_unexpected_crash():
+    """Assert unexpected exceptions raised inside the Twisted thread are raised."""
+    try:
+        with mock.patch("fedora_messaging.api._check_callback") as mock_check:
+            mock_check.side_effect = RuntimeError("Beep boop you messed up")
+            yield threads.deferToThread(api.consume, None)
+        pytest.fail("Expected a RuntimeException to be raised")
+    except RuntimeError as e:
+        assert e.args[0] == "Beep boop you messed up"
+
+
+@pytest_twisted.inlineCallbacks
+def test_consume_successful_halt():
+    """Assert consume halts when all consumer.result deferreds have succeeded."""
+    consumers = [consumer.Consumer()]
+    consumers[0].result = defer.succeed(None)
+    try:
+        with mock.patch("fedora_messaging.api.twisted_consume") as mock_consume:
+            mock_consume.return_value = defer.succeed(consumers)
+            d = threads.deferToThread(api.consume, None)
+            protocol._add_timeout(d, 0.1)
+            yield d
+    except (defer.TimeoutError, defer.CancelledError):
+        pytest.fail("Expected the consume call to immediately finish, not time out")
