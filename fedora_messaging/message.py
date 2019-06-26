@@ -216,114 +216,6 @@ def get_message(routing_key, properties, body):
     return message
 
 
-def dumps(messages):
-    """
-    Serialize messages to a JSON formatted str
-
-    Args:
-        messages (list): The list of messages to serialize. Each message in
-            the messages is subclass of Messge.
-
-    Returns:
-        str: Serialized messages.
-
-    Raises:
-        TypeError: If at least one message is not instance of Message class or subclass.
-    """
-    serialized_messages = []
-    try:
-        for message in messages:
-            message_dict = message._dump()
-            serialized_messages.append(message_dict)
-    except AttributeError:
-        _log.error("Improper object for messages serialization.")
-        raise TypeError("Message have to be instance of Message class or subclass.")
-
-    return json.dumps(serialized_messages, sort_keys=True)
-
-
-def loads(serialized_messages):
-    """
-    Deserialize messages from a JSON formatted str
-
-    Args:
-        serialized_messages (JSON str):
-
-    Returns:
-        list: Deserialized message objects.
-
-    Raises:
-        ValidationError: If deserialized message validation failed.
-        KeyError: If serialized_messages aren't properly serialized.
-        ValueError: If serialized_messages is not valid JSON
-    """
-    try:
-        messages_dicts = json.loads(serialized_messages)
-    except ValueError:
-        _log.error("Loading serialized messages failed.")
-        raise
-
-    messages = []
-    for message_dict in messages_dicts:
-        try:
-            headers = message_dict["headers"]
-        except KeyError:
-            _log.error("Message saved without headers.")
-            raise
-
-        try:
-            MessageClass = get_class(headers["fedora_messaging_schema"])
-        except KeyError:
-            _log.error("Message (headers=%r) saved without a schema header.", headers)
-            raise
-
-        try:
-            body = message_dict["body"]
-        except KeyError:
-            _log.error("Message saved without body.")
-            raise
-
-        try:
-            id = message_dict["id"]
-        except KeyError:
-            _log.error("Message saved without id.")
-            raise
-
-        try:
-            queue = message_dict["queue"]
-        except KeyError:
-            _log.warning("Message saved without queue.")
-            queue = None
-
-        try:
-            topic = message_dict["topic"]
-        except KeyError:
-            _log.error("Message saved without topic.")
-            raise
-
-        try:
-            severity = headers["fedora_messaging_severity"]
-        except KeyError:
-            _log.error("Message saved without a severity.")
-            raise
-
-        message = MessageClass(
-            body=body, topic=topic, headers=headers, severity=severity
-        )
-        try:
-            message.validate()
-            _log.debug("Successfully validated message %r", message)
-        except jsonschema.exceptions.ValidationError as e:
-            _log.error("Message validation of %r failed: %r", message, e)
-            raise ValidationError(e)
-
-        message.queue = queue
-        message.id = id
-        messages.append(message)
-
-    return messages
-
-
 class Message(object):
     """
     Messages are simply JSON-encoded objects. This allows message authors to
@@ -708,21 +600,6 @@ class Message(object):
         """
         return []
 
-    def _dump(self):
-        """
-        Dump message attributes.
-
-        Returns:
-            dict: A dictionary of message attributes.
-        """
-        return {
-            "topic": self.topic,
-            "headers": self._headers,
-            "id": self.id,
-            "body": self.body,
-            "queue": self.queue,
-        }
-
     @property
     def _body(self):
         warnings.warn(
@@ -740,3 +617,105 @@ class Message(object):
             stacklevel=2,
         )
         self.body = value
+
+
+#: The schema for each JSON object produced by :func:`dumps`, consumed by
+#: :func:`loads`, and expected by CLI commands like "fedora-messaging publish".
+SERIALIZED_MESSAGE_SCHEMA = {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "description": "Schema for the JSON object used to represent messages in a file",
+    "type": "object",
+    "properties": {
+        "topic": {"type": "string", "description": "The message topic"},
+        "headers": {
+            "type": "object",
+            "properties": Message.headers_schema["properties"],
+            "description": "The message headers",
+        },
+        "id": {"type": "string", "description": "The message's UUID."},
+        "body": {"type": "object", "description": "The message body."},
+        "queue": {
+            "type": "string",
+            "description": "The queue the message arrived on, if any.",
+        },
+    },
+    "required": ["topic", "headers", "id", "body", "queue"],
+}
+
+
+def dumps(messages):
+    """
+    Serialize messages to a file format acceptable for :func:`loads` or for the
+    publish CLI command. The format is a string where each line is a JSON
+    object that conforms to the :data:`SERIALIZED_MESSAGE_SCHEMA` format.
+
+    Args:
+        messages (list or Message): The messages to serialize. Each message in
+            the messages is subclass of Message.
+
+    Returns:
+        str: Serialized messages.
+
+    Raises:
+        ValidationError: If one of the messages provided doesn't conform to its
+            schema.
+    """
+    if isinstance(messages, Message):
+        messages = [messages]
+
+    serialized_messages = []
+    for message in messages:
+        try:
+            message.validate()
+        except (jsonschema.exceptions.ValidationError, AttributeError) as e:
+            raise ValidationError(e)
+        m = {
+            "topic": message.topic,
+            "headers": message._headers,
+            "id": message.id,
+            "body": message.body,
+            "queue": message.queue,
+        }
+        serialized_messages.append(json.dumps(m, ensure_ascii=False, sort_keys=True))
+
+    return "\n".join(serialized_messages) + "\n"
+
+
+def loads(serialized_messages):
+    """
+    Deserialize messages from a file format produced by :func:`dumps`.  The
+    format is a string where each line is a JSON object that conforms to the
+    :data:`SERIALIZED_MESSAGE_SCHEMA` format.
+
+    Args:
+        serialized_messages (str): A string made up of a JSON object per line.
+
+    Returns:
+        list: Deserialized message objects.
+
+    Raises:
+        ValidationError: If the string isn't formatted properly or message
+            doesn't pass the message schema validation
+    """
+    messages = []
+    for serialized_message in serialized_messages.splitlines():
+        try:
+            message_dict = json.loads(serialized_message)
+        except ValueError as e:
+            raise ValidationError(e)
+        try:
+            jsonschema.validate(message_dict, SERIALIZED_MESSAGE_SCHEMA)
+        except jsonschema.exceptions.ValidationError as e:
+            raise ValidationError(e)
+        MessageClass = get_class(message_dict["headers"]["fedora_messaging_schema"])
+        message = MessageClass(
+            body=message_dict["body"],
+            topic=message_dict["topic"],
+            headers=message_dict["headers"],
+            severity=message_dict["headers"]["fedora_messaging_severity"],
+        )
+        message.queue = message_dict["queue"]
+        message.id = message_dict["id"]
+        messages.append(message)
+
+    return messages

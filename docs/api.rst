@@ -103,17 +103,43 @@ ERROR
 ~~~~~
 .. autodata:: fedora_messaging.message.ERROR
 
-.. _exceptions-api:
+SEVERITIES
+~~~~~~~~~~
+.. autodata:: fedora_messaging.message.SEVERITIES
+
+
+.. _message-dumps:
+
+dumps
+-----
+.. autofunction:: fedora_messaging.message.dumps
+
+
+.. _message-loads:
+
+loads
+-----
+.. autofunction:: fedora_messaging.message.loads
+
+
+.. _message-serialized-message-schema:
+
+SERIALIZED_MESSAGE_SCHEMA
+-------------------------
+.. autodata:: fedora_messaging.message.SERIALIZED_MESSAGE_SCHEMA
 
 
 Utilities
----------
+=========
 
 .. automodule:: fedora_messaging.schema_utils
 
 libravatar_url
-~~~~~~~~~~~~~~
+--------------
 .. autofunction:: fedora_messaging.schema_utils.libravatar_url
+
+
+.. _exceptions-api:
 
 Exceptions
 ==========

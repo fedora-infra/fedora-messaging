@@ -9,7 +9,13 @@ import crochet
 
 from . import exceptions, config
 from .signals import pre_publish_signal, publish_signal, publish_failed_signal
-from .message import Message, SEVERITIES  # noqa: F401
+from .message import (
+    Message,
+    SEVERITIES,
+    loads,
+    dumps,
+    SERIALIZED_MESSAGE_SCHEMA,
+)  # noqa: F401
 from .twisted import service
 from .twisted.consumer import Consumer  # noqa: F401
 
@@ -25,6 +31,10 @@ __all__ = (
     "pre_publish_signal",
     "publish_signal",
     "publish_failed_signal",
+    "loads",
+    "dumps",
+    "SERIALIZED_MESSAGE_SCHEMA",
+    "SEVERITIES",
 )
 
 # The Twisted service that consumers are registered with.
