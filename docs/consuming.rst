@@ -46,7 +46,7 @@ argument::
     # Next, we need a queue to consume messages from. We can define
     # the queue and binding configurations in these dictionaries:
     queues = {
-        'demo': {
+        '00000000-0000-0000-0000-000000000000': {
             'durable': False,  # Delete the queue on broker restart
             'auto_delete': True,  # Delete the queue when the client terminates
             'exclusive': False,  # Allow multiple simultaneous consumers
@@ -55,7 +55,7 @@ argument::
     }
     binding = {
         'exchange': 'amq.topic',  # The AMQP exchange to bind our queue to
-        'queue': 'demo',  # The unique name of our queue on the AMQP broker
+        'queue': '00000000-0000-0000-0000-000000000000',  # The unique name of our queue on the AMQP broker
         'routing_keys': ['#'],  # The topics that should be delivered to the queue
     }
 
