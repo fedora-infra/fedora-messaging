@@ -741,7 +741,7 @@ def test_check_confirms():
     """Assert confirmations are enabled by default."""
     serv = service.FedoraMessagingService(amqp_url="amqp://")
     serv.startService()
-    client = yield serv.getFactory().whenConnected()
+    client = yield serv._service.factory.when_connected()
     channel = yield client._allocate_channel()
     assert channel._delivery_confirmation is True
     serv.stopService()
@@ -774,7 +774,7 @@ def test_basic_pub_sub():
     serv = service.FedoraMessagingService(amqp_url="amqp://")
 
     serv.startService()
-    client = yield serv.getFactory().whenConnected()
+    client = yield serv._service.factory.when_connected()
     yield client.declare_queues(queues)
     yield client.bind_queues(
         [{"queue": queue, "exchange": "amq.topic", "routing_key": "#"}]
@@ -816,7 +816,7 @@ def test_unhandled_exception_cancels_consumer():
     serv = service.FedoraMessagingService(amqp_url="amqp://")
 
     serv.startService()
-    client = yield serv.getFactory().whenConnected()
+    client = yield serv._service.factory.when_connected()
     yield client.declare_queues(queues)
     yield client.bind_queues(
         [{"queue": queue, "exchange": "amq.topic", "routing_key": "#"}]
@@ -835,91 +835,11 @@ def test_unhandled_exception_cancels_consumer():
 
 
 @pytest_twisted.inlineCallbacks
-def test_nack_handled():
-    """Assert raising Nack in a consumer works and messages are re-delivered"""
-    queue = str(uuid.uuid4())
-    queues = [
-        {
-            "queue": queue,
-            "auto_delete": True,
-            "durable": False,
-            "exclusive": False,
-            "arguments": {"x-expires": 60 * 1000},
-        }
-    ]
-    messages = []
-    serv = service.FedoraMessagingService(amqp_url="amqp://")
-
-    serv.startService()
-    client = yield serv.getFactory().whenConnected()
-    yield client.declare_queues(queues)
-    yield client.bind_queues(
-        [{"queue": queue, "exchange": "amq.topic", "routing_key": "#"}]
-    )
-
-    def callback(message):
-        messages.append(message)
-        if len(messages) < 3:
-            raise exceptions.Nack()
-
-    yield client.consume(callback, queue)
-    assert len(client._consumers) == 1
-
-    yield client.publish(message.Message(), "amq.topic")
-    yield task.deferLater(reactor, 3.0, lambda: True)
-
-    assert len(messages) == 3
-    assert len(set([m.id for m in messages])) == 1
-    assert len(client._consumers) == 1
-
-    yield client.cancel(queue)
-    serv.stopService()
-
-
-@pytest_twisted.inlineCallbacks
-def test_drop_handled():
-    """Assert raising Drop in a consumer works and messages are not re-delivered"""
-    queue = str(uuid.uuid4())
-    messages = []
-    serv = service.FedoraMessagingService(amqp_url="amqp://")
-    serv.startService()
-    client = yield serv.getFactory().whenConnected()
-    queues = [
-        {
-            "queue": queue,
-            "auto_delete": True,
-            "durable": False,
-            "exclusive": False,
-            "arguments": {"x-expires": 60 * 1000},
-        }
-    ]
-    yield client.declare_queues(queues)
-    yield client.bind_queues(
-        [{"queue": queue, "exchange": "amq.topic", "routing_key": "#"}]
-    )
-
-    def callback(message):
-        messages.append(message)
-        raise exceptions.Drop()
-
-    yield client.consume(callback, queue)
-    assert len(client._consumers) == 1
-
-    yield client.publish(message.Message(), "amq.topic")
-    yield task.deferLater(reactor, 3.0, lambda: True)  # Just wait a few seconds
-
-    assert len(messages) == 1
-    assert len(client._consumers) == 1
-    yield client.cancel(queue)
-    yield serv.stopService()
-
-
-@pytest_twisted.inlineCallbacks
 def test_declare_queue_failures():
     """Assert that if a queue can't be declared, it results in an exception."""
     serv = service.FedoraMessagingService(amqp_url="amqp://")
     serv.startService()
-    client = yield serv.getFactory().whenConnected()
+    client = yield serv._service.factory.when_connected()
 
     queues = [{"queue": str(uuid.uuid4()), "passive": True}]
     try:
@@ -936,7 +856,7 @@ def test_declare_exchange_failures():
     """Assert that if an exchange can't be declared, it results in an exception."""
     serv = service.FedoraMessagingService(amqp_url="amqp://")
     serv.startService()
-    client = yield serv.getFactory().whenConnected()
+    client = yield serv._service.factory.when_connected()
 
     exchanges = [{"exchange": str(uuid.uuid4()), "passive": True}]
     try:
@@ -953,7 +873,7 @@ def test_declare_binding_failure():
     """Assert that if a binding can't be declared, it results in an exception."""
     serv = service.FedoraMessagingService(amqp_url="amqp://")
     serv.startService()
-    client = yield serv.getFactory().whenConnected()
+    client = yield serv._service.factory.when_connected()
 
     binding = [
         {"exchange": str(uuid.uuid4()), "queue": str(uuid.uuid4()), "routing_key": "#"}

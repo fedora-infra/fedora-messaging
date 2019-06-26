@@ -18,8 +18,7 @@
 The core Twisted interface, a protocol represent a specific connection to the
 AMQP broker.
 
-The :class:`.FedoraMessagingProtocolV2` has replaced the deprecated
-:class:`.FedoraMessagingProtocolV2`. This class inherits the
+The :class:`.FedoraMessagingProtocolV2` class inherits the
 :class:`pika.adapters.twisted_connection.TwistedProtocolConnection` class and
 adds a few additional methods.
 
@@ -31,19 +30,14 @@ For an overview of Twisted clients, see the `Twisted client documentation
 """
 from __future__ import absolute_import
 
-from collections import namedtuple
-import uuid
-import warnings
 import logging
 
 import pika
 from pika.adapters.twisted_connection import TwistedProtocolConnection
-from pika.exceptions import ChannelClosedByClient
 from twisted.internet import defer, error, threads, reactor
-from twisted.python import log as _legacy_twisted_log
 from twisted.python.failure import Failure
 
-from .consumer import Consumer as ConsumerV2
+from .consumer import Consumer
 from .. import config
 from ..message import get_message
 from ..exceptions import (
@@ -91,7 +85,7 @@ def _add_timeout(deferred, timeout):
         deferred.addBoth(cancel_cancel_call)
 
 
-class FedoraMessagingProtocolV2(TwistedProtocolConnection):
+class FedoraMessagingProtocol(TwistedProtocolConnection):
     """A Twisted Protocol for the Fedora Messaging system.
 
     This protocol builds on the generic pika AMQP protocol to add calls
@@ -323,14 +317,14 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         Args:
             callback (callable): The callback to invoke when a message is received.
             queue (str): The name of the queue to consume from.
-            previous_consumer (ConsumerV2): If this is the resumption of a prior
+            previous_consumer (Consumer): If this is the resumption of a prior
                 consumer, you can provide the previous consumer so its result
                 deferred can be re-used.
 
         Returns:
             Deferred: A Deferred that fires when the consumer is successfully
                 registered with the message broker. The callback receives a
-                :class:`.ConsumerV2` object that represents the AMQP consumer.
+                :class:`.Consumer` object that represents the AMQP consumer.
                 The Deferred may error back with a :class:`PermissionException`
                 if the user cannot read from the queue, a
                 :class:`NoFreeChannels` if this connection has hit its channel
@@ -348,7 +342,7 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         if previous_consumer is not None:
             consumer = previous_consumer
         else:
-            consumer = ConsumerV2(queue=queue, callback=callback)
+            consumer = Consumer(queue=queue, callback=callback)
         consumer._protocol = self
         consumer._channel = yield self._allocate_channel()
         try:
@@ -613,328 +607,4 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         self._channel = None
 
 
-#: A namedtuple that represents a AMQP consumer.
-#:
-#: This is deprecated. Use :class:`fedora_messaging.twisted.consumer.Consumer`.
-#:
-#: * The ``tag`` field is the consumer's AMQP tag (:class:`str`).
-#: * The ``queue`` field is the name of the queue it's consuming from (:class:`str`).
-#: * The ``callback`` field is the function called for each message (a callable).
-#: * The ``channel`` is the AMQP channel used for the consumer
-#:   (:class:`pika.adapters.twisted_connection.TwistedChannel`).
-Consumer = namedtuple("Consumer", ["tag", "queue", "callback", "channel"])
-
-
-class FedoraMessagingProtocol(FedoraMessagingProtocolV2):
-    """A Twisted Protocol for the Fedora Messaging system.
-
-    This protocol builds on the generic pika AMQP protocol to add calls
-    specific to the Fedora Messaging implementation.
-
-    .. warning:: This class is deprecated, use the :class:`FedoraMessagingProtocolV2`.
-
-    Args:
-        parameters (pika.ConnectionParameters): The connection parameters.
-        confirms (bool): If True, all outgoing messages will require a
-            confirmation from the server, and the Deferred returned from
-            the publish call will wait for that confirmation.
-    """
-
-    name = u"FedoraMessaging:Protocol"
-
-    def __init__(self, parameters, confirms=True):
-        FedoraMessagingProtocolV2.__init__(self, parameters, confirms=confirms)
-        self._running = False
-        warnings.warn(
-            "The FedoraMessagingProtocol class is deprecated and will be removed"
-            " in fedora-messaging v2.0, please use FedoraMessagingProtocolV2 instead.",
-            DeprecationWarning,
-        )
-
-    @defer.inlineCallbacks
-    def _read(self, queue_object, consumer):
-        """
-        The loop that reads from the message queue and calls the consumer callback
-        wrapper.
-
-        queue_object (pika.adapters.twisted_connection.ClosableDeferredQueue):
-            The AMQP queue the consumer is bound to.
-        consumer (dict): A dictionary describing the consumer for the given
-            queue_object.
-        """
-        while self._running:
-            try:
-                _channel, delivery_frame, properties, body = yield queue_object.get()
-            except (error.ConnectionDone, ChannelClosedByClient):
-                # This is deliberate.
-                _legacy_twisted_log.msg(
-                    "Stopping the AMQP consumer with tag {tag}", tag=consumer.tag
-                )
-                break
-            except pika.exceptions.ChannelClosed as e:
-                _legacy_twisted_log.msg(
-                    "Stopping AMQP consumer {tag} for queue {q}: {e}",
-                    tag=consumer.tag,
-                    q=consumer.queue,
-                    e=str(e),
-                    logLevel=logging.ERROR,
-                )
-                break
-            except pika.exceptions.ConsumerCancelled as e:
-                _legacy_twisted_log.msg(
-                    "The AMQP broker canceled consumer {tag} on queue {q}: {e}",
-                    tag=consumer.tag,
-                    q=consumer.queue,
-                    e=str(e),
-                    logLevel=logging.ERROR,
-                )
-                break
-            except Exception:
-                _legacy_twisted_log.msg(
-                    "An unexpected error occurred consuming from queue {q}",
-                    q=consumer.queue,
-                    logLevel=logging.ERROR,
-                )
-                break
-            if body:
-                yield self._on_message(delivery_frame, properties, body, consumer)
-
-    @defer.inlineCallbacks
-    def _on_message(self, delivery_frame, properties, body, consumer):
-        """
-        Callback when a message is received from the server.
-
-        This method wraps a user-registered callback for message delivery. It
-        decodes the message body, determines the message schema to validate the
-        message with, and validates the message before passing it on to the
-        user callback.
-
-        This also handles acking, nacking, and rejecting messages based on
-        exceptions raised by the consumer callback. For detailed documentation
-        on the user-provided callback, see the user guide on consuming.
-
-        Args:
-            delivery_frame (pika.spec.Deliver): The delivery frame which
-                includes details about the message like content encoding and
-                its delivery tag.
-            properties (pika.spec.BasicProperties): The message properties like
-                the message headers.
-            body (bytes): The message payload.
-            consumer (dict): A dictionary describing the consumer of the message.
-
-        Returns:
-            Deferred: fired when the message has been handled.
-        """
-        _legacy_twisted_log.msg(
-            "Message arrived with delivery tag {tag} for {consumer}",
-            tag=delivery_frame.delivery_tag,
-            consumer=consumer,
-            logLevel=logging.DEBUG,
-        )
-        try:
-            message = get_message(delivery_frame.routing_key, properties, body)
-            message.queue = consumer.queue
-        except ValidationError:
-            _legacy_twisted_log.msg(
-                "Message id {msgid} did not pass validation; ignoring message",
-                msgid=properties.message_id,
-                logLevel=logging.WARNING,
-            )
-            yield consumer.channel.basic_nack(
-                delivery_tag=delivery_frame.delivery_tag, requeue=False
-            )
-            return
-
-        try:
-            _legacy_twisted_log.msg(
-                "Consuming message from topic {topic!r} (id {msgid})",
-                topic=message.topic,
-                msgid=properties.message_id,
-            )
-            yield defer.maybeDeferred(consumer.callback, message)
-        except Nack:
-            _legacy_twisted_log.msg(
-                "Returning message id {msgid} to the queue",
-                msgid=properties.message_id,
-                logLevel=logging.WARNING,
-            )
-            yield consumer.channel.basic_nack(
-                delivery_tag=delivery_frame.delivery_tag, requeue=True
-            )
-        except Drop:
-            _legacy_twisted_log.msg(
-                "Consumer requested message id {msgid} be dropped",
-                msgid=properties.message_id,
-                logLevel=logging.WARNING,
-            )
-            yield consumer.channel.basic_nack(
-                delivery_tag=delivery_frame.delivery_tag, requeue=False
-            )
-        except HaltConsumer:
-            _legacy_twisted_log.msg(
-                "Consumer indicated it wishes consumption to halt, shutting down"
-            )
-            yield consumer.channel.basic_ack(delivery_tag=delivery_frame.delivery_tag)
-            yield self.cancel(consumer.queue)
-        except Exception:
-            _legacy_twisted_log.msg(
-                "Received unexpected exception from consumer {c}",
-                c=consumer,
-                logLevel=logging.ERROR,
-            )
-            yield consumer.channel.basic_nack(
-                delivery_tag=0, multiple=True, requeue=True
-            )
-            yield self.cancel(consumer.queue)
-        else:
-            yield consumer.channel.basic_ack(delivery_tag=delivery_frame.delivery_tag)
-
-    @defer.inlineCallbacks
-    def consume(self, callback, queue):
-        """
-        Register a message consumer that executes the provided callback when
-        messages are received.
-
-        The queue must exist prior to calling this method.  If a consumer
-        already exists for the given queue, the callback is simply updated and
-        any new messages for that consumer use the new callback.
-
-        If :meth:`resumeProducing` has not been called when this method is called,
-        it will be called for you.
-
-        Args:
-            callback (callable): The callback to invoke when a message is received.
-            queue (str): The name of the queue to consume from.
-
-        Returns:
-            fedora_messaging.twisted.protocol.Consumer: A namedtuple that
-            identifies this consumer.
-
-        NoFreeChannels: If there are no available channels on this connection.
-            If this occurs, you can either reduce the number of consumers on this
-            connection or create an additional connection.
-        """
-        if queue in self._consumers and self._consumers[queue].channel.is_open:
-            consumer = Consumer(
-                tag=self._consumers[queue].tag,
-                queue=queue,
-                callback=callback,
-                channel=self._consumers[queue].channel,
-            )
-            self._consumers[queue] = consumer
-            defer.returnValue(consumer)
-
-        channel = yield self._allocate_channel()
-        consumer = Consumer(
-            tag=str(uuid.uuid4()), queue=queue, callback=callback, channel=channel
-        )
-
-        self._consumers[queue] = consumer
-        if not self._running:
-            yield self.resumeProducing()
-            defer.returnValue(consumer)
-
-        queue_object, _ = yield consumer.channel.basic_consume(
-            queue=consumer.queue, consumer_tag=consumer.tag
-        )
-        deferred = self._read(queue_object, consumer)
-        deferred.addErrback(
-            lambda f: _legacy_twisted_log.msg,
-            "_read failed on consumer {c}",
-            c=consumer,
-            logLevel=logging.ERROR,
-        )
-        _legacy_twisted_log.msg("Successfully registered AMQP consumer {c}", c=consumer)
-        defer.returnValue(consumer)
-
-    @defer.inlineCallbacks
-    def cancel(self, queue):
-        """
-        Cancel the consumer for a queue.
-
-        Args:
-            queue (str): The name of the queue the consumer is subscribed to.
-
-        Returns:
-            defer.Deferred: A Deferred that fires when the consumer
-                is canceled, or None if the consumer was already canceled. Wrap
-                the call in :func:`.defer.maybeDeferred` to always receive a Deferred.
-        """
-        try:
-            consumer = self._consumers[queue]
-            yield consumer.channel.basic_cancel(consumer_tag=consumer.tag)
-        except pika.exceptions.AMQPChannelError:
-            # Consumers are tied to channels, so if this channel is dead the
-            # consumer should already be canceled (and we can't get to it anyway)
-            pass
-        except KeyError:
-            defer.returnValue(None)
-
-        try:
-            yield consumer.channel.close()
-        except pika.exceptions.AMQPChannelError:
-            pass
-
-        del self._consumers[queue]
-
-    @defer.inlineCallbacks
-    def resumeProducing(self):
-        """
-        Starts or resumes the retrieval of messages from the server queue.
-
-        This method starts receiving messages from the server, they will be
-        passed to the consumer callback.
-
-        .. note:: This is called automatically when :meth:`.consume` is called,
-            so users should not need to call this unless :meth:`.pauseProducing`
-            has been called.
-
-        Returns:
-            defer.Deferred: fired when the production is ready to start
-        """
-        # Start consuming
-        self._running = True
-        for consumer in self._consumers.values():
-            queue_object, _ = yield consumer.channel.basic_consume(
-                queue=consumer.queue, consumer_tag=consumer.tag
-            )
-            deferred = self._read(queue_object, consumer)
-            deferred.addErrback(
-                lambda f: _legacy_twisted_log.msg,
-                "_read failed on consumer {c}",
-                c=consumer,
-                logLevel=logging.ERROR,
-            )
-        _legacy_twisted_log.msg("AMQP connection successfully established")
-
-    @defer.inlineCallbacks
-    def pauseProducing(self):
-        """
-        Pause the reception of messages by canceling all existing consumers.
-        This does not disconnect from the server.
-
-        Message reception can be resumed with :meth:`resumeProducing`.
-
-        Returns:
-            Deferred: fired when the production is paused.
-        """
-        if not self._running:
-            return
-        # Exit the read loop and cancel the consumer on the server.
-        self._running = False
-        for consumer in self._consumers.values():
-            yield consumer.channel.basic_cancel(consumer_tag=consumer.tag)
-        _legacy_twisted_log.msg("Paused retrieval of messages for the server queue")
-
-    @defer.inlineCallbacks
-    def stopProducing(self):
-        """
-        Stop producing messages and disconnect from the server.
-        Returns:
-            Deferred: fired when the production is stopped.
-        """
-        _legacy_twisted_log.msg("Disconnecting from the AMQP broker")
-        yield self.pauseProducing()
-        yield self.close()
-        self._consumers = {}
-        self._channel = None
+FedoraMessagingProtocolV2 = FedoraMessagingProtocol

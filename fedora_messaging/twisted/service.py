@@ -28,7 +28,6 @@ from __future__ import absolute_import, unicode_literals
 import locale
 import logging
 import ssl
-import warnings
 
 from pika import SSLOptions
 import pika
@@ -38,108 +37,13 @@ from twisted.application.internet import TCPClient, SSLClient
 from twisted.internet import ssl as twisted_ssl, defer
 
 from .. import config, exceptions
-from .factory import FedoraMessagingFactory, FedoraMessagingFactoryV2
+from .factory import FedoraMessagingFactory
 
 
 _log = logging.getLogger(__name__)
 
 
 class FedoraMessagingService(service.MultiService):
-    """
-    A Twisted service to connect to the Fedora Messaging broker.
-
-    Args:
-        on_message (callable|None): Callback that will be passed each
-            incoming messages. If None, no message consuming is setup.
-        amqp_url (str): URL to use for the AMQP server.
-        exchanges (list of dicts): List of exchanges to declare at the start of
-            every connection. Each dictionary is passed to
-            :meth:`pika.channel.Channel.exchange_declare` as keyword arguments,
-            so any parameter to that method is a valid key.
-        queues (list of dicts): List of queues to declare at the start of every
-            connection. Each dictionary is passed to
-            :meth:`pika.channel.Channel.queue_declare` as keyword arguments,
-            so any parameter to that method is a valid key.
-        bindings (list of dicts): A list of bindings to be created between
-            queues and exchanges. Each dictionary is passed to
-            :meth:`pika.channel.Channel.queue_bind`. The "queue" and "exchange" keys
-            are required.
-        consumers (dict): A dictionary where each key is a queue name and the value
-            is a callable object to handle messages on that queue. Consumers will be
-            set up after each connection is established so they will survive networking
-            issues.
-    """
-
-    name = "fedora-messaging"
-    factoryClass = FedoraMessagingFactory
-
-    def __init__(
-        self, amqp_url=None, exchanges=None, queues=None, bindings=None, consumers=None
-    ):
-        """Initialize the service."""
-        service.MultiService.__init__(self)
-        amqp_url = amqp_url or config.conf["amqp_url"]
-        self._parameters = pika.URLParameters(amqp_url)
-        if amqp_url.startswith("amqps"):
-            _configure_tls_parameters(self._parameters)
-        if self._parameters.client_properties is None:
-            self._parameters.client_properties = config.conf["client_properties"]
-        self._exchanges = exchanges or []
-        self._queues = queues or []
-        self._bindings = bindings or []
-        self.factory = self.factoryClass(
-            self._parameters, exchanges=exchanges, queues=queues, bindings=bindings
-        )
-        consumers = consumers or {}
-        for queue, callback in consumers.items():
-            self.factory.consume(callback, queue)
-        warnings.warn(
-            "The FedoraMessagingService class is deprecated and will be removed"
-            " in fedora-messaging v2.0, please use FedoraMessagingServiceV2 instead.",
-            DeprecationWarning,
-        )
-
-    def startService(self):
-        self.connect()
-        service.MultiService.startService(self)
-
-    def stopService(self):
-        factory = self.getFactory()
-        if not factory:
-            return
-        factory.stopTrying()
-        service.MultiService.stopService(self)
-
-    def getFactory(self):
-        if self.services:
-            return self.services[0].factory
-        return None
-
-    def connect(self):
-        if self._parameters.ssl_options:
-            serv = SSLClient(
-                host=self._parameters.host,
-                port=self._parameters.port,
-                factory=self.factory,
-                contextFactory=_ssl_context_factory(self._parameters),
-            )
-        else:
-            serv = TCPClient(
-                host=self._parameters.host,
-                port=self._parameters.port,
-                factory=self.factory,
-            )
-        serv.factory = self.factory
-        name = "{}{}:{}".format(
-            "ssl:" if self._parameters.ssl_options else "",
-            self._parameters.host,
-            self._parameters.port,
-        )
-        serv.setName(name)
-        serv.setServiceParent(self)
-
-
-class FedoraMessagingServiceV2(service.MultiService):
     """
     A Twisted service to connect to the Fedora Messaging broker.
 
@@ -161,7 +65,7 @@ class FedoraMessagingServiceV2(service.MultiService):
         if self._parameters.client_properties is None:
             self._parameters.client_properties = config.conf["client_properties"]
 
-        factory = FedoraMessagingFactoryV2(self._parameters, self._confirms)
+        factory = FedoraMessagingFactory(self._parameters, self._confirms)
         if self._parameters.ssl_options:
             self._service = SSLClient(
                 host=self._parameters.host,
@@ -299,3 +203,9 @@ def _ssl_context_factory(parameters):
         )
 
     return context_factory
+
+
+#: In fedora-messaging-1.x there were two versions of the service. The original
+#: version has been removed so the second became the only version. This remains
+#: for compatibility with old code using the V2 name.
+FedoraMessagingServiceV2 = FedoraMessagingService

@@ -20,17 +20,14 @@ from __future__ import absolute_import, unicode_literals
 import unittest
 import os
 
-from twisted.application.internet import TCPClient, SSLClient
 from twisted.internet import ssl as twisted_ssl
 from pika import URLParameters
 import mock
 import pika
 
 from fedora_messaging import config, exceptions
-from fedora_messaging.twisted.factory import FedoraMessagingFactory
 from fedora_messaging.twisted.service import (
     FedoraMessagingService,
-    FedoraMessagingServiceV2,
     _configure_tls_parameters,
     _ssl_context_factory,
     SSLOptions,
@@ -39,91 +36,9 @@ from fedora_messaging.tests import FIXTURES_DIR
 
 
 class ServiceTests(unittest.TestCase):
-    def test_init(self):
-        service = FedoraMessagingService(
-            "amqp://example.com:4242", queues=[{"queue": "my_queue"}]
-        )
-        self.assertTrue(isinstance(service._parameters, pika.URLParameters))
-        self.assertEqual(service._parameters.host, "example.com")
-        self.assertEqual(service._parameters.port, 4242)
-        self.assertEqual(getattr(service._parameters, "ssl", False), False)
-        self.assertEqual(
-            service._parameters.client_properties, config.conf["client_properties"]
-        )
-        self.assertEqual(service._queues, [{"queue": "my_queue"}])
-        self.assertIsInstance(service.factory, FedoraMessagingFactory)
-
-    def test_init_with_consumers(self):
-        """Assert consumers are passed onto the factory object."""
-        cb = mock.Mock()
-        with mock.patch(
-            "fedora_messaging.twisted.service.FedoraMessagingService.factoryClass"
-        ):
-            service = FedoraMessagingService(consumers={"my_queue": cb})
-            FedoraMessagingService.factoryClass.assert_called_once_with(
-                service._parameters, exchanges=None, queues=None, bindings=None
-            )
-            service.factory.consume.assert_called_once_with(cb, "my_queue")
-
     def test_init_tls(self):
         """Assert creating the service with an amqps URL configures TLS."""
         service = FedoraMessagingService("amqps://")
-
-        self.assertTrue(isinstance(service._parameters, pika.URLParameters))
-        self.assertIsNotNone(service._parameters.ssl_options)
-
-    def test_init_client_props_override(self):
-        service = FedoraMessagingService("amqp://?client_properties={'foo':'bar'}")
-        self.assertEqual(service._parameters.client_properties, {"foo": "bar"})
-
-    def test_connect(self):
-        service = FedoraMessagingService()
-        service.factory = mock.Mock()
-        service.connect()
-        self.assertEqual(len(service.services), 1)
-        serv = service.services[0]
-        self.assertTrue(serv.factory is service.factory)
-        self.assertTrue(serv.parent is service)
-        self.assertIsInstance(serv, TCPClient)
-
-    def test_connect_tls(self):
-        """Assert connecting with amqps starts an SSLClient."""
-        service = FedoraMessagingService("amqps://")
-        service.factory = mock.Mock()
-        service.connect()
-        self.assertEqual(len(service.services), 1)
-        serv = service.services[0]
-        self.assertTrue(serv.factory is service.factory)
-        self.assertTrue(serv.parent is service)
-        self.assertIsInstance(serv, SSLClient)
-
-    def test_startService(self):
-        service = FedoraMessagingService()
-        serv = mock.Mock()
-        service.addService(serv)
-        service.connect = mock.Mock()
-        service.startService()
-        service.connect.assert_called_once()
-
-    def test_stopService(self):
-        service = FedoraMessagingService()
-        serv = mock.Mock()
-        service.addService(serv)
-        service.stopService()
-        serv.factory.stopTrying.assert_called_once()
-
-    def test_stopService_no_factory(self):
-        service = FedoraMessagingService(None)
-        ss_path = "fedora_messaging.twisted.service.service." "MultiService.stopService"
-        with mock.patch(ss_path) as stopService:
-            service.stopService()
-            stopService.assert_not_called()
-
-
-class ServiceV2Tests(unittest.TestCase):
-    def test_init_tls(self):
-        """Assert creating the service with an amqps URL configures TLS."""
-        service = FedoraMessagingServiceV2("amqps://")
 
         self.assertTrue(isinstance(service._parameters, pika.URLParameters))
         self.assertIsNotNone(service._parameters.ssl_options)
