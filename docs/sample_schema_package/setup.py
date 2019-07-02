@@ -48,7 +48,7 @@ setup(
     maintainer_email="infrastructure@lists.fedoraproject.org",
     platforms=["Fedora", "GNU/Linux"],
     keywords="fedora",
-    packages=find_packages(exclude=("mailman_schema.tests", "mailman_schema.tests.*")),
+    packages=find_packages(),
     include_package_data=True,
     zip_safe=False,
     install_requires=["fedora_messaging"],
