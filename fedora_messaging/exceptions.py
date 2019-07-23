@@ -71,15 +71,28 @@ class ConfigurationException(BaseException):
         self.message = message
 
     def __str__(self):
-        return "Configuration error: " + self.message
+        return "Configuration error: {}".format(self.message)
 
 
 class PublishException(BaseException):
-    """Base class for exceptions related to publishing."""
+    """
+    Base class for exceptions related to publishing.
+
+    Args:
+        reason (str): The reason the server gave for the publish error.
+    """
 
     def __init__(self, reason=None, **kwargs):
         super(PublishException, self).__init__(**kwargs)
         self.reason = reason
+
+    def __str__(self):
+        if self.reason:
+            return "Publish error: {}".format(self.reason)
+        return "Publish error"
+
+    def __repr__(self):
+        return "PublishException(reason={})".format(self.reason)
 
 
 class PublishReturned(PublishException):
@@ -106,11 +119,22 @@ class ConnectionException(BaseException):
 
     You may handle this exception by logging it and resending or discarding the
     message.
+
+    Args:
+        reason (str): The reason the server gave for the publish error.
     """
 
-    def __init__(self, *args, **kwargs):
-        super(ConnectionException, self).__init__(*args)
-        self.reason = kwargs.get("reason")
+    def __init__(self, reason=None, **kwargs):
+        super(ConnectionException, self).__init__(**kwargs)
+        self.reason = reason
+
+    def __str__(self):
+        if self.reason:
+            return "Connection error: {}".format(self.reason)
+        return "Connection error"
+
+    def __repr__(self):
+        return "ConnectionException(reason={})".format(self.reason)
 
 
 class ConsumeException(BaseException):
