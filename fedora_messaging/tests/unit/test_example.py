@@ -34,7 +34,7 @@ class PrinterTests(unittest.TestCase):
         message = api.Message(body=u"Hello world", topic=u"hi")
         message._headers = {
             "fedora_messaging_schema": "fedora_messaging.message:Message",
-            "sent-at": "2018-08-22T00:00:00",
+            "sent-at": "2019-07-30T19:12:22+00:00",
         }
         message.id = "95383db8-8cdc-4464-8276-d482ac28b0b6"
         expected_stdout = (
@@ -42,7 +42,7 @@ class PrinterTests(unittest.TestCase):
             u"Topic: hi\n"
             u"Headers: {\n"
             u'    "fedora_messaging_schema": "fedora_messaging.message:Message",\n'
-            u'    "sent-at": "2018-08-22T00:00:00"\n'
+            u'    "sent-at": "2019-07-30T19:12:22+00:00"\n'
             u"}\n"
             u'Body: "Hello world"\n'
         )
