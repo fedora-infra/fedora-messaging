@@ -38,6 +38,10 @@ identifies the type of message. In the Python library this is the entry point
 name, which is mapped to a class containing the schema and a Python API to
 interact with the message object.
 
+The ``sent-at`` key should be a ISO8601 date time that should include the UTC
+offset and should *not* include microseconds. For example:
+``2019-07-30T19:12:22+00:00``.
+
 The header's json-schema is::
 
    {
