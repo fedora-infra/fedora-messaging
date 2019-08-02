@@ -72,8 +72,8 @@ These public queues have some restrictions applied to them. Firstly, they are
 limited to about 50 megabytes in size, so if your application cannot handle the
 message throughput messages will be automatically discarded once you hit this
 limit. Secondly, queues that are set to be durable (in other words, not
-exclusive or auto-deleted) are automatically deleted after approximately an
-hour.
+exclusive or auto-deleted) are automatically deleted if they have no consumers
+after approximately an hour.
 
 If you need more robust guarantees about message delivery, or if you need to
 publish messages into Fedora's message broker, contact the Fedora
