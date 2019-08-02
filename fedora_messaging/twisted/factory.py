@@ -131,8 +131,9 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
         """
         if not isinstance(reason.value, error.ConnectionDone):
             _legacy_twisted_log.msg(
-                "Lost connection to the AMQP broker ({reason})",
-                reason=reason.value,
+                "Lost connection to the AMQP broker ({reason})".format(
+                    reason=reason.value
+                ),
                 logLevel=logging.WARNING,
             )
         if self._client_ready.called:
@@ -148,8 +149,9 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
         `twisted.internet.protocol.ReconnectingClientFactory` for details.
         """
         _legacy_twisted_log.msg(
-            "Connection to the AMQP broker failed ({reason})",
-            reason=reason.value,
+            "Connection to the AMQP broker failed ({reason})".format(
+                reason=reason.value
+            ),
             logLevel=logging.WARNING,
         )
         protocol.ReconnectingClientFactory.clientConnectionFailed(

@@ -672,31 +672,30 @@ class FedoraMessagingProtocol(FedoraMessagingProtocolV2):
             except (error.ConnectionDone, ChannelClosedByClient):
                 # This is deliberate.
                 _legacy_twisted_log.msg(
-                    "Stopping the AMQP consumer with tag {tag}", tag=consumer.tag
+                    "Stopping the AMQP consumer with tag {tag}".format(tag=consumer.tag)
                 )
                 break
             except pika.exceptions.ChannelClosed as e:
                 _legacy_twisted_log.msg(
-                    "Stopping AMQP consumer {tag} for queue {q}: {e}",
-                    tag=consumer.tag,
-                    q=consumer.queue,
-                    e=str(e),
+                    "Stopping AMQP consumer {tag} for queue {q}: {e}".format(
+                        tag=consumer.tag, q=consumer.queue, e=str(e)
+                    ),
                     logLevel=logging.ERROR,
                 )
                 break
             except pika.exceptions.ConsumerCancelled as e:
                 _legacy_twisted_log.msg(
-                    "The AMQP broker canceled consumer {tag} on queue {q}: {e}",
-                    tag=consumer.tag,
-                    q=consumer.queue,
-                    e=str(e),
+                    "The AMQP broker canceled consumer {tag} on queue {q}: {e}".format(
+                        tag=consumer.tag, q=consumer.queue, e=str(e)
+                    ),
                     logLevel=logging.ERROR,
                 )
                 break
             except Exception:
                 _legacy_twisted_log.msg(
-                    "An unexpected error occurred consuming from queue {q}",
-                    q=consumer.queue,
+                    "An unexpected error occurred consuming from queue {q}".format(
+                        q=consumer.queue
+                    ),
                     logLevel=logging.ERROR,
                 )
                 break
@@ -730,9 +729,9 @@ class FedoraMessagingProtocol(FedoraMessagingProtocolV2):
             Deferred: fired when the message has been handled.
         """
         _legacy_twisted_log.msg(
-            "Message arrived with delivery tag {tag} for {consumer}",
-            tag=delivery_frame.delivery_tag,
-            consumer=consumer,
+            "Message arrived with delivery tag {tag} for {consumer}".format(
+                tag=delivery_frame.delivery_tag, consumer=consumer
+            ),
             logLevel=logging.DEBUG,
         )
         try:
@@ -740,8 +739,9 @@ class FedoraMessagingProtocol(FedoraMessagingProtocolV2):
             message.queue = consumer.queue
         except ValidationError:
             _legacy_twisted_log.msg(
-                "Message id {msgid} did not pass validation; ignoring message",
-                msgid=properties.message_id,
+                "Message id {msgid} did not pass validation; ignoring message".format(
+                    msgid=properties.message_id
+                ),
                 logLevel=logging.WARNING,
             )
             yield consumer.channel.basic_nack(
@@ -751,15 +751,16 @@ class FedoraMessagingProtocol(FedoraMessagingProtocolV2):
 
         try:
             _legacy_twisted_log.msg(
-                "Consuming message from topic {topic!r} (id {msgid})",
-                topic=message.topic,
-                msgid=properties.message_id,
+                "Consuming message from topic {topic!r} (id {msgid})".format(
+                    topic=message.topic, msgid=properties.message_id
+                )
             )
             yield defer.maybeDeferred(consumer.callback, message)
         except Nack:
             _legacy_twisted_log.msg(
-                "Returning message id {msgid} to the queue",
-                msgid=properties.message_id,
+                "Returning message id {msgid} to the queue".format(
+                    msgid=properties.message_id
+                ),
                 logLevel=logging.WARNING,
             )
             yield consumer.channel.basic_nack(
@@ -767,8 +768,9 @@ class FedoraMessagingProtocol(FedoraMessagingProtocolV2):
             )
         except Drop:
             _legacy_twisted_log.msg(
-                "Consumer requested message id {msgid} be dropped",
-                msgid=properties.message_id,
+                "Consumer requested message id {msgid} be dropped".format(
+                    msgid=properties.message_id
+                ),
                 logLevel=logging.WARNING,
             )
             yield consumer.channel.basic_nack(
@@ -782,8 +784,7 @@ class FedoraMessagingProtocol(FedoraMessagingProtocolV2):
             yield self.cancel(consumer.queue)
         except Exception:
             _legacy_twisted_log.msg(
-                "Received unexpected exception from consumer {c}",
-                c=consumer,
+                "Received unexpected exception from consumer {c}".format(c=consumer),
                 logLevel=logging.ERROR,
             )
             yield consumer.channel.basic_nack(
@@ -844,11 +845,12 @@ class FedoraMessagingProtocol(FedoraMessagingProtocolV2):
         deferred = self._read(queue_object, consumer)
         deferred.addErrback(
             lambda f: _legacy_twisted_log.msg,
-            "_read failed on consumer {c}",
-            c=consumer,
+            "_read failed on consumer {c}".format(c=consumer),
             logLevel=logging.ERROR,
         )
-        _legacy_twisted_log.msg("Successfully registered AMQP consumer {c}", c=consumer)
+        _legacy_twisted_log.msg(
+            "Successfully registered AMQP consumer {c}".format(c=consumer)
+        )
         defer.returnValue(consumer)
 
     @defer.inlineCallbacks
@@ -905,8 +907,7 @@ class FedoraMessagingProtocol(FedoraMessagingProtocolV2):
             deferred = self._read(queue_object, consumer)
             deferred.addErrback(
                 lambda f: _legacy_twisted_log.msg,
-                "_read failed on consumer {c}",
-                c=consumer,
+                "_read failed on consumer {c}".format(c=consumer),
                 logLevel=logging.ERROR,
             )
         _legacy_twisted_log.msg("AMQP connection successfully established")
