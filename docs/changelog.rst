@@ -4,6 +4,38 @@ Release Notes
 
 .. towncrier release notes start
 
+1.7.2 (2019-08-02)
+==================
+
+Bug Fixes
+---------
+
+* Fix variable substitution in log messages.
+  (`PR#200 <https://github.com/fedora-infra/fedora-messaging/pull/200>`_)
+* Add MANIFEST.in and include tests for sample schema package.
+  (`PR#197 <https://github.com/fedora-infra/fedora-messaging/pull/197>`_)
+
+
+Documentation Improvements
+--------------------------
+
+* Document the sent-at header in messages.
+  (`PR#199 <https://github.com/fedora-infra/fedora-messaging/pull/199>`_)
+* Create a quick-start guide.
+  (`PR#196 <https://github.com/fedora-infra/fedora-messaging/pull/196>`_)
+
+
+Contributors
+------------
+Many thanks to the contributors of bug reports, pull requests, and pull request
+reviews for this release:
+
+* Adam Williamson
+* Aurélien Bompard
+* Jeremy Cline
+* Shraddha Agrawal
+
+
 v1.7.1 (2019-06-24)
 ===================
 
