@@ -19,6 +19,7 @@ from __future__ import absolute_import
 
 import os
 import unittest
+import errno
 
 from click.testing import CliRunner
 from twisted.internet import error
@@ -26,12 +27,17 @@ from twisted.python import failure
 import click
 import mock
 
-from fedora_messaging import cli, config, exceptions
+from fedora_messaging import cli, config, exceptions, message, testing
 from fedora_messaging.tests import FIXTURES_DIR
 from fedora_messaging.twisted import consumer
 
 GOOD_CONF = os.path.join(FIXTURES_DIR, "good_conf.toml")
 BAD_CONF = os.path.join(FIXTURES_DIR, "bad_conf.toml")
+EMPTY_FILE = os.path.join(FIXTURES_DIR, "empty.txt")
+GOOD_MSG_DUMP = os.path.join(FIXTURES_DIR, "good_msg_dump.txt")
+WRONG_JSON_MSG_DUMP = os.path.join(FIXTURES_DIR, "wrong_json_msg_dump.txt")
+MSG_WITHOUT_ID_DUMP = os.path.join(FIXTURES_DIR, "msg_without_id_dump.txt")
+INVALID_MSG_DUMP = os.path.join(FIXTURES_DIR, "invalid_msg_dump.txt")
 
 
 def echo(message):
@@ -148,7 +154,7 @@ class ConsumeCliTests(unittest.TestCase):
 
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
     def test_queue_and_routing_key(self, mock_consume):
-        """Assert providing improper bindings is reported."""
+        """Asser  providing improper bindings is reported."""
         config.conf["callback"] = "fedora_messaging.tests.unit.test_cli:echo"
 
         result = self.runner.invoke(
@@ -507,3 +513,238 @@ class CallbackFromFilesytem(unittest.TestCase):
             "An IO error occurred: [Errno 2] No such file or directory: 'file/that/is/missing.py'",
             cm.exception.message,
         )
+
+
+class PublishCliTests(unittest.TestCase):
+    """Unit tests for the 'publish' command of the CLI."""
+
+    def setUp(self):
+        self.runner = CliRunner()
+
+    def tearDown(self):
+        """Make sure each test has a fresh default configuration."""
+        config.conf = config.LazyConfig()
+        config.conf.load_config()
+
+    def test_correct_msg_in_file(self):
+        """Assert providing path to file with correct message via the CLI works."""
+        cli_options = {"file": GOOD_MSG_DUMP, "exchange": "test_pe"}
+        expected_msg = message.Message(
+            body={"test_key1": "test_value1"}, topic="test_topic", severity=message.INFO
+        )
+
+        with testing.mock_sends(expected_msg):
+            result = self.runner.invoke(
+                cli.cli,
+                [
+                    "--conf=" + GOOD_CONF,
+                    "publish",
+                    "--exchange=" + cli_options["exchange"],
+                    cli_options["file"],
+                ],
+            )
+        self.assertIn("Publishing message with topic test_topic", result.output)
+        self.assertEqual(0, result.exit_code)
+
+    @mock.patch("fedora_messaging.cli.api.publish")
+    def test_file_with_corrupted_json(self, mock_publish):
+        """Assert providing path to file with corrupted message json via the CLI works."""
+        cli_options = {"file": WRONG_JSON_MSG_DUMP, "exchange": "test_pe"}
+        result = self.runner.invoke(
+            cli.cli,
+            [
+                "--conf=" + GOOD_CONF,
+                "publish",
+                "--exchange=" + cli_options["exchange"],
+                cli_options["file"],
+            ],
+        )
+        self.assertIn("Error: Unable to validate message:", result.output)
+        mock_publish.assert_not_called()
+        self.assertEqual(2, result.exit_code)
+
+    @mock.patch("fedora_messaging.cli.api.publish")
+    def test_file_with_msg_without_id(self, mock_publish):
+        """Assert providing path to file with incorrect message via the CLI works."""
+        cli_options = {"file": MSG_WITHOUT_ID_DUMP, "exchange": "test_pe"}
+        result = self.runner.invoke(
+            cli.cli,
+            [
+                "--conf=" + GOOD_CONF,
+                "publish",
+                "--exchange=" + cli_options["exchange"],
+                cli_options["file"],
+            ],
+        )
+        self.assertIn(
+            "Error: Unable to validate message: 'id' is a required property",
+            result.output,
+        )
+        mock_publish.assert_not_called()
+        self.assertEqual(2, result.exit_code)
+
+    @mock.patch("fedora_messaging.cli.api.publish")
+    def test_file_with_invalid_msg(self, mock_publish):
+        """Assert providing path to file with incorrect message via the CLI works."""
+        cli_options = {"file": INVALID_MSG_DUMP, "exchange": "test_pe"}
+        result = self.runner.invoke(
+            cli.cli,
+            [
+                "--conf=" + GOOD_CONF,
+                "publish",
+                "--exchange=" + cli_options["exchange"],
+                cli_options["file"],
+            ],
+        )
+        self.assertIn(
+            "Error: Unable to validate message: [] is not of type 'object'",
+            result.output,
+        )
+        mock_publish.assert_not_called()
+        self.assertEqual(2, result.exit_code)
+
+    @mock.patch("fedora_messaging.cli.api.publish")
+    def test_publish_rejected_message(self, mock_publish):
+        """Assert a rejected message is reported."""
+        cli_options = {"file": GOOD_MSG_DUMP, "exchange": "test_pe"}
+        error_message = "Message rejected"
+        mock_publish.side_effect = exceptions.PublishReturned(error_message)
+        result = self.runner.invoke(
+            cli.cli,
+            [
+                "--conf=" + GOOD_CONF,
+                "publish",
+                "--exchange=" + cli_options["exchange"],
+                cli_options["file"],
+            ],
+        )
+        self.assertIn("Unable to publish message: " + error_message, result.output)
+        mock_publish.assert_called_once()
+        self.assertEqual(errno.EREMOTEIO, result.exit_code)
+
+    @mock.patch("fedora_messaging.cli.api.publish")
+    def test_publish_connection_failed(self, mock_publish):
+        """Assert a connection problem is reported."""
+        cli_options = {"file": GOOD_MSG_DUMP, "exchange": "test_pe"}
+        mock_publish.side_effect = exceptions.PublishTimeout(reason="timeout")
+        result = self.runner.invoke(
+            cli.cli,
+            [
+                "--conf=" + GOOD_CONF,
+                "publish",
+                "--exchange=" + cli_options["exchange"],
+                cli_options["file"],
+            ],
+        )
+        self.assertIn("Unable to connect to the message broker: timeout", result.output)
+        mock_publish.assert_called_once()
+        self.assertEqual(errno.ECONNREFUSED, result.exit_code)
+
+    @mock.patch("fedora_messaging.cli.api.publish")
+    def test_publish_general_publish_error(self, mock_publish):
+        """Assert a connection problem is reported."""
+        cli_options = {"file": GOOD_MSG_DUMP, "exchange": "test_pe"}
+        mock_publish.side_effect = exceptions.PublishException(reason="eh")
+        result = self.runner.invoke(
+            cli.cli,
+            [
+                "--conf=" + GOOD_CONF,
+                "publish",
+                "--exchange=" + cli_options["exchange"],
+                cli_options["file"],
+            ],
+        )
+        self.assertIn("A general publish exception occurred: eh", result.output)
+        mock_publish.assert_called_once()
+        self.assertEqual(1, result.exit_code)
+
+
+class RecordCliTests(unittest.TestCase):
+    """Unit tests for the 'record' command of the CLI."""
+
+    def setUp(self):
+        self.runner = CliRunner()
+
+    def tearDown(self):
+        """Make sure each test has a fresh default configuration."""
+        config.conf = config.LazyConfig()
+        config.conf.load_config(config_path="")
+
+    @mock.patch("fedora_messaging.cli._consume")
+    def test_good_cli_bindings(self, mock_consume):
+        """Assert arguments are forwarded to the _consume function."""
+        cli_options = {
+            "file": "test_file.txt",
+            "exchange": "e",
+            "queue-name": "qn",
+            "routing-keys": ("rk1", "rk2"),
+        }
+        self.runner.invoke(
+            cli.cli,
+            [
+                "record",
+                cli_options["file"],
+                "--exchange=" + cli_options["exchange"],
+                "--queue-name=" + cli_options["queue-name"],
+                "--routing-key=" + cli_options["routing-keys"][0],
+                "--routing-key=" + cli_options["routing-keys"][1],
+            ],
+        )
+        mock_consume.assert_called_once_with(
+            "e", "qn", ("rk1", "rk2"), mock.ANY, "recorder"
+        )
+
+
+class RecorderClassTests(unittest.TestCase):
+    """Unit tests for the 'Recorder' class."""
+
+    def test_save_recorded_messages_when_limit_is_reached(self):
+        """Assert that collected messages are saved to file when limit is reached."""
+        msg1 = message.Message(
+            body={"test_key1": "test_value1"},
+            topic="test_topic1",
+            severity=message.INFO,
+        )
+        msg1._properties.headers["sent-at"] = "2018-11-18T10:11:41+00:00"
+        msg1.id = "273ed91d-b8b5-487a-9576-95b9fbdf3eec"
+
+        msg2 = message.Message(
+            body={"test_key2": "test_value2"},
+            topic="test_topic2",
+            severity=message.INFO,
+        )
+        msg2._properties.headers["sent-at"] = "2018-11-18T10:11:41+00:00"
+        msg2.id = "273ed91d-b8b5-487a-9576-95b9fbdf3eec"
+
+        mock_file = mock.MagicMock()
+        test_recorder = cli.Recorder(2, mock_file)
+        test_recorder.collect_message(msg1)
+        mock_file.write.assert_called_with(
+            '{"body": {"test_key1": "test_value1"}, "headers"'
+            ': {"fedora_messaging_schema": "base.message", "fedora_messaging_severity": 20, '
+            '"sent-at": "2018-11-18T10:11:41+00:00"}, "id": "273ed91d-b8b5-487a-9576-95b9fbdf3eec"'
+            ', "queue": null, "topic": "test_topic1"}\n'
+        )
+
+        with self.assertRaises(exceptions.HaltConsumer) as cm:
+            test_recorder.collect_message(msg2)
+        the_exception = cm.exception
+        self.assertEqual(the_exception.exit_code, 0)
+        self.assertEqual(test_recorder.counter, 2)
+        mock_file.write.assert_called_with(
+            '{"body": {"test_key2": "test_value2"}, "headers": '
+            '{"fedora_messaging_schema": "base.message", "fedora_messaging_severity": '
+            '20, "sent-at": "2018-11-18T10:11:41+00:00"}, "id": '
+            '"273ed91d-b8b5-487a-9576-95b9fbdf3eec", "queue": null, "topic": "test_topic2"}\n'
+        )
+
+    def test_recorded_messages_dumps_failed(self):
+        """Assert that attempt to save improper recorded message is reported."""
+        mock_file = mock.MagicMock()
+        test_recorder = cli.Recorder(1, mock_file)
+        with self.assertRaises(exceptions.HaltConsumer) as cm:
+            test_recorder.collect_message("msg1")
+        the_exception = cm.exception
+        self.assertEqual(the_exception.exit_code, 1)
+        self.assertEqual(test_recorder.counter, 0)
+        mock_file.write.assert_not_called()
