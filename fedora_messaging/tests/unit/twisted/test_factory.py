@@ -204,9 +204,7 @@ class FactoryTests(unittest.TestCase):
         ) as mock_log:
             self.factory.clientConnectionFailed(None, mock.Mock(value="something"))
         mock_log.msg.assert_called_once_with(
-            "Connection to the AMQP broker failed ({reason})",
-            reason="something",
-            logLevel=logging.WARNING,
+            "Connection to the AMQP broker failed (something)", logLevel=logging.WARNING
         )
 
     def test_stopTrying(self):
