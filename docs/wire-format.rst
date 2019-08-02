@@ -6,21 +6,46 @@ This documentation covers the format of AMQP messages sent by this library. If
 you are interested in using a language other than Python to send or receive
 messages sent by Fedora applications, this document is for you.
 
-
-Overview
-========
-
 Messages are AMQP `Basic <https://www.rabbitmq.com/amqp-0-9-1-reference.html>`_
 content. Basic messages have the content type, content encoding, a table of
 headers, delivery mode, priority, correlation ID, reply-to, expiration, message
 ID, timestamp, type, user ID, and app ID fields.
 
-Your messages *MUST* have a content-type of ``application/json`` and a
-content-encoding of ``utf-8``. The message ID should be a `version 4 UUID
-<https://www.ietf.org/rfc/rfc4122.txt>`_.
+
+Content Type
+============
+
+Your messages *MUST* have a content-type of ``application/json`` and they must
+be JSON objects. Consult the :ref:`messages` documentation for details on
+message format.
+
+Content Encoding
+================
+
+Your message *MUST* have the content-encoding property set to ``utf-8`` and they
+must be encoding with UTF-8.
+
+Message ID
+==========
+
+The message ID field *MUST* be a `version 4 UUID
+<https://www.ietf.org/rfc/rfc4122.txt>`_ as a standard hexadecimal digit string
+(e.g. f81d4fae-7dec-11d0-a765-00a0c91e6bf6).
+
+Delivery Mode
+=============
+
+The delivery mode of your message *SHOULD* be 2 (persistent) unless you know
+what you are doing and have a very good reason for setting it to 1 (transient).
 
 Headers
 =======
+
+The headers field of AMQP message allows you to set a dictionary (map) of
+arbitrary strings. Several header keys are used by Fedora's applications to
+determine the message schema, the importance of the message for human beings,
+when it was originally sent by the application, what packages or users it
+relates to, and more.
 
 Required
 --------
