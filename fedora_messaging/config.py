@@ -95,9 +95,18 @@ arbitrary string keys and values. The default is::
     }
 
 Apps should set the ``app`` along with any additional keys they feel will help
-administrators when debugging application connections. Do not use the
-``product``, ``information``, and ``version`` keys as these will be set
-automatically.
+administrators when debugging application connections. At a minimum, the recommended
+fields are:
+
+* ``app_url``: The value of this key should be a URL to the upstream project for
+  the client.
+* ``app_contacts_email``: One or more emails of maintainers to contact with
+  questions (if, for example, a client is misbehaving, or a service disruption
+  is about to occur).
+
+Do not use the ``product``, ``information``, and ``version`` keys as these will
+be set automatically.
+
 
 .. _conf-exchanges:
 
