@@ -4,7 +4,7 @@ Documentation=http://fedora-messaging.readthedocs.io/
 
 [Service]
 Type=simple
-ExecStart=fedora-messaging --conf /etc/fedora-messaging/%i.toml consume
+ExecStart=/usr/bin/fedora-messaging --conf /etc/fedora-messaging/%i.toml consume
 Restart=on-failure
 
 [Install]
