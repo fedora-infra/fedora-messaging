@@ -15,8 +15,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """This is an example of a message schema."""
 
-from fedora_messaging import message
-from .utils import get_avatar
+from fedora_messaging import message, schema_utils
 
 
 class BaseMessage(message.Message):
@@ -143,7 +142,7 @@ class MessageV1(BaseMessage):
     def agent_avatar(self):
         """An URL to the avatar of the user who caused the action."""
         from_header = self.body["msg"]["from"]
-        return get_avatar(from_header)
+        return schema_utils.user_avatar_url(from_header)
 
     def _get_archived_at(self):
         return self.body["msg"]["archived-at"]
@@ -197,7 +196,7 @@ class MessageV2(BaseMessage):
     def agent_avatar(self):
         """An URL to the avatar of the user who caused the action."""
         from_header = self.body["from"]
-        return get_avatar(from_header)
+        return schema_utils.user_avatar_url(from_header)
 
     def _get_archived_at(self):
         return self.body["archived-at"]
