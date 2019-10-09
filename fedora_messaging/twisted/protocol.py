@@ -55,6 +55,7 @@ from ..exceptions import (
     NoFreeChannels,
     PermissionException,
     PublishForbidden,
+    PublishPermissionException,
     PublishReturned,
     ValidationError,
 )
@@ -298,6 +299,9 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         except (pika.exceptions.NackError, pika.exceptions.UnroutableError) as e:
             _std_log.error("Message was rejected by the broker (%s)", str(e))
             raise PublishReturned(reason=e)
+        except pika.exceptions.ProbableAccessDeniedError as e:
+            _std_log.error("Message was rejected by the broker (%s)", str(e))
+            raise PublishPermissionException(reason=e)
         except (
             pika.exceptions.ChannelClosed,
             pika.exceptions.ChannelWrongStateError,
