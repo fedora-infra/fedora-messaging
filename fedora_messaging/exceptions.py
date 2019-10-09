@@ -36,6 +36,10 @@ class PermissionException(BaseException):
         )
 
 
+class PublishPermissionException(PermissionException):
+    """Raised when the broker rejects the message due to insufficient permissions."""
+
+
 class BadDeclaration(PermissionException):
     """
     Raised when declaring an object in AMQP fails.

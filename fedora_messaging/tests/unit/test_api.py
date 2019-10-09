@@ -27,7 +27,7 @@ import pytest
 import pytest_twisted
 
 from fedora_messaging import api, config
-from fedora_messaging.exceptions import PublishException
+from fedora_messaging.exceptions import PublishException, PublishPermissionException
 from fedora_messaging.twisted import consumer, protocol
 from fedora_messaging.signals import (
     pre_publish_signal,
@@ -309,6 +309,37 @@ class PublishTests(unittest.TestCase):
         message = "test_message"
         exchange = "test_exchange"
         expected_exception = PublishException(reason="Unable to publish message")
+        expected_pre_publish_signal_data = {
+            "called": True,
+            "sender": api.publish,
+            "args": {"message": message},
+        }
+        expected_publish_signal_data = {"called": False, "sender": None, "args": None}
+        expected_publish_failed_signal_data = {
+            "called": True,
+            "sender": api.publish,
+            "args": {"message": message, "reason": expected_exception},
+        }
+        mock_twisted_publish.return_value.wait.side_effect = expected_exception
+
+        self.assertRaises(
+            type(expected_exception), api.publish, message, exchange=exchange
+        )
+
+        mock_twisted_publish.assert_called_once_with(message, exchange)
+        self.assertEqual(self.pre_publish_signal_data, expected_pre_publish_signal_data)
+        self.assertEqual(self.publish_signal_data, expected_publish_signal_data)
+        self.assertEqual(
+            self.publish_failed_signal_data, expected_publish_failed_signal_data
+        )
+
+    def test_publish_failed_with_access_denied(self, mock_twisted_publish):
+        """Assert an exception is raised when message can't be published."""
+        message = "test_message"
+        exchange = "test_exchange"
+        expected_exception = PublishPermissionException(
+            reason="Insufficient permissions to publish message"
+        )
         expected_pre_publish_signal_data = {
             "called": True,
             "sender": api.publish,
