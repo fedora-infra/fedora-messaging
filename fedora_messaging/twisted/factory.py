@@ -311,6 +311,8 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             self.resetDelay()
             self._client = client
             self._client_deferred.callback(client)
+            # Renew the deferred to handle reconnections.
+            self._client_deferred = defer.Deferred()
 
             # Restart any consumer from previous connections that wasn't canceled
             # including queues and bindings, as the queue might not have been durable
@@ -337,11 +339,15 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
                     exc_type=ConnectionException,
                 )
                 self._client_deferred.errback(wrapped_failure)
+                # Renew the deferred to handle reconnections.
+                self._client_deferred = defer.Deferred()
             else:
                 _std_log.exception(
                     "The connection failed with an unexpected exception; please report this bug."
                 )
                 self._client_deferred.errback(failure)
+                # Renew the deferred to handle reconnections.
+                self._client_deferred = defer.Deferred()
 
         client.ready.addCallback(on_ready)
         client.ready.addErrback(on_ready_errback)
@@ -373,10 +379,6 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
         if self._client and not self._client.is_closed:
             _std_log.debug("Already connected with %r", self._client)
         else:
-            # This is pretty hideous, but this deferred is fired by the ready
-            # callback and self._client is set, so after the yield it's a valid
-            # connection.
-            self._client_deferred = defer.Deferred()
             self._client = None
             _std_log.debug(
                 "Waiting for %r to fire with new connection", self._client_deferred
