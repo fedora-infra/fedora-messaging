@@ -24,6 +24,7 @@ import mock
 import pika
 import pytest
 from twisted.internet import defer
+from twisted.internet.error import ConnectionDone
 from twisted.python.failure import Failure
 
 from fedora_messaging import config
@@ -324,6 +325,104 @@ class FactoryTests(unittest.TestCase):
 
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
+
+
+class FactoryV2Tests(unittest.TestCase):
+    def setUp(self):
+        self.protocol = mock.Mock()
+        self.protocol.ready = defer.Deferred()
+        protocol_class = mock.Mock(side_effect=lambda *a, **kw: self.protocol)
+        self.factory = FedoraMessagingFactoryV2(
+            mock.Mock(name="parameters"), {"binding key": "binding value"}
+        )
+        self.factory.protocol = protocol_class
+
+    def test_buildProtocol(self):
+        """Assert buildProtocol associates the factory"""
+        protocol = self.factory.buildProtocol(None)
+        self.assertEqual(protocol.factory, self.factory)
+
+    def test_when_connected(self):
+        """Assert when_connected returns the current client once _client_deferred fires"""
+        self.factory.buildProtocol(None)
+        d = self.factory.when_connected()
+        d.addCallback(lambda client: self.assertEqual(self.factory._client, client))
+        d.addCallback(
+            lambda _: self.assertEqual(self.factory._client_deferred.called, True)
+        )
+        self.protocol.ready.callback(None)
+        return pytest_twisted.blockon(d)
+
+    def test_buildProtocol_twice(self):
+        """Assert buildProtocol works when reconnecting"""
+
+        def _get_protocol(*a, **kw):
+            protocol = mock.Mock(name="protocol mock")
+            protocol.ready = defer.succeed(None)
+            return protocol
+
+        self.factory.protocol = _get_protocol
+        connector = mock.Mock()
+        connected_d = self.factory.when_connected()
+        self.factory.buildProtocol(None)
+        self.factory.clientConnectionLost(connector, None)
+        with mock.patch("fedora_messaging.twisted.factory._std_log") as mock_log:
+            protocol = self.factory.buildProtocol(None)
+        self.assertFalse(mock_log.exception.called)
+        d = defer.DeferredList([connected_d, protocol.ready], fireOnOneErrback=True)
+        d.addErrback(lambda f: f.value.subFailure)
+        return pytest_twisted.blockon(d)
+
+    def test_when_connected_disconnect(self):
+        """Assert when_connected errbacks on disconnections."""
+
+        def _get_protocol(*a, **kw):
+            protocol = mock.Mock(name="protocol mock")
+            # Disconnect immediately
+            protocol.ready = defer.fail(ConnectionDone())
+            return protocol
+
+        def _check(f):
+            f.trap(ConnectionException)
+            # Make sure a new Deferred has been generated for when_connected()
+            new_d = self.factory.when_connected()
+            assert new_d.called is False
+            assert new_d != connected_d
+
+        self.factory.protocol = _get_protocol
+        connected_d = self.factory.when_connected()
+        connected_d.addCallbacks(
+            lambda r: ValueError("This should fail but I got: {!r}".format(r)), _check
+        )
+        self.factory.buildProtocol(None)
+        return pytest_twisted.blockon(connected_d)
+
+    def test_when_connected_unexpected_failure(self):
+        """Assert when_connected errbacks when the connection fails."""
+
+        class DummyError(Exception):
+            pass
+
+        def _get_protocol(*a, **kw):
+            protocol = mock.Mock(name="protocol mock")
+            # Fail immediately
+            protocol.ready = defer.fail(DummyError())
+            return protocol
+
+        def _check(f):
+            f.trap(DummyError)
+            # Make sure a new Deferred has been generated for when_connected()
+            new_d = self.factory.when_connected()
+            assert new_d.called is False
+            assert new_d != connected_d
+
+        self.factory.protocol = _get_protocol
+        connected_d = self.factory.when_connected()
+        connected_d.addCallbacks(
+            lambda r: ValueError("This should fail but I got: {!r}".format(r)), _check
+        )
+        self.factory.buildProtocol(None)
+        return pytest_twisted.blockon(connected_d)
 
 
 @pytest.mark.parametrize(
