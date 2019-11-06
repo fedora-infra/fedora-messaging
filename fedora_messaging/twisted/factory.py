@@ -322,9 +322,20 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
                 yield client.bind_queues(bindings)
                 yield client.consume(consumer.callback, consumer.queue, consumer)
 
-        def on_ready_errback(failure):
+        def on_ready_connection_errback(failure):
             """If opening the connection fails or is lost, this errback is called."""
-            if failure.check(pika.exceptions.AMQPConnectionError, error.ConnectionDone):
+            r = failure.trap(
+                pika.exceptions.AMQPConnectionError,
+                error.ConnectionDone,
+                error.ConnectionLost,
+            )
+
+            if r == error.ConnectionLost:
+                msg = (
+                    "The network connection to the broker was lost in a non-clean fashion (%r);"
+                    " the connection should be restarted by Twisted."
+                )
+            else:
                 # In this case the connection failed to open. This will be called
                 # if the TLS handshake goes wrong (likely) and it may be called if
                 # the AMQP handshake fails. It's *probably* a problem with the
@@ -334,24 +345,27 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
                     "with the broker failed; check your connection and authentication "
                     "parameters and ensure your user has permission to access the vhost"
                 )
-                wrapped_failure = Failure(
-                    exc_value=ConnectionException(reason=msg, original=failure),
-                    exc_type=ConnectionException,
-                )
-                self._client_deferred.errback(wrapped_failure)
-                # Renew the deferred to handle reconnections.
-                self._client_deferred = defer.Deferred()
-            else:
-                _std_log.error(
-                    "The connection failed with an unexpected exception; please report this bug: %s",
-                    failure.getTraceback(),
-                )
-                self._client_deferred.errback(failure)
-                # Renew the deferred to handle reconnections.
-                self._client_deferred = defer.Deferred()
+
+            wrapped_failure = Failure(
+                exc_value=ConnectionException(reason=msg, original=failure),
+                exc_type=ConnectionException,
+            )
+            self._client_deferred.errback(wrapped_failure)
+            # Renew the deferred to handle reconnections.
+            self._client_deferred = defer.Deferred()
+
+        def general_errback(failure):
+            _std_log.error(
+                "The connection failed with an unexpected exception; please report this bug: %s",
+                failure.getTraceback(),
+            )
+            self._client_deferred.errback(failure)
+            # Renew the deferred to handle reconnections.
+            self._client_deferred = defer.Deferred()
 
         client.ready.addCallback(on_ready)
-        client.ready.addErrback(on_ready_errback)
+        client.ready.addErrback(on_ready_connection_errback)
+        client.ready.addErrback(general_errback)
         return client
 
     @defer.inlineCallbacks
