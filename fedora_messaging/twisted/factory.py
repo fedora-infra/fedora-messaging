@@ -342,8 +342,9 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
                 # Renew the deferred to handle reconnections.
                 self._client_deferred = defer.Deferred()
             else:
-                _std_log.exception(
-                    "The connection failed with an unexpected exception; please report this bug."
+                _std_log.error(
+                    "The connection failed with an unexpected exception; please report this bug: %s",
+                    failure.getTraceback(),
                 )
                 self._client_deferred.errback(failure)
                 # Renew the deferred to handle reconnections.
