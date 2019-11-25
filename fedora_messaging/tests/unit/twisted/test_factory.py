@@ -24,7 +24,7 @@ import mock
 import pika
 import pytest
 from twisted.internet import defer
-from twisted.internet.error import ConnectionDone
+from twisted.internet.error import ConnectionDone, ConnectionLost
 from twisted.python.failure import Failure
 
 from fedora_messaging import config
@@ -369,17 +369,18 @@ class FactoryV2Tests(unittest.TestCase):
         with mock.patch("fedora_messaging.twisted.factory._std_log") as mock_log:
             protocol = self.factory.buildProtocol(None)
         self.assertFalse(mock_log.exception.called)
+        self.assertFalse(mock_log.error.called)
         d = defer.DeferredList([connected_d, protocol.ready], fireOnOneErrback=True)
         d.addErrback(lambda f: f.value.subFailure)
         return pytest_twisted.blockon(d)
 
-    def test_when_connected_disconnect(self):
+    def _test_when_connected_disconnected(self, error_class, error_msg):
         """Assert when_connected errbacks on disconnections."""
 
         def _get_protocol(*a, **kw):
             protocol = mock.Mock(name="protocol mock")
             # Disconnect immediately
-            protocol.ready = defer.fail(ConnectionDone())
+            protocol.ready = defer.fail(error_class())
             return protocol
 
         def _check(f):
@@ -388,6 +389,7 @@ class FactoryV2Tests(unittest.TestCase):
             new_d = self.factory.when_connected()
             assert new_d.called is False
             assert new_d != connected_d
+            assert f.value.reason == error_msg
 
         self.factory.protocol = _get_protocol
         connected_d = self.factory.when_connected()
@@ -396,6 +398,21 @@ class FactoryV2Tests(unittest.TestCase):
         )
         self.factory.buildProtocol(None)
         return pytest_twisted.blockon(connected_d)
+
+    def test_when_connected_connectiondone(self):
+        return self._test_when_connected_disconnected(
+            ConnectionDone,
+            "The TCP connection appears to have started, but the TLS or AMQP handshake "
+            "with the broker failed; check your connection and authentication "
+            "parameters and ensure your user has permission to access the vhost",
+        )
+
+    def test_when_connected_connectionlost(self):
+        return self._test_when_connected_disconnected(
+            ConnectionLost,
+            "The network connection to the broker was lost in a non-clean fashion (%r);"
+            " the connection should be restarted by Twisted.",
+        )
 
     def test_when_connected_unexpected_failure(self):
         """Assert when_connected errbacks when the connection fails."""
@@ -421,7 +438,14 @@ class FactoryV2Tests(unittest.TestCase):
         connected_d.addCallbacks(
             lambda r: ValueError("This should fail but I got: {!r}".format(r)), _check
         )
-        self.factory.buildProtocol(None)
+        with mock.patch("fedora_messaging.twisted.factory._std_log") as mock_log:
+            self.factory.buildProtocol(None)
+        mock_log.error.assert_called()
+        last_log_call_args = mock_log.error.call_args_list[-1][0]
+        assert last_log_call_args[0] == (
+            "The connection failed with an unexpected exception; please report this bug: %s"
+        )
+        assert last_log_call_args[1].startswith("Traceback (most recent call last):")
         return pytest_twisted.blockon(connected_d)
 
 
