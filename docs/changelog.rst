@@ -4,6 +4,145 @@ Release Notes
 
 .. towncrier release notes start
 
+2.0.0 (2019-12-03)
+==================
+
+Dependency Changes
+------------------
+
+* Drop official Python 3.4 and 3.5 support
+* Bump the pika requirement to 1.0.1+
+
+API Changes
+-----------
+
+* Move all APIs to use the Twisted-managed connection. There are a few minor
+  changes here which slightly change the APIs:
+    
+  1. Publishing now raises a PublishTimeout when the timeout is reached
+     (30 seconds by default).
+  2. Previously, the Twisted consume API did not validate arguments like
+     the synchronous version did, so it now raises a ValueError on invalid
+     arguments instead of crashing in some undefined way.
+  3. Calling publish from the Twisted reactor thread now raises an
+     exception instead of blocking the reactor thread.
+
+
+Features
+--------
+
+* The ``fedora-messaging`` cli now has 2 new sub-commands: ``publish`` and ``record``.
+  (`PR#43 <https://github.com/fedora-infra/fedora-messaging/pull/43>`_)
+* Log the failure traceback on connection ready failures.
+
+
+Bug Fixes
+---------
+
+* Fix an issue where reconnection to the server would fail.
+  (`#208 <https://github.com/fedora-infra/fedora-messaging/issues/208>`_)
+* Don't declare exchanges when consuming.
+  (`#171 <https://github.com/fedora-infra/fedora-messaging/issues/171>`_)
+* Fix Twisted legacy logging (it does not accept format parameters).
+* Handle ConnectionLost errors in the v2 Factory.
+
+
+Development Changes
+-------------------
+
+* Many Twisted-related tests were added.
+* Include tests for sample schema package.
+* Update the dumps and loads functions for a new message format.
+
+
+Documentation Improvements
+--------------------------
+
+* Document that logging is only set up for consumers.
+* Update the six intersphinx URL to fix the docs build.
+* Add the "conf" and "DEFAULTS" variables to the API documentation.
+* Update example config: extra properties, logging.
+* Document a quick way to setup logging.
+* Document the sent-at header in messages.
+* Create a quick-start guide.
+* Clarify queues are only deleted if unused.
+* Wire-format: improve message properties documentation.
+* Note the addition client properties in the config docs.
+
+
+1.7.2 (2019-08-02)
+==================
+
+Bug Fixes
+---------
+
+* Fix variable substitution in log messages.
+  (`PR#200 <https://github.com/fedora-infra/fedora-messaging/pull/200>`_)
+* Add MANIFEST.in and include tests for sample schema package.
+  (`PR#197 <https://github.com/fedora-infra/fedora-messaging/pull/197>`_)
+
+
+Documentation Improvements
+--------------------------
+
+* Document the sent-at header in messages.
+  (`PR#199 <https://github.com/fedora-infra/fedora-messaging/pull/199>`_)
+* Create a quick-start guide.
+  (`PR#196 <https://github.com/fedora-infra/fedora-messaging/pull/196>`_)
+
+
+Contributors
+------------
+Many thanks to the contributors of bug reports, pull requests, and pull request
+reviews for this release:
+
+* Adam Williamson
+* Aurélien Bompard
+* Jeremy Cline
+* Shraddha Agrawal
+
+
+v1.7.1 (2019-06-24)
+===================
+
+Bug Fixes
+---------
+
+* Don't declare exchanges when consuming using the synchronous
+  :func:`fedora_messaging.api.consume` API, which was causing consuming to fail
+  from the Fedora broker
+  (`PR#191 <https://github.com/fedora-infra/fedora-messaging/pull/191>`_)
+
+Contributors
+------------
+Many thanks to the contributors of bug reports, pull requests, and pull request
+reviews for this release:
+
+* Randy Barlow
+* Aurélien Bompard
+* Jeremy Cline
+* Adam Williamson
+
+
+Documentation Improvements
+--------------------------
+
+* Document some additional app properties and add a note about setting up logging
+  in the fedora.toml and stg.fedora.toml configuration files
+  (`PR#188 <https://github.com/fedora-infra/fedora-messaging/pull/188>`_)
+
+* Document how to setup logging in the consuming snippets so any problems are
+  logged to stdout
+  (`PR#192 <https://github.com/fedora-infra/fedora-messaging/pull/192>`_)
+
+* Document that logging is only set up for consumers
+  (`#181 <https://github.com/fedora-infra/fedora-messaging/issues/181>`_)
+
+* Document the :data:`fedora_messaging.config.conf` and
+  :data:`fedora_messaging.config.DEFAULTS` variables in the API documentation
+  (`#182 <https://github.com/fedora-infra/fedora-messaging/issues/182>`_)
+
+
 v1.7.0 (2019-05-21)
 ===================
 
