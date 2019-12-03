@@ -28,7 +28,7 @@ API Changes
 
 * Move all APIs to use the Twisted-managed connection. There are a few minor
   changes here which slightly change the APIs:
-    
+   
   1. Publishing now raises a PublishTimeout when the timeout is reached
      (30 seconds by default).
   2. Previously, the Twisted consume API did not validate arguments like
@@ -78,6 +78,21 @@ Documentation Improvements
 * Clarify queues are only deleted if unused.
 * Wire-format: improve message properties documentation.
 * Note the addition client properties in the config docs.
+
+
+Contributors
+------------
+
+Many thanks to the contributors of bug reports, pull requests, and pull request
+reviews for this release:
+
+* Aurélien Bompard
+* Adam Williamson
+* dvejmz
+* Jeremy Cline
+* Randy Barlow
+* Shraddha Agrawal
+* Sebastian Wojciechowski
 
 
 1.7.2 (2019-08-02)
