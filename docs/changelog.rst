@@ -22,6 +22,8 @@ Dependency Changes
 
 * Drop official Python 3.4 and 3.5 support
 * Bump the pika requirement to 1.0.1+
+* New dependency: `Crochet <https://crochet.readthedocs.io/en/stable/>`_
+
 
 API Changes
 -----------
