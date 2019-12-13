@@ -314,7 +314,9 @@ def publish(message, exchange=None, timeout=30):
         publish_signal.send(publish, message=message)
     except crochet.TimeoutError:
         eventual_result.cancel()
-        wrapper = exceptions.PublishTimeout()
+        wrapper = exceptions.PublishTimeout(
+            "Publishing timed out after waiting {} seconds.".format(timeout)
+        )
         publish_failed_signal.send(publish, message=message, reason=wrapper)
         raise wrapper
     except Exception as e:

@@ -398,7 +398,12 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             _std_log.debug(
                 "Waiting for %r to fire with new connection", self._client_deferred
             )
-            yield self._client_deferred
+            try:
+                yield self._client_deferred
+            except defer.CancelledError:
+                # Renew the deferred to handle future connections.
+                self._client_deferred = defer.Deferred()
+                raise
         defer.returnValue(self._client)
 
     @defer.inlineCallbacks
