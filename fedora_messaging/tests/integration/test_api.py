@@ -734,6 +734,8 @@ def test_pub_timeout():
             pytest.fail("Expected a timeout exception, not {}".format(e))
     finally:
         sock.close()
+    # Ensure the deferred has been renewed
+    assert api._twisted_service._service.factory.when_connected().called is False
 
 
 @pytest_twisted.inlineCallbacks

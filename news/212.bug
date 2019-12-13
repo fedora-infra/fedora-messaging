@@ -1,0 +1,1 @@
+Fix handling of new connections after a publish timeout
