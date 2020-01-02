@@ -4,6 +4,16 @@ Release Notes
 
 .. towncrier release notes start
 
+2.0.1 (2020-01-02)
+==================
+
+Bug Fixes
+---------
+
+* Fix handling of new connections after a publish timeout
+  (`#212 <https://github.com/fedora-infra/fedora-messaging/issues/212>`_)
+
+
 2.0.0 (2019-12-03)
 ==================
 
