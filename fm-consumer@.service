@@ -6,6 +6,7 @@ Documentation=http://fedora-messaging.readthedocs.io/
 Type=simple
 ExecStart=/usr/bin/fedora-messaging --conf /etc/fedora-messaging/%i.toml consume
 Restart=on-failure
+RestartSec=60
 
 [Install]
 WantedBy=multi-user.target
