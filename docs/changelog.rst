@@ -30,7 +30,7 @@ API Changes
 
 * Move all APIs to use the Twisted-managed connection. There are a few minor
   changes here which slightly change the APIs:
-   
+
   1. Publishing now raises a PublishTimeout when the timeout is reached
      (30 seconds by default).
   2. Previously, the Twisted consume API did not validate arguments like
@@ -38,6 +38,9 @@ API Changes
      arguments instead of crashing in some undefined way.
   3. Calling publish from the Twisted reactor thread now raises an
      exception instead of blocking the reactor thread.
+  4. Consumer exceptions are not re-raised as ``HaltConsumer`` exceptions
+     anymore, the original exception bubbles up and has to be handled by the
+     application.
 
 
 Features
