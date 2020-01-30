@@ -221,7 +221,7 @@ def consume(callback, bindings=None, queues=None):
     Raises:
         fedora_messaging.exceptions.HaltConsumer: If the consumer requests that
             it be stopped.
-        ValueError: If the consumer provide callback that is not a class that
+        ValueError: If the consumer provides a callback that is not a class that
             implements __call__ and is not a function, if the bindings argument
             is not a dict or list of dicts with the proper keys, or if the queues
             argument isn't a dict with the proper keys.

@@ -42,9 +42,8 @@ The callback function can raise the following exceptions:
 - ``HaltConsumer``: raise this to shutdown the consumer and return the message
   to the queue.
 
-Any other exception will bubble up in the consumer as a ``HaltConsumer``
-exception, shutdown the consumer, and return pending messages to the queue.
-Your app will have to handle the ``HaltConsumer`` exception.
+Any other exception will bubble up in the consumer, shut it down, and return
+pending messages to the queue. Your app will have to handle the exception.
 
 Modify the callback function to raise those exceptions and see what happens.
 
