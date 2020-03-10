@@ -59,7 +59,7 @@ def run(message):
         processing. Defaults to no timeout.
     """
     try:
-        subprocess.check_call(
+        subprocess.check_call(  # nosec
             config.conf["consumer_config"]["command"],
             shell=config.conf["consumer_config"].get("shell", False),
             timeout=config.conf["consumer_config"].get("timeout"),

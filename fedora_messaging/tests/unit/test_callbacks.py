@@ -1,5 +1,5 @@
 # This file is part of fedora_messaging.
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,18 +14,19 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-"""Tests for :mod:`fedora_messaging.example`."""
+"""Tests for :mod:`fedora_messaging.callbacks`."""
 
 try:
     from io import StringIO
 except ImportError:
     # Python 2
     from StringIO import StringIO
+
 import unittest
 
 import mock
 
-from fedora_messaging import api, example
+from fedora_messaging import api, callbacks, config
 
 
 class PrinterTests(unittest.TestCase):
@@ -48,6 +49,18 @@ class PrinterTests(unittest.TestCase):
         )
 
         with mock.patch("sys.stdout", new_callable=StringIO) as mock_stdout:
-            example.printer(message)
+            callbacks.printer(message)
 
         self.assertEqual(expected_stdout, mock_stdout.getvalue())
+
+
+class RunnerTests(unittest.TestCase):
+    def test_runner(self):
+        """ Assert the run callback calls a subprocess."""
+        config.conf = config.LazyConfig()
+        config.conf["consumer_config"]["command"] = "/bin/true"
+        message = api.Message(body="Hello world", topic="hi")
+        with mock.patch("subprocess.check_call") as mock_subprocess:
+            callbacks.run(message)
+
+        mock_subprocess.assert_called_once_with("/bin/true", shell=False, timeout=None)
