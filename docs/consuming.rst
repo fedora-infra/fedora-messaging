@@ -103,7 +103,7 @@ one-time initialization or a callback that maintains state between calls::
 
     import os
 
-    from fedora_messaging import api, config
+    from fedora_messaging import config
 
 
     class SaveMessage(object):
@@ -135,8 +135,6 @@ one-time initialization or a callback that maintains state between calls::
             """
             with open(self.path, "a") as fd:
                 fd.write(str(message))
-
-    api.consume(SaveMessage)
 
 When running this type of callback from the command-line interface, specify
 the Python path to the class object, not the ``__call__`` method::
