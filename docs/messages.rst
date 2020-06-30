@@ -106,6 +106,15 @@ can adapt this boilerplate with the following steps:
 
 * Submit an RPM package for it to Fedora and EPEL.
 
+If you prefer `CookieCutter`_, there is a `template repository`_ that you can use with the
+command::
+
+    cookiecutter gh:fedora-infra/cookiecutter-message-schemas
+
+It will ask you for the application name and some other variables, and will create the package
+structure for you.
 
 .. _JSON Schema: http://json-schema.org/
 .. _the fedora-messaging repository: https://github.com/fedora-infra/fedora-messaging/tree/master/docs/sample_schema_package/
+.. _CookieCutter: https://cookiecutter.readthedocs.io
+.. _template repository: https://github.com/fedora-infra/cookiecutter-message-schemas
