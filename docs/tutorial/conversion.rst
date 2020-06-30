@@ -35,13 +35,13 @@ calls.
 
 In parallel, copy the ``docs/sample_schema_package/`` directory from the
 ``fedora-messaging`` git clone to your app directory. Rename it to
-``elections-message-schemas``. Edit the ``setup.py`` file like you did before,
+``elections-messages``. Edit the ``setup.py`` file like you did before,
 to change the package metadata (including the entry
-point). Use ``fedora_elections_message_schemas`` for the name. Rename the
-``mailman_schema`` directory to ``fedora_elections_message_schemas`` and adapt
+point). Use ``fedora_elections_messages`` for the name. Rename the
+``mailman_messages`` directory to ``fedora_elections_messages`` and adapt
 the ``setup.py`` metadata.
 
-Edit the ``schema.py`` file and write the basic structure for the elections
+Edit the ``messages.py`` file and write the basic structure for the elections
 message schema. According to the different calls in ``admin.py``, it could be
 something like::
 
@@ -115,7 +115,7 @@ to encapsulate the messages. The wrapper could look like::
 
     import logging
 
-    from fedora_elections_message_schemas.schema import Message
+    from fedora_elections_messages.schema import Message
     from fedora_messaging.api import publish as fm_publish
     from fedora_messaging.exceptions import PublishReturned, ConnectionException
 

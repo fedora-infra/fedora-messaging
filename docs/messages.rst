@@ -52,7 +52,7 @@ object.
 Example Schema
 --------------
 
-.. include:: sample_schema_package/mailman_schema/schema.py
+.. include:: sample_schema_package/mailman_messages/messages.py
    :literal:
 
 Note that message schema can be composed of other message schema, and
@@ -84,19 +84,19 @@ Packaging
 
 Finally, you must distribute your schema to clients. It is recommended that you
 maintain your message schema in your application's git repository in a separate
-Python package. The package name should be ``<your-app-name>_schema``.
+Python package. The package name should be ``<your-app-name>-messages``.
 
 A complete sample schema package can be found in `the fedora-messaging
 repository`_. This includes unit tests, the schema classes, and a setup.py. You
 can adapt this boilerplate with the following steps:
 
-* Change the package name from ``mailman_schema`` to ``<your-app-name>_schema``
+* Change the package name from ``mailman_messages`` to ``<your-app-name>_messages``
   in ``setup.py``.
 
-* Rename the ``mailman_schema`` directory to ``<your-app-name>_schema``.
+* Rename the ``mailman_messages`` directory to ``<your-app-name>_messages``.
 
-* Add your schema classes to ``schema.py`` and tests to
-  ``tests/test_schema.py``.
+* Add your schema classes to ``messages.py`` and tests to
+  ``tests/test_messages.py``.
 
 * Update the ``README`` file.
 

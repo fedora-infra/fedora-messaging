@@ -15,6 +15,8 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """This is an example of a message schema."""
 
+from email.utils import parseaddr
+
 from fedora_messaging import message, schema_utils
 
 
@@ -34,7 +36,10 @@ class BaseMessage(message.Message):
 
     @property
     def summary(self):
-        """Return a summary of the message."""
+        """Return a summary of the message.
+
+        By convention, in Fedora all schemas should provide this property.
+        """
         return self.subject
 
     @property
@@ -50,6 +55,8 @@ class BaseMessage(message.Message):
     @property
     def url(self):
         """An URL to the email in HyperKitty
+
+        By convention, in Fedora all schemas should provide this property.
 
         Returns:
             str or None: A relevant URL.
@@ -69,7 +76,10 @@ class BaseMessage(message.Message):
 
     @property
     def app_icon(self):
-        """An URL to the icon of the application that generated the message."""
+        """A URL to the icon of the application that generated the message.
+
+        By convention, in Fedora all schemas should provide this property.
+        """
         return "https://apps.fedoraproject.org/img/icons/hyperkitty.png"
 
     @property
@@ -81,6 +91,13 @@ class BaseMessage(message.Message):
     def packages(self):
         """List of packages affected by the action that generated this message."""
         return []
+
+    def _get_avatar_from_from_header(self, from_header):
+        """Converts a From email header to an avatar."""
+        # Extract the username
+        addr = parseaddr(from_header)[1]
+        username = addr.split("@")[0]
+        return schema_utils.user_avatar_url(username)
 
 
 class MessageV1(BaseMessage):
@@ -141,8 +158,7 @@ class MessageV1(BaseMessage):
     @property
     def agent_avatar(self):
         """An URL to the avatar of the user who caused the action."""
-        from_header = self.body["msg"]["from"]
-        return schema_utils.user_avatar_url(from_header)
+        return self._get_avatar_from_from_header(self.body["msg"]["from"])
 
     def _get_archived_at(self):
         return self.body["msg"]["archived-at"]
@@ -195,8 +211,7 @@ class MessageV2(BaseMessage):
     @property
     def agent_avatar(self):
         """An URL to the avatar of the user who caused the action."""
-        from_header = self.body["from"]
-        return schema_utils.user_avatar_url(from_header)
+        return self._get_avatar_from_from_header(self.body["from"])
 
     def _get_archived_at(self):
         return self.body["archived-at"]
