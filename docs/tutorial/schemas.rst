@@ -25,6 +25,14 @@ Edit the ``setup.py`` file to change the package metadata. Rename the
 ``yourapp_messages``. This is the naming convention.
 Edit the ``README`` file too.
 
+If you prefer `CookieCutter`_, there is a `template repository`_ that you can use with the
+command::
+
+    cookiecutter gh:fedora-infra/cookiecutter-message-schemas
+
+.. _CookieCutter: https://cookiecutter.readthedocs.io
+.. _template repository: https://github.com/fedora-infra/cookiecutter-message-schemas
+
 
 Writing the schema
 ------------------
