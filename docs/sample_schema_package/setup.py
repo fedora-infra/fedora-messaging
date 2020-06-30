@@ -26,7 +26,7 @@ with open(os.path.join(here, "README")) as fd:
 
 
 setup(
-    name="mailman_schema",
+    name="mailman_messages",
     version="1.0.0",
     description="A sample schema package for messages sent by mailman",
     long_description=README,
@@ -52,11 +52,11 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=["fedora_messaging"],
-    test_suite="mailman_schema.tests",
+    test_suite="mailman_messages.tests",
     entry_points={
         "fedora.messages": [
-            "mailman.messageV1=mailman_schema.schema:MessageV1",
-            "mailman.messageV2=mailman_schema.schema:MessageV2",
+            "mailman.messageV1=mailman_messages.messages:MessageV1",
+            "mailman.messageV2=mailman_messages.messages:MessageV2",
         ]
     },
 )

@@ -21,8 +21,8 @@ Copy the ``docs/sample_schema_package/`` directory from the
 ``fedora-messaging`` git clone to your app directory.
 
 Edit the ``setup.py`` file to change the package metadata. Rename the
-``mailman_schema`` directory to something relevant to your app, like
-``yourapp_message_schemas``. There is no naming convention at the moment.
+``mailman_messages`` directory to something relevant to your app, like
+``yourapp_messages``. This is the naming convention.
 Edit the ``README`` file too.
 
 
@@ -34,7 +34,7 @@ with the `jsonschema`_ library means writing a Python dictionary that will
 describe the message's JSON object body. Read up on the `jsonschema`_ library
 documentation if you have questions about the format.
 
-Open the ``schema.py`` file, it contains an example schema for
+Open the ``messages.py`` file, it contains an example schema for
 Mailman-originating messages on the bus. The schema is a Python class
 containing an important dictionary attribute: ``body_schema``. This is where
 the JSON schema lives.
@@ -139,7 +139,7 @@ You should set a reasonable default for your messages.
 Testing it
 ----------
 
-JSON schemas can also be unit-tested. Check out the ``tests/test_schema.py``
+JSON schemas can also be unit-tested. Check out the ``tests/test_messages.py``
 file and write the unit tests that are appropriate for the message schema and
 the methods you just wrote. Use the example tests for inspiration.
 
@@ -150,7 +150,7 @@ Using it
 To use your new JSON schema, its Python distribution must be available on the
 system. Run ``python setup.py develop`` in the schema directory to install it.
 
-Now you can use the ``yourapp_message_schemas.schema.Message`` class (or
+Now you can use the ``yourapp_messages.messages.Message`` class (or
 however you named the package) to construct your message instances and call
 :py:func:`fedora_messaging.api.publish <pub-api>` on them. Edit the
 ``publish.py`` script to read::
@@ -159,7 +159,7 @@ however you named the package) to construct your message instances and call
 
     from fedora_messaging.api import publish
     from fedora_messaging.config import conf
-    from yourapp_message_schema.schema import Message
+    from yourapp_messages.messages import Message
 
     conf.setup_logging()
     message = Message(
@@ -197,8 +197,7 @@ receivers, restart them, and then start using the new version in the publishers.
 You should keep the old schema versions in the schemas package for a reasonable
 amount of time, long enough to make sure all receivers are up-to-date. To avoid
 clutter, we recommend you use a separate module per schema version
-(``yourapp_message_schemas.v1:Message``,
-``yourapp_message_schemas.v2:Message``, etc)
+(``yourapp_messages.v1:Message``, ``yourapp_messages.v2:Message``, etc)
 
 Now create a new version and use it in the ``publish.py`` script. Send a
 message before restarting the ``consume.py`` script to see what happens when a

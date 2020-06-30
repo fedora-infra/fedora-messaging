@@ -17,13 +17,13 @@
 import unittest
 
 from jsonschema import ValidationError
-from .. import schema
+from .. import messages
 
 
 class MessageV1Tests(unittest.TestCase):
     """A set of unit tests to ensure the schema works as expected."""
 
-    msg_class = schema.MessageV1
+    msg_class = messages.MessageV1
 
     def setUp(self):
         self.minimal_message = {
@@ -112,7 +112,7 @@ class MessageV1Tests(unittest.TestCase):
         message = self.msg_class(body=self.full_message)
         self.assertEqual(
             "https://seccdn.libravatar.org/avatar/"
-            "8c2a47d3bdb8d3096a6479f53eac3b724291db5f1c31611100f675be5537329d"
+            "570ebdf0322c3d5c9680578b437c155933403674cfd50fc70aeebb8f462f7756"
             "?s=64&d=retro",
             message.agent_avatar,
         )
@@ -131,7 +131,7 @@ class MessageV1Tests(unittest.TestCase):
 class MessageV2Tests(MessageV1Tests):
     """A set of unit tests to ensure the schema works as expected."""
 
-    msg_class = schema.MessageV2
+    msg_class = messages.MessageV2
 
     def setUp(self):
         self.minimal_message = {
@@ -175,7 +175,7 @@ class MessageV2Tests(MessageV1Tests):
         message = self.msg_class(body=self.full_message)
         self.assertEqual(
             "https://seccdn.libravatar.org/avatar/"
-            "8c2a47d3bdb8d3096a6479f53eac3b724291db5f1c31611100f675be5537329d"
+            "570ebdf0322c3d5c9680578b437c155933403674cfd50fc70aeebb8f462f7756"
             "?s=64&d=retro",
             message.agent_avatar,
         )
