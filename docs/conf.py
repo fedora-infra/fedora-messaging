@@ -15,9 +15,9 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath("../"))  # NOQA
+sys.path.insert(0, os.path.abspath("../"))
 
-import fedora_messaging
+import fedora_messaging  # noqa: E402
 
 
 # -- Project information -----------------------------------------------------
