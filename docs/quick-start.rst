@@ -131,9 +131,9 @@ configuration to use your consumer :ref:`conf-callback` and adjusting the
 routing keys in your :ref:`conf-bindings` to receive only the messages your
 consumer is interested in.
 
-.. _key: https://raw.githubusercontent.com/fedora-infra/fedora-messaging/master/configs/fedora-key.pem
-.. _certificate: https://raw.githubusercontent.com/fedora-infra/fedora-messaging/master/configs/fedora-cert.pem
-.. _CA certificate: https://raw.githubusercontent.com/fedora-infra/fedora-messaging/master/configs/cacert.pem
+.. _key: https://raw.githubusercontent.com/fedora-infra/fedora-messaging/stable/configs/fedora-key.pem
+.. _certificate: https://raw.githubusercontent.com/fedora-infra/fedora-messaging/stable/configs/fedora-cert.pem
+.. _CA certificate: https://raw.githubusercontent.com/fedora-infra/fedora-messaging/stable/configs/cacert.pem
 
 
 .. _fedora-restricted-broker:
