@@ -151,11 +151,6 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
                 versions lower than 1.0.0.
         """
         self._channel = yield self._allocate_channel()
-        yield self._channel.basic_qos(
-            prefetch_count=config.conf["qos"]["prefetch_count"],
-            prefetch_size=config.conf["qos"]["prefetch_size"],
-            global_qos=True,
-        )
 
     @defer.inlineCallbacks
     def _read(self, queue_object, consumer):
@@ -351,6 +346,10 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
             consumer = ConsumerV2(queue=queue, callback=callback)
         consumer._protocol = self
         consumer._channel = yield self._allocate_channel()
+        yield consumer._channel.basic_qos(
+            prefetch_count=config.conf["qos"]["prefetch_count"],
+            prefetch_size=config.conf["qos"]["prefetch_size"],
+        )
         try:
             queue_object, _ = yield consumer._channel.basic_consume(
                 queue=consumer.queue, consumer_tag=consumer._tag
@@ -826,6 +825,10 @@ class FedoraMessagingProtocol(FedoraMessagingProtocolV2):
             defer.returnValue(consumer)
 
         channel = yield self._allocate_channel()
+        yield channel.basic_qos(
+            prefetch_count=config.conf["qos"]["prefetch_count"],
+            prefetch_size=config.conf["qos"]["prefetch_size"],
+        )
         consumer = Consumer(
             tag=str(uuid.uuid4()), queue=queue, callback=callback, channel=channel
         )
