@@ -121,6 +121,10 @@ class ProtocolTests(unittest.TestCase):
 
         def _check(consumer):
             assert self.protocol._running is True
+            consumer.channel.basic_qos.assert_called_with(
+                prefetch_count=config.conf["qos"]["prefetch_count"],
+                prefetch_size=config.conf["qos"]["prefetch_size"],
+            )
             consumer.channel.basic_consume.assert_called_once_with(
                 queue="my_queue", consumer_tag="tag1"
             )
@@ -159,6 +163,10 @@ class ProtocolTests(unittest.TestCase):
         func = mock.Mock()
 
         def _check(consumer):
+            consumer.channel.basic_qos.assert_called_with(
+                prefetch_count=config.conf["qos"]["prefetch_count"],
+                prefetch_size=config.conf["qos"]["prefetch_size"],
+            )
             consumer.channel.basic_consume.assert_called_once_with(
                 queue="my_queue", consumer_tag="tag1"
             )
@@ -213,11 +221,7 @@ class ProtocolTests(unittest.TestCase):
     def test_connection_ready(self):
         # Check the ready Deferred.
         def _check(_):
-            self.protocol._channel.basic_qos.assert_called_with(
-                prefetch_count=config.conf["qos"]["prefetch_count"],
-                prefetch_size=config.conf["qos"]["prefetch_size"],
-                global_qos=True,
-            )
+            self.protocol.channel.assert_called_once_with()
 
         d = self.protocol.ready
         d.addCallback(_check)
