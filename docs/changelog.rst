@@ -4,6 +4,40 @@ Release Notes
 
 .. towncrier release notes start
 
+2.0.2 (2020-08-04)
+==================
+
+Bug Fixes
+---------
+
+* Set the QoS on the channel that is created for the consumer
+  (`#223 <https://github.com/fedora-infra/fedora-messaging/issues/223>`_)
+
+
+Documentation Improvements
+--------------------------
+
+* When running ``fedora-messaging consume``, the callback module should
+  not contain a call to ``api.consume()`` or it will block.
+  (`df4055f <https://github.com/fedora-infra/fedora-messaging/commit/df4055f>`_)
+
+* Update the schema docs
+  (`PR#219 <https://github.com/fedora-infra/fedora-messaging/pull/219>`_)
+
+* Fix quickstart cert file links
+  (`PR#222 <https://github.com/fedora-infra/fedora-messaging/pull/222>`_)
+
+* Fix the docs about exceptions being wrapped by HaltConsumer
+  (`#215 <https://github.com/fedora-infra/fedora-messaging/issues/215>`_)
+
+
+Other Changes
+-------------
+
+* Only try to restart fm-consumer@ services every 60 seconds
+  (`PR#214 <https://github.com/fedora-infra/fedora-messaging/pull/214>`_)
+
+
 2.0.1 (2020-01-02)
 ==================
 
