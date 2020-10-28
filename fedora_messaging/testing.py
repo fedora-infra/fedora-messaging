@@ -86,5 +86,7 @@ def mock_sends(*expected_messages):
                     )
                 )
         else:
+            assert msg.topic == expected.topic
+            assert msg.body == expected.body
             assert msg == expected
         msg.validate()
