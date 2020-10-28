@@ -15,4 +15,12 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+try:
+    import pytest
+
+    pytest.register_assert_rewrite("fedora_messaging.testing")
+except ImportError:
+    pass
+
+
 __version__ = "2.0.2"
