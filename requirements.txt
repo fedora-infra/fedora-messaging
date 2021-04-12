@@ -9,3 +9,4 @@ PyOpenSSL
 pika>=1.0.1
 six
 service_identity
+setuptools
