@@ -249,6 +249,8 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
 
         Raises:
             PublishReturned: If the published message is rejected by the broker.
+            PublishForbidden: If the published message is rejected by the broker because
+                of permission issues.
             ConnectionException: If a connection error occurs while publishing. Calling
                 this method again will wait for the next connection and publish when it
                 is available.
@@ -425,6 +427,8 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
                 If this occurs, you can either reduce the number of consumers on this
                 connection or create an additional connection.
             PublishReturned: If the published message is rejected by the broker.
+            PublishForbidden: If the published message is rejected by the broker because
+                of permission issues.
             ConnectionException: If a connection error occurs while publishing. Calling
                 this method again will wait for the next connection and publish when it
                 is available.

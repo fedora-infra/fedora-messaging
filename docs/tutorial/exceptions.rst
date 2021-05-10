@@ -15,6 +15,8 @@ exceptions can be raised:
   its JSON schema. This only depends on the message you are trying to
   send, the AMQP server is not involved.
 - ``PublishReturned``: raised if the broker rejects the message.
+- ``PublishForbidden``: raised if the broker rejects the message because of
+  permissions issues.
 - ``ConnectionException``: raised if a connection error occurred before the
   publish confirmation arrived.
 

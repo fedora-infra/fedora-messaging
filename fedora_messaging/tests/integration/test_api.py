@@ -1,22 +1,20 @@
 """Test the :mod:`fedora_messaging.api` APIs on a real broker running on localhost."""
 
-from collections import defaultdict
-import uuid
-import six
-import mock
+import socket
 import time
+import uuid
+from collections import defaultdict
 
-from twisted.internet import reactor, defer, task, threads
-import treq
+import mock
 import pika
 import pytest
 import pytest_twisted
-import socket
-
-from fedora_messaging import api, message, exceptions, config
+import six
+import treq
+from fedora_messaging import api, config, exceptions, message
 from fedora_messaging.twisted import service
 from fedora_messaging.twisted.protocol import _add_timeout
-
+from twisted.internet import defer, reactor, task, threads
 
 HTTP_API = "http://localhost:15672/api/"
 HTTP_AUTH = ("guest", "guest")
@@ -670,6 +668,35 @@ def test_protocol_publish_connection_error(queue_and_binding):
         pytest.fail("Expected a ConnectionException")
     except exceptions.ConnectionException:
         pass
+
+
+@pytest_twisted.inlineCallbacks
+def test_protocol_publish_forbidden(admin_user):
+    """Assert individual protocols raise exceptions when the topic is not allowed."""
+    url = "{base}topic-permissions/%2F/{user}".format(base=HTTP_API, user=admin_user)
+    body = {"exchange": "amq.topic", "write": "^allowed$", "read": ".*"}
+    resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
+    assert resp.code == 201
+
+    amqp_url = "amqp://{user}:guest@localhost:5672/%2F".format(user=admin_user)
+    with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
+        try:
+            api._init_twisted_service()
+            protocol = yield api._twisted_service._service.factory.when_connected()
+            d = protocol.publish(message.Message(topic="not-allowed"), "amq.topic")
+            d.addTimeout(5, reactor)
+            yield d
+            pytest.fail("Publish failed to raise an exception")
+        except (defer.TimeoutError, defer.CancelledError):
+            pytest.fail("Publishing hit the timeout, probably stuck in a retry loop")
+        except exceptions.PublishForbidden as e:
+            assert e.reason.args[0] == 403
+            assert e.reason.args[1] == (
+                "ACCESS_REFUSED - access to topic 'not-allowed' in exchange 'amq.topic'"
+                " in vhost '/' refused for user '{}'".format(admin_user)
+            )
+        # Now try on an allowed topic
+        yield protocol.publish(message.Message(topic="allowed"), "amq.topic")
 
 
 @pytest_twisted.inlineCallbacks

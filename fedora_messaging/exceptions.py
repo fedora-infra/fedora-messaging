@@ -103,6 +103,15 @@ class PublishTimeout(PublishException):
     """
 
 
+class PublishForbidden(PublishException):
+    """
+    Raised when the broker rejects the message due to permission errors.
+
+    You may handle this exception by logging it and discarding the message,
+    as it is likely a permanent error.
+    """
+
+
 class ConnectionException(BaseException):
     """
     Raised if a general connection error occurred.
