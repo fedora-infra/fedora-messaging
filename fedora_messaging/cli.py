@@ -383,7 +383,7 @@ def publish(exchange, file):
             click.echo("Publishing message with topic {}".format(msg.topic))
             try:
                 api.publish(msg, exchange)
-            except exceptions.PublishReturned as e:
+            except (exceptions.PublishReturned, exceptions.PublishForbidden) as e:
                 click.echo("Unable to publish message: {}".format(str(e)))
                 sys.exit(errno.EREMOTEIO)
             except exceptions.PublishTimeout as e:

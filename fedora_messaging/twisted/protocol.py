@@ -31,34 +31,35 @@ For an overview of Twisted clients, see the `Twisted client documentation
 """
 from __future__ import absolute_import
 
-from collections import namedtuple
+import logging
 import uuid
 import warnings
-import logging
+from collections import namedtuple
 
 import pika
 from pika.adapters.twisted_connection import TwistedProtocolConnection
 from pika.exceptions import ChannelClosedByClient
-from twisted.internet import defer, error, threads, reactor
+
+from twisted.internet import defer, error, reactor, threads
 from twisted.python import log as _legacy_twisted_log
 from twisted.python.failure import Failure
 
-from .consumer import Consumer as ConsumerV2
 from .. import config
-from ..message import get_message
 from ..exceptions import (
-    Nack,
-    Drop,
-    HaltConsumer,
-    ValidationError,
-    NoFreeChannels,
     BadDeclaration,
-    PublishReturned,
     ConnectionException,
     ConsumerCanceled,
+    Drop,
+    HaltConsumer,
+    Nack,
+    NoFreeChannels,
     PermissionException,
+    PublishForbidden,
+    PublishReturned,
+    ValidationError,
 )
-
+from ..message import get_message
+from .consumer import Consumer as ConsumerV2
 
 _std_log = logging.getLogger(__name__)
 
@@ -278,6 +279,8 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
                 there are resource limits that have been reached (full disk, for example)
                 or if the message will be routed to 0 queues and the exchange is set to
                 reject such messages.
+            PublishForbidden: If the broker rejected the message because of permission
+                issues (for example: the topic is not allowed).
 
         .. _exchange: https://www.rabbitmq.com/tutorials/amqp-concepts.html#exchanges
         """
@@ -295,8 +298,20 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         except (pika.exceptions.NackError, pika.exceptions.UnroutableError) as e:
             _std_log.error("Message was rejected by the broker (%s)", str(e))
             raise PublishReturned(reason=e)
-        except (pika.exceptions.ChannelClosed, pika.exceptions.ChannelWrongStateError):
+        except (
+            pika.exceptions.ChannelClosed,
+            pika.exceptions.ChannelWrongStateError,
+        ) as e:
+            # Channel has been closed, we'll need to re-allocate it.
             self._publish_channel = None
+            # Handle Forbidden errors
+            if isinstance(e, pika.exceptions.ChannelClosed) and e.reply_code == 403:
+                _std_log.error(
+                    "Message was forbidden by the broker: %s",
+                    e.reply_text,
+                )
+                raise PublishForbidden(reason=e)
+            # In other cases, try to publish again
             yield self.publish(message, exchange)
         except (
             pika.exceptions.ConnectionClosed,

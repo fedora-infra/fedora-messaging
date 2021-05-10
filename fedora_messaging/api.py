@@ -298,6 +298,8 @@ def publish(message, exchange=None, timeout=30):
             message.
         fedora_messaging.exceptions.PublishTimeout: Raised if the broker could not be
             contacted in the given timeout time.
+        fedora_messaging.exceptions.PublishForbidden: Raised if the broker rejects the
+            message because of permission issues.
         fedora_messaging.exceptions.ValidationError: Raised if the message
             fails validation with its JSON schema. This only depends on the
             message you are trying to send, the AMQP server is not involved.

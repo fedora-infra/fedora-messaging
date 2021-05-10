@@ -23,24 +23,24 @@ import unittest
 import mock
 import pika
 import pytest
-from twisted.internet import defer, error
-
 from fedora_messaging import config
-from fedora_messaging.message import Message
 from fedora_messaging.exceptions import (
-    Nack,
+    ConnectionException,
     Drop,
     HaltConsumer,
+    Nack,
     NoFreeChannels,
-    ConnectionException,
+    PublishForbidden,
 )
+from fedora_messaging.message import Message
 from fedora_messaging.twisted.protocol import (
+    Consumer,
     FedoraMessagingProtocol,
     FedoraMessagingProtocolV2,
-    Consumer,
     _add_timeout,
 )
 
+from twisted.internet import defer, error
 
 try:
     import pytest_twisted
@@ -250,6 +250,27 @@ class ProtocolTests(unittest.TestCase):
             self.assertEqual(props.delivery_mode, 2)
 
         d.addCallback(_check)
+        return pytest_twisted.blockon(d)
+
+    def test_publish_forbidden(self):
+        # Check the publish method when publishing is forbidden.
+        body = {"bodykey": "bodyvalue"}
+        headers = {"headerkey": "headervalue"}
+        message = Message(body, headers, "testing.topic")
+        self.protocol._channel.basic_publish.side_effect = (
+            pika.exceptions.ChannelClosed(403, "Test forbidden message")
+        )
+        d = self.protocol.publish(message, "test-exchange")
+
+        d.addCallback(pytest.fail, "Expected a PublishForbidden exception")
+        d.addErrback(lambda f: f.trap(PublishForbidden))
+
+        def _check(_):
+            # Make sure the channel will be re-allocated
+            assert self.protocol._publish_channel is None
+
+        d.addBoth(_check)
+
         return pytest_twisted.blockon(d)
 
     def test_resumeProducing(self):

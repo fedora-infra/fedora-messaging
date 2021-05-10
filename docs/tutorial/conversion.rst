@@ -117,7 +117,7 @@ to encapsulate the messages. The wrapper could look like::
 
     from fedora_elections_messages.schema import Message
     from fedora_messaging.api import publish as fm_publish
-    from fedora_messaging.exceptions import PublishReturned, ConnectionException
+    from fedora_messaging.exceptions import PublishReturned, PublishForbidden, ConnectionException
 
     LOGGER = logging.getLogger(__name__)
 
@@ -127,7 +127,7 @@ to encapsulate the messages. The wrapper could look like::
                 topic="fedora.elections." + topic,
                 body=msg,
             ))
-        except PublishReturned as e:
+        except (PublishReturned, PublishForbidden) as e:
             LOGGER.warning(
                 "Fedora Messaging broker rejected message %s: %s",
                 msg.id, e
@@ -235,7 +235,7 @@ Now you can replace the current call to fedmsg with a call to
 
     import logging
     from fedora_messaging.api import Message, publish
-    from fedora_messaging.exceptions import PublishReturned, ConnectionException
+    from fedora_messaging.exceptions import PublishReturned, PublishForbidden, ConnectionException
 
     LOGGER = logging.getLogger(__name__)
 
@@ -247,7 +247,7 @@ And replace the call to ``fedmsg.publish`` with::
             body=payload,
         )
         publish(msg)
-    except PublishReturned as e:
+    except (PublishReturned, PublishForbidden) as e:
         LOGGER.warning(
             "Fedora Messaging broker rejected message %s: %s",
             msg.id, e
