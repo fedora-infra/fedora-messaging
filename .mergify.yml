@@ -7,8 +7,17 @@ pull_request_rules:
   conditions:
   - label!=no-mergify
   - approved-reviews-by=@fedora-infra/fedora-messaging-maintainers
-  - status-success=continuous-integration/travis-ci/pr
   - status-success=DCO
+  - status-success=Misc tests (lint)
+  - status-success=Misc tests (format)
+  - status-success=Misc tests (licenses)
+  - status-success=Misc tests (bandit)
+  - status-success=Unit tests (py27-unittest)
+  - status-success=Unit tests (py36-unittest)
+  - status-success=Unit tests (py37-unittest)
+  - status-success=Integration tests (2.7)
+  - status-success=Integration tests (3.6)
+  - status-success=Integration tests (3.7)
   name: default
 - actions:
     merge:
@@ -19,6 +28,15 @@ pull_request_rules:
   - label!=no-mergify
   - author=@fedora-infra/fedora-messaging-maintainers
   - '#approved-reviews-by>=1'
-  - status-success=continuous-integration/travis-ci/pr
   - status-success=DCO
+  - status-success=Misc tests (lint)
+  - status-success=Misc tests (format)
+  - status-success=Misc tests (licenses)
+  - status-success=Misc tests (bandit)
+  - status-success=Unit tests (py27-unittest)
+  - status-success=Unit tests (py36-unittest)
+  - status-success=Unit tests (py37-unittest)
+  - status-success=Integration tests (2.7)
+  - status-success=Integration tests (3.6)
+  - status-success=Integration tests (3.7)
   name: default-from-fedora-messaging-team
