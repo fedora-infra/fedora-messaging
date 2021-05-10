@@ -10,20 +10,14 @@ name: Run Tox tests
 
 jobs:
   tox_test:
-    name: Tox test
+    name: Tox tests
     steps:
     - uses: actions/checkout@v2
     - name: Run tests
-      id: test
+      id: tests
       uses: fedora-python/tox-github-action@master
       with:
         tox_env: ${{ matrix.tox_env }}
-    # - name: Run integration tests
-    #   id: test
-    #   uses: fedora-python/tox-github-action@master
-    #   with:
-    #     tox_env: ${{ matrix.tox_env_integration }}
-    #     dnf_install: rabbitmq-server
     strategy:
       matrix:
         tox_env:
@@ -34,10 +28,32 @@ jobs:
           - py27-unittest
           - py36-unittest
           - py37-unittest
-        # tox_env_integration:
-        #   - py27-integration
-        #   - py36-integration
-        #   - py37-integration
+    # Use GitHub's Linux Docker host
+    runs-on: ubuntu-latest
 
+  integration_test:
+    name: Integration tests
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install RabbitMQ
+      uses: mer-team/rabbitmq-mng-action@v1.2
+      with:
+        RABBITMQ_TAG: '3-management-alpine'
+      # run: ./travis-integration-setup.sh
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Install Tox
+      run: pip install tox
+    - name: Run integration tests
+      # Run tox using the version of Python in `PATH`
+      run: tox -e py-integration
+    strategy:
+      matrix:
+        python:
+          - 2.7
+          - 3.6
+          - 3.7
     # Use GitHub's Linux Docker host
     runs-on: ubuntu-latest
