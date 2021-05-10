@@ -1,0 +1,43 @@
+on:
+  push:
+    branches:
+    - stable
+  pull_request:
+    branches:
+    - stable
+
+name: Run Tox tests
+
+jobs:
+  tox_test:
+    name: Tox test
+    steps:
+    - uses: actions/checkout@v2
+    - name: Run tests
+      id: test
+      uses: fedora-python/tox-github-action@master
+      with:
+        tox_env: ${{ matrix.tox_env }}
+    # - name: Run integration tests
+    #   id: test
+    #   uses: fedora-python/tox-github-action@master
+    #   with:
+    #     tox_env: ${{ matrix.tox_env_integration }}
+    #     dnf_install: rabbitmq-server
+    strategy:
+      matrix:
+        tox_env:
+          - lint
+          - format
+          - licenses
+          - bandit
+          - py27-unittest
+          - py36-unittest
+          - py37-unittest
+        # tox_env_integration:
+        #   - py27-integration
+        #   - py36-integration
+        #   - py37-integration
+
+    # Use GitHub's Linux Docker host
+    runs-on: ubuntu-latest
