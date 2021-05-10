@@ -9,12 +9,11 @@ on:
 name: Run Tox tests
 
 jobs:
-  tox_test:
-    name: Tox tests
+  misc_tests:
+    name: Misc tests
     steps:
     - uses: actions/checkout@v2
     - name: Run tests
-      id: tests
       uses: fedora-python/tox-github-action@master
       with:
         tox_env: ${{ matrix.tox_env }}
@@ -25,10 +24,29 @@ jobs:
           - format
           - licenses
           - bandit
+    runs-on: ubuntu-latest
+
+  unit_test:
+    name: Unit tests
+    steps:
+    - uses: actions/checkout@v2
+    - name: Run tests
+      uses: fedora-python/tox-github-action@master
+      with:
+        tox_env: ${{ matrix.tox_env }}
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v1
+      with:
+        name: ${{ matrix.tox_env }}
+        flags: unittests
+        env_vars: PYTHON
+        fail_ci_if_error: true
+    strategy:
+      matrix:
+        tox_env:
           - py27-unittest
           - py36-unittest
           - py37-unittest
-    # Use GitHub's Linux Docker host
     runs-on: ubuntu-latest
 
   integration_test:
@@ -55,5 +73,4 @@ jobs:
           - 2.7
           - 3.6
           - 3.7
-    # Use GitHub's Linux Docker host
     runs-on: ubuntu-latest
