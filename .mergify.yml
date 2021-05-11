@@ -1,42 +1,50 @@
 pull_request_rules:
-- actions:
-    merge:
-      method: rebase
-      rebase_fallback: null
-      strict: true
-  conditions:
-  - label!=no-mergify
-  - approved-reviews-by=@fedora-infra/fedora-messaging-maintainers
-  - status-success=DCO
-  - status-success=Misc tests (lint)
-  - status-success=Misc tests (format)
-  - status-success=Misc tests (licenses)
-  - status-success=Misc tests (bandit)
-  - status-success=Unit tests (py27-unittest)
-  - status-success=Unit tests (py36-unittest)
-  - status-success=Unit tests (py37-unittest)
-  - status-success=Integration tests (2.7)
-  - status-success=Integration tests (3.6)
-  - status-success=Integration tests (3.7)
-  name: default
-- actions:
-    merge:
-      method: rebase
-      rebase_fallback: null
-      strict: true
-  conditions:
-  - label!=no-mergify
-  - author=@fedora-infra/fedora-messaging-maintainers
-  - '#approved-reviews-by>=1'
-  - status-success=DCO
-  - status-success=Misc tests (lint)
-  - status-success=Misc tests (format)
-  - status-success=Misc tests (licenses)
-  - status-success=Misc tests (bandit)
-  - status-success=Unit tests (py27-unittest)
-  - status-success=Unit tests (py36-unittest)
-  - status-success=Unit tests (py37-unittest)
-  - status-success=Integration tests (2.7)
-  - status-success=Integration tests (3.6)
-  - status-success=Integration tests (3.7)
-  name: default-from-fedora-messaging-team
+  - actions:
+      merge:
+        method: rebase
+        rebase_fallback: null
+        strict: true
+    conditions:
+      - label!=no-mergify
+      - approved-reviews-by=@fedora-infra/fedora-messaging-maintainers
+      - status-success=DCO
+      - status-success=Misc tests (lint)
+      - status-success=Misc tests (format)
+      - status-success=Misc tests (licenses)
+      - status-success=Misc tests (bandit)
+      - status-success=Unit tests (py27-unittest)
+      - status-success=Unit tests (py36-unittest)
+      - status-success=Unit tests (py37-unittest)
+      - status-success=Unit tests (py38-unittest)
+      - status-success=Unit tests (py39-unittest)
+      - status-success=Integration tests (2.7)
+      - status-success=Integration tests (3.6)
+      - status-success=Integration tests (3.7)
+      - status-success=Integration tests (3.8)
+      - status-success=Integration tests (3.9)
+    name: default
+  - actions:
+      merge:
+        method: rebase
+        rebase_fallback: null
+        strict: true
+    conditions:
+      - label!=no-mergify
+      - author=@fedora-infra/fedora-messaging-maintainers
+      - "#approved-reviews-by>=1"
+      - status-success=DCO
+      - status-success=Misc tests (lint)
+      - status-success=Misc tests (format)
+      - status-success=Misc tests (licenses)
+      - status-success=Misc tests (bandit)
+      - status-success=Unit tests (py27-unittest)
+      - status-success=Unit tests (py36-unittest)
+      - status-success=Unit tests (py37-unittest)
+      - status-success=Unit tests (py38-unittest)
+      - status-success=Unit tests (py39-unittest)
+      - status-success=Integration tests (2.7)
+      - status-success=Integration tests (3.6)
+      - status-success=Integration tests (3.7)
+      - status-success=Integration tests (3.8)
+      - status-success=Integration tests (3.9)
+    name: default-from-fedora-messaging-team
