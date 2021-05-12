@@ -4,6 +4,52 @@ Release Notes
 
 .. towncrier release notes start
 
+2.1.0 (2021-05-12)
+==================
+
+Features
+--------
+
+* Improve the testing module to check message topics and bodies separately,
+  and to use the rewritten assert that pytest provides
+  (`PR#230 <https://github.com/fedora-infra/fedora-messaging/pull/230>`_)
+
+* Handle `topic authorization <https://www.rabbitmq.com/access-control.html#topic-authorisation>`_
+  by raising a ``PublishForbidden`` exception instead of being stuck in a retry loop
+  (`PR#235 <https://github.com/fedora-infra/fedora-messaging/pull/235>`_)
+
+* Test on Python 3.8 and 3.9
+  (`PR#237 <https://github.com/fedora-infra/fedora-messaging/pull/237>`_)
+
+
+Bug Fixes
+---------
+
+* Require setuptools, as ``pkg_resources`` is used
+  (`PR#233 <https://github.com/fedora-infra/fedora-messaging/pull/233>`_)
+
+
+Development Changes
+-------------------
+
+* Update test fixture keys to 4096 bits
+  (`PR#232 <https://github.com/fedora-infra/fedora-messaging/pull/232>`_)
+
+* Use Github Actions for CI
+  (`PR#234 <https://github.com/fedora-infra/fedora-messaging/pull/234>`_)
+
+
+Contributors
+------------
+Many thanks to the contributors of bug reports, pull requests, and pull request
+reviews for this release:
+
+* Aurélien Bompard
+* Jeremy Cline
+* Miro Hrončok
+* Pierre-Yves Chibon
+
+
 2.0.2 (2020-08-04)
 ==================
 

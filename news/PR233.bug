@@ -1,1 +1,0 @@
-Require setuptools, as ``pkg_resources`` is used
