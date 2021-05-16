@@ -299,7 +299,7 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
             _std_log.error("Message was rejected by the broker (%s)", str(e))
             raise PublishReturned(reason=e)
         except pika.exceptions.ProbableAccessDeniedError as e:
-            _std_log.error("Message was rejected by the broker (%s)", str(e))
+            _std_log.error("Message was forbidden by the broker (%s)", str(e))
             raise PublishForbidden(reason=e)
         except (
             pika.exceptions.ChannelClosed,

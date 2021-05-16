@@ -27,7 +27,7 @@ import pytest
 import pytest_twisted
 
 from fedora_messaging import api, config
-from fedora_messaging.exceptions import PublishException, PublishForbidden
+from fedora_messaging.exceptions import PublishException
 from fedora_messaging.twisted import consumer, protocol
 from fedora_messaging.signals import (
     pre_publish_signal,
@@ -332,6 +332,7 @@ class PublishTests(unittest.TestCase):
         self.assertEqual(
             self.publish_failed_signal_data, expected_publish_failed_signal_data
         )
+
 
 @pytest_twisted.inlineCallbacks
 def test_consume_unexpected_crash():

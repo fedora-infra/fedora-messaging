@@ -700,6 +700,34 @@ def test_protocol_publish_forbidden(admin_user):
 
 
 @pytest_twisted.inlineCallbacks
+def test_protocol_publish_forbidden_in_vhost(admin_user):
+    """Assert individual protocols raise a forbidden exception immediately when
+    the user is not allowed to publish against the virtual host."""
+    url = "{base}permissions/%2F/{user}".format(base=HTTP_API, user=admin_user)
+    body = {"configure": ".*", "write": "", "read": ".*"}
+    resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
+    assert resp.code == 204
+
+    amqp_url = "amqp://{user}:guest@localhost:5672/%2F".format(user=admin_user)
+    with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
+        try:
+            api._init_twisted_service()
+            protocol = yield api._twisted_service._service.factory.when_connected()
+            d = protocol.publish(message.Message(topic="not-allowed"), "amq.topic")
+            d.addTimeout(5, reactor)
+            yield d
+            pytest.fail("Publish failed to raise an exception")
+        except (defer.TimeoutError, defer.CancelledError):
+            pytest.fail("Publishing hit the timeout, probably stuck in a retry loop")
+        except exceptions.PublishForbidden as e:
+            assert e.reason.args[0] == 403
+            assert e.reason.args[1] == (
+                "ACCESS_REFUSED - access to exchange 'amq.topic'"
+                " in vhost '/' refused for user '{}'".format(admin_user)
+            )
+
+
+@pytest_twisted.inlineCallbacks
 def test_pub_sub_default_settings(queue_and_binding):
     """
     Assert publishing and subscribing works with the default configuration.
