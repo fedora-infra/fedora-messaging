@@ -432,8 +432,6 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             ConnectionException: If a connection error occurs while publishing. Calling
                 this method again will wait for the next connection and publish when it
                 is available.
-            PublishPermissionException: If the broker rejected the message due to
-                insufficient permissions.
 
         .. _exchange: https://www.rabbitmq.com/tutorials/amqp-concepts.html#exchanges
         """
