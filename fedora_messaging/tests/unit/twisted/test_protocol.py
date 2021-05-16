@@ -273,6 +273,20 @@ class ProtocolTests(unittest.TestCase):
 
         return pytest_twisted.blockon(d)
 
+    def test_publish_access_denied(self):
+        body = {"bodykey": "bodyvalue"}
+        headers = {"headerkey": "headervalue"}
+        message = Message(body, headers, "testing.topic")
+        self.protocol._channel.basic_publish.side_effect = (
+            pika.exceptions.ProbableAccessDeniedError(403, "Test access denied message")
+        )
+        d = self.protocol.publish(message, "test-exchange")
+
+        d.addCallback(pytest.fail, "Expected a PublishForbidden exception")
+        d.addErrback(lambda f: f.trap(PublishForbidden))
+
+        return pytest_twisted.blockon(d)
+
     def test_resumeProducing(self):
         # Check the resumeProducing method.
         self.protocol._running = False
