@@ -17,7 +17,10 @@ Quickstart:
 3. Fix the bug or add the feature, and then write one or more tests which show
    the bug is fixed or the feature works.
 
-4. Submit a pull request and wait for a maintainer to review it.
+4. Add a `news fragment <#release-notes>`_ with a summary of the change to
+   include in the upcoming release notes.
+
+5. Submit a pull request and wait for a maintainer to review it.
 
 More detailed guidelines to help ensure your submission goes smoothly are
 below.
@@ -57,8 +60,8 @@ you're not certain how to write tests, we will be happy to help you.
 
 Release notes
 -------------
-To add entries to the release notes, create a file in the ``news`` directory
-with the ``source.type`` name format, where ``type`` is one of:
+
+To add entries to the release notes, run ``towncrier create <source.type>`` to create a news fragment file in the ``news`` directory, where ``type`` is one of:
 
 * ``feature``: for new features
 * ``bug``: for bug fixes
@@ -76,6 +79,14 @@ And where the ``source`` part of the filename is:
   there is no associated issue or pull request.
 * ``username`` for contributors (``author`` extention). It should be the
   username part of their commits' email address.
+
+For example,
+
+::
+
+    towncrier create PR42.feature    
+
+The contents of the news fragment must be written in RST format. See the `towncrier documentation for more information <https://github.com/twisted/towncrier>`_.
 
 A preview of the release notes can be generated with ``towncrier --draft``.
 
