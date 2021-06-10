@@ -27,13 +27,15 @@ documentation for more information.
 """
 
 from __future__ import absolute_import
+
 import collections
-import warnings
 import logging
+import warnings
 from collections import namedtuple
 
 import pika
-from twisted.internet import defer, protocol, error
+
+from twisted.internet import defer, error, protocol
 from twisted.python import log as _legacy_twisted_log
 from twisted.python.failure import Failure
 
@@ -42,6 +44,20 @@ from ..exceptions import ConnectionException
 from .protocol import FedoraMessagingProtocol, FedoraMessagingProtocolV2
 
 _std_log = logging.getLogger(__name__)
+
+
+def _remap_queue_name(bindings, queue_name):
+    """Reset the queue name in a binding, because the queue name might be server-generated.
+
+    Args:
+        bindings (dict): A binding description with a ``queue`` attribute.
+        queue_name (str): The name of the queue to use.
+    """
+    for binding in bindings:
+        if "queue" not in binding:
+            raise ValueError("Bindings must have a 'queue' key")
+        binding["queue"] = queue_name
+    # The dicts are changed in-place, don't return anything to make that clear.
 
 
 class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
@@ -330,10 +346,11 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             # including queues and bindings, as the queue might not have been durable
             for record in self._consumers:
                 _std_log.info("Re-registering the %r consumer", record.consumer)
-                yield client.declare_queues([record.queue])
+                queue_name = yield client.declare_queue(record.queue)
+                _remap_queue_name(record.bindings, queue_name)
                 yield client.bind_queues(record.bindings)
                 yield client.consume(
-                    record.consumer.callback, record.consumer.queue, record.consumer
+                    record.consumer.callback, queue_name, record.consumer
                 )
 
         def on_ready_connection_errback(failure):
@@ -503,12 +520,14 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
 
         consumers = []
         for queue in expanded_queues:
-            yield protocol.declare_queues([queue])
-            b = expanded_bindings.get(queue["queue"], [])
-            yield protocol.bind_queues(b)
-            consumer = yield protocol.consume(callback, queue["queue"])
+            config_queue_name = queue["queue"]
+            queue_name = yield protocol.declare_queue(queue)
+            ebs = expanded_bindings.get(config_queue_name, [])
+            _remap_queue_name(ebs, queue_name)
+            yield protocol.bind_queues(ebs)
+            consumer = yield protocol.consume(callback, queue_name)
             self._consumers.append(
-                ConsumerRecord(consumer=consumer, queue=queue, bindings=b)
+                ConsumerRecord(consumer=consumer, queue=queue, bindings=ebs)
             )
             consumers.append(consumer)
 
