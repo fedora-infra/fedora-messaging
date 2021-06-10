@@ -29,6 +29,7 @@ from twisted.python.failure import Failure
 
 from fedora_messaging import config
 from fedora_messaging.twisted.factory import (
+    ConsumerRecord,
     FedoraMessagingFactory,
     FedoraMessagingFactoryV2,
 )

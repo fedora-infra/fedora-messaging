@@ -30,6 +30,7 @@ from __future__ import absolute_import
 import collections
 import warnings
 import logging
+from collections import namedtuple
 
 import pika
 from twisted.internet import defer, protocol, error
@@ -267,6 +268,15 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
                 continue
 
 
+#: A namedtuple representing the record of an existing AMQP consumer with its config items.
+#:
+#: * The ``consumer`` field is the consumer object
+#:   (:class:`fedora_messaging.twisted.consumer.Consumer`).
+#: * The ``queue`` field is the configuration dict for the queue it's consuming from.
+#: * The ``bindings`` field is the list of configuration dicts for the queue's bindings.
+ConsumerRecord = namedtuple("ConsumerRecord", ["consumer", "queue", "bindings"])
+
+
 class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
     """Reconnecting factory for the Fedora Messaging protocol."""
 
@@ -289,7 +299,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
         # Used to implement the when_connected API
         self._client_deferred = defer.Deferred()
         self._client = None
-        self._consumers = {}
+        self._consumers = []
 
     def __repr__(self):
         """Return the representation of the factory as a string"""
@@ -318,11 +328,13 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
 
             # Restart any consumer from previous connections that wasn't canceled
             # including queues and bindings, as the queue might not have been durable
-            for consumer, queue, bindings in self._consumers.values():
-                _std_log.info("Re-registering the %r consumer", consumer)
-                yield client.declare_queues([queue])
-                yield client.bind_queues(bindings)
-                yield client.consume(consumer.callback, consumer.queue, consumer)
+            for record in self._consumers:
+                _std_log.info("Re-registering the %r consumer", record.consumer)
+                yield client.declare_queues([record.queue])
+                yield client.bind_queues(record.bindings)
+                yield client.consume(
+                    record.consumer.callback, record.consumer.queue, record.consumer
+                )
 
         def on_ready_connection_errback(failure):
             """If opening the connection fails or is lost, this errback is called."""
@@ -495,7 +507,9 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             b = expanded_bindings.get(queue["queue"], [])
             yield protocol.bind_queues(b)
             consumer = yield protocol.consume(callback, queue["queue"])
-            self._consumers[queue["queue"]] = (consumer, queue, b)
+            self._consumers.append(
+                ConsumerRecord(consumer=consumer, queue=queue, bindings=b)
+            )
             consumers.append(consumer)
 
         defer.returnValue(consumers)
@@ -519,4 +533,6 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
         Args:
             queue (str): Forget the consumers that consume from this queue.
         """
-        del self._consumers[queue]
+        self._consumers = [
+            record for record in self._consumers if record.consumer.queue != queue
+        ]
