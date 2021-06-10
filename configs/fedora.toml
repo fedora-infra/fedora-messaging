@@ -26,21 +26,26 @@ auto_delete = false
 arguments = {}
 
 # Queue names *must* be in the normal UUID format: run "uuidgen" and use the
-# output as your queue name. If your queue is not exclusive, anyone can connect
-# and consume from it, causing you to miss messages, so do not share your queue
-# name. Any queues that are not auto-deleted on disconnect are garbage-collected
-# after approximately one hour.
+# output as your queue name. If you don't define a queue here, the server will
+# generate a queue name for you. This queue will be non-durable, auto-deleted and
+# exclusive.
+# If your queue is not exclusive, anyone can connect and consume from it, causing
+# you to miss messages, so do not share your queue name. Any queues that are not
+# auto-deleted on disconnect are garbage-collected after approximately one hour.
 #
 # If you require a stronger guarantee about delivery, please talk to Fedora's
 # Infrastructure team.
-[queues.00000000-0000-0000-0000-000000000000]
-durable = false
-auto_delete = true
-exclusive = true
-arguments = {}
+#
+# [queues.00000000-0000-0000-0000-000000000000]
+# durable = false
+# auto_delete = true
+# exclusive = true
+# arguments = {}
 
+# If you use the server-generated queue names, you can leave out the "queue"
+# parameter in the bindings definition.
 [[bindings]]
-queue = "00000000-0000-0000-0000-000000000000"
+# queue = "00000000-0000-0000-0000-000000000000"
 exchange = "amq.topic"
 routing_keys = ["#"]  # Set this to the specific topics you are interested in.
 

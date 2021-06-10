@@ -54,8 +54,6 @@ def _remap_queue_name(bindings, queue_name):
         queue_name (str): The name of the queue to use.
     """
     for binding in bindings:
-        if "queue" not in binding:
-            raise ValueError("Bindings must have a 'queue' key")
         binding["queue"] = queue_name
     # The dicts are changed in-place, don't return anything to make that clear.
 
@@ -508,6 +506,8 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
                 b = binding.copy()
                 del b["routing_keys"]
                 b["routing_key"] = key
+                if "queue" not in b:
+                    b["queue"] = ""
                 expanded_bindings[b["queue"]].append(b)
 
         expanded_queues = []
