@@ -537,19 +537,22 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
                 user does not have permissions to create the object.
         """
         channel = yield self._allocate_channel()
+        result_queues = []
         try:
             for queue in queues:
                 args = queue.copy()
                 args.setdefault("passive", config.conf["passive_declares"])
                 try:
-                    yield channel.queue_declare(**args)
+                    frame = yield channel.queue_declare(**args)
                 except pika.exceptions.ChannelClosed as e:
                     raise BadDeclaration("queue", args, e)
+                result_queues.append(frame.method.queue)
         finally:
             try:
                 channel.close()
             except pika.exceptions.AMQPError:
                 pass  # pika doesn't handle repeated closes gracefully
+        defer.returnValue(result_queues)
 
     @defer.inlineCallbacks
     def bind_queues(self, bindings):
