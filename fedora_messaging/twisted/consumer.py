@@ -80,12 +80,8 @@ class Consumer(object):
         """
         # Remove it from protocol and factory so it doesn't restart later.
         try:
-            del self._protocol._consumers[self.queue]
-        except (KeyError, AttributeError):
-            pass
-        try:
-            del self._protocol.factory._consumers[self.queue]
-        except (KeyError, AttributeError):
+            self._protocol._forget_consumer(self.queue)
+        except AttributeError:
             pass
         # Signal to the _read loop it's time to stop and wait for it to finish
         # with whatever message it might be working on, then wait for the deferred
