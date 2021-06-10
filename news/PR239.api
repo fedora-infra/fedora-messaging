@@ -1,0 +1,4 @@
+Queues created by the CLI are now non-durable, auto-deleted and exclusive, as
+server-named queues are. It is no longer necessary to declare a queue in the
+configuration file: a server-named queue will be created. Configured bindings
+which do not specify a queue name will be applied to the server-named queue.

@@ -19,10 +19,8 @@
 import unittest
 
 import mock
-
 from fedora_messaging import config as msg_config
 from fedora_messaging.exceptions import ConfigurationException
-
 
 full_config = """
 amqp_url = "amqp://guest:guest@rabbit-server1:5672/%2F"
@@ -125,7 +123,6 @@ class ValidateBindingsTests(unittest.TestCase):
             "Configuration error: a binding is missing the following keys",
             str(cm.exception),
         )
-        self.assertIn("queue", str(cm.exception))
         self.assertIn("exchange", str(cm.exception))
         self.assertIn("routing_keys", str(cm.exception))
 

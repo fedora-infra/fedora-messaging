@@ -17,19 +17,19 @@
 """Tests for the :module:`fedora_messaging.cli` module."""
 from __future__ import absolute_import
 
+import errno
 import os
 import unittest
-import errno
 
-from click.testing import CliRunner
-from twisted.internet import error
-from twisted.python import failure
 import click
 import mock
-
+from click.testing import CliRunner
 from fedora_messaging import cli, config, exceptions, message, testing
 from fedora_messaging.tests import FIXTURES_DIR
 from fedora_messaging.twisted import consumer
+
+from twisted.internet import error
+from twisted.python import failure
 
 GOOD_CONF = os.path.join(FIXTURES_DIR, "good_conf.toml")
 BAD_CONF = os.path.join(FIXTURES_DIR, "bad_conf.toml")
@@ -131,9 +131,9 @@ class ConsumeCliTests(unittest.TestCase):
             bindings=[{"exchange": "e", "queue": "qn", "routing_keys": ("rk1", "rk2")}],
             queues={
                 "qn": {
-                    "durable": True,
-                    "auto_delete": False,
-                    "exclusive": False,
+                    "durable": False,
+                    "auto_delete": True,
+                    "exclusive": True,
                     "arguments": {},
                 }
             },
@@ -168,9 +168,9 @@ class ConsumeCliTests(unittest.TestCase):
             ],
             queues={
                 "qn": {
-                    "durable": True,
-                    "auto_delete": False,
-                    "exclusive": False,
+                    "durable": False,
+                    "auto_delete": True,
+                    "exclusive": True,
                     "arguments": {},
                 }
             },

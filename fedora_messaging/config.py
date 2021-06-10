@@ -283,21 +283,19 @@ import copy
 import logging
 import logging.config
 import os
-import uuid
 
 import pkg_resources
 import toml
 
 from . import exceptions
 
-
 _log = logging.getLogger(__name__)
 
 _fedora_version = pkg_resources.get_distribution("fedora_messaging").version
 _pika_version = pkg_resources.get_distribution("pika").version
 
-# A default, auto-deleted queue for consumers
-_default_queue_name = str(uuid.uuid4())
+# By default, use a server-generated queue name
+_default_queue_name = ""
 
 #: The default configuration settings for fedora-messaging. This should not be
 #: modified and should be copied with :func:`copy.deepcopy`.
@@ -330,7 +328,7 @@ DEFAULTS = dict(
         _default_queue_name: {
             "durable": False,
             "auto_delete": True,
-            "exclusive": False,
+            "exclusive": True,
             "arguments": {},
         }
     },
@@ -383,7 +381,7 @@ def validate_bindings(bindings):
 
     for binding in bindings:
         missing_keys = []
-        for key in ("queue", "exchange", "routing_keys"):
+        for key in ("exchange", "routing_keys"):
             if key not in binding:
                 missing_keys.append(key)
         if missing_keys:

@@ -136,13 +136,6 @@ def _consume(exchange, queue_name, routing_key, callback, app_name):
     bindings = config.conf["bindings"]
     queues = config.conf["queues"]
 
-    # The CLI and config.DEFAULTS have different defaults for the queue
-    # settings at the moment.  We should select a universal default in the
-    # future and remove this. Unfortunately that will break backwards compatibility.
-    if queues == config.DEFAULTS["queues"]:
-        queues[config._default_queue_name]["durable"] = True
-        queues[config._default_queue_name]["auto_delete"] = False
-
     if queue_name:
         queues = {queue_name: config.conf["queues"][config._default_queue_name]}
         for binding in bindings:

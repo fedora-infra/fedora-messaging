@@ -466,7 +466,7 @@ class FactoryV2Tests(unittest.TestCase):
         self.protocol.consume.side_effect = lambda cb, queue: defer.succeed(
             Consumer(queue=queue, callback=cb)
         )
-        bindings = [{"queue": "", "exchange": "amq.topic", "routing_keys": ["#"]}]
+        bindings = [{"exchange": "amq.topic", "routing_keys": ["#"]}]
         expected_bindings = [
             {"queue": declared_queue, "exchange": "amq.topic", "routing_key": "#"}
         ]
@@ -508,7 +508,7 @@ class FactoryV2Tests(unittest.TestCase):
         self.protocol.declare_queue.side_effect = lambda q: queue_new
         # Prepare the mocked existing consumer
         callback = mock.Mock()
-        bindings = [{"queue": "", "exchange": "amq.topic", "routing_key": "#"}]
+        bindings = [{"exchange": "amq.topic", "routing_key": "#"}]
         expected_bindings = [
             {"queue": queue_new, "exchange": "amq.topic", "routing_key": "#"}
         ]
