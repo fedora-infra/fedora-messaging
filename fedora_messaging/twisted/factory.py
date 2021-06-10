@@ -509,6 +509,14 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             consumer (list of fedora_messaging.api.Consumer): The consumers to cancel.
         """
         for consumer in consumers:
-            del self._consumers[consumer.queue]
+            self._forget_consumer(consumer.queue)
             protocol = yield self.when_connected()
             yield protocol.cancel(consumer)
+
+    def _forget_consumer(self, queue):
+        """Forget about a consumer.
+
+        Args:
+            queue (str): Forget the consumers that consume from this queue.
+        """
+        del self._consumers[queue]

@@ -393,16 +393,7 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
             """
             _std_log.error("%r was canceled by the AMQP broker!", consumer)
 
-            # If client and server are racing to cancel it might already be gone which
-            # is why both are marked as no cover.
-            try:
-                del self._consumers[consumer.queue]
-            except KeyError:  # pragma: no cover
-                pass
-            try:
-                del self.factory._consumers[consumer.queue]
-            except KeyError:  # pragma: no cover
-                pass
+            self._forget_consumer(consumer.queue)
             consumer._running = False
             consumer.result.errback(fail=ConsumerCanceled())
 
@@ -625,6 +616,20 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
             pass  # Already closing, not a problem since that's what we want.
         self._consumers = {}
         self._channel = None
+
+    def _forget_consumer(self, queue):
+        """Forget about a consumer so it does not restart later.
+
+        Args:
+            queue (str): Forget consumers consuming from this queue.
+        """
+        # If client and server are racing to cancel it might already be gone which
+        # is why both are marked as no cover.
+        try:
+            del self._consumers[queue]
+        except KeyError:  # pragma: no cover
+            pass
+        self.factory._forget_consumer(queue)
 
 
 #: A namedtuple that represents a AMQP consumer.
