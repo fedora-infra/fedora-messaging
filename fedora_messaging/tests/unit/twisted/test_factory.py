@@ -23,18 +23,18 @@ import unittest
 import mock
 import pika
 import pytest
-from twisted.internet import defer
-from twisted.internet.error import ConnectionDone, ConnectionLost
-from twisted.python.failure import Failure
-
 from fedora_messaging import config
+from fedora_messaging.exceptions import ConnectionException
+from fedora_messaging.twisted.consumer import Consumer
 from fedora_messaging.twisted.factory import (
     ConsumerRecord,
     FedoraMessagingFactory,
     FedoraMessagingFactoryV2,
 )
-from fedora_messaging.exceptions import ConnectionException
 
+from twisted.internet import defer
+from twisted.internet.error import ConnectionDone, ConnectionLost
+from twisted.python.failure import Failure
 
 try:
     import pytest_twisted
@@ -332,6 +332,7 @@ class FactoryV2Tests(unittest.TestCase):
     def setUp(self):
         self.protocol = mock.Mock()
         self.protocol.ready = defer.Deferred()
+        self.protocol.is_closed = False
         protocol_class = mock.Mock(side_effect=lambda *a, **kw: self.protocol)
         self.factory = FedoraMessagingFactoryV2(
             mock.Mock(name="parameters"), {"binding key": "binding value"}
@@ -448,6 +449,86 @@ class FactoryV2Tests(unittest.TestCase):
         )
         assert last_log_call_args[1].startswith("Traceback (most recent call last):")
         return pytest_twisted.blockon(connected_d)
+
+    def test_consume_anonymous(self):
+        """Assert consume handles anonymous queues."""
+        # Use server-generated queue names
+        queue_config = {
+            "queue": "",
+            "durable": False,
+            "auto_delete": True,
+            "exclusive": True,
+        }
+        declared_queue = mock.Mock()
+        self.protocol.declare_queue.side_effect = lambda q: declared_queue
+        # Mock the consume call
+        callback = mock.Mock()
+        self.protocol.consume.side_effect = lambda cb, queue: defer.succeed(
+            Consumer(queue=queue, callback=cb)
+        )
+        bindings = [{"queue": "", "exchange": "amq.topic", "routing_keys": ["#"]}]
+        expected_bindings = [
+            {"queue": declared_queue, "exchange": "amq.topic", "routing_key": "#"}
+        ]
+
+        self.factory.buildProtocol(None)
+        self.protocol.ready.callback(None)
+        d = self.factory.when_connected()
+
+        def _consume(_):
+            return self.factory.consume(callback, bindings, {"": queue_config})
+
+        def _check(_):
+            self.assertEqual(len(self.factory._consumers), 1)
+            consumer = self.factory._consumers[0].consumer
+            self.assertEqual(consumer.queue, declared_queue)
+            self.assertEqual(consumer.callback, callback)
+            self.assertEqual(queue_config, self.factory._consumers[0].queue)
+            self.assertEqual(expected_bindings, self.factory._consumers[0].bindings)
+
+            self.protocol.declare_queue.assert_called_once_with(queue_config)
+            self.protocol.bind_queues.assert_called_once_with(expected_bindings)
+            self.protocol.consume.assert_called_once_with(callback, declared_queue)
+
+        d.addCallback(_consume)
+        d.addCallback(_check)
+        return pytest_twisted.blockon(d)
+
+    def test_consume_anonymous_reconnect(self):
+        """Assert consume handles reconnecting anonymous queues."""
+        # Use server-generated queue names
+        queue_config = {
+            "queue": "",
+            "durable": False,
+            "auto_delete": True,
+            "exclusive": True,
+        }
+        queue_orig = mock.Mock(name="queue_orig")
+        queue_new = mock.Mock(name="queue_new")
+        self.protocol.declare_queue.side_effect = lambda q: queue_new
+        # Prepare the mocked existing consumer
+        callback = mock.Mock()
+        bindings = [{"queue": "", "exchange": "amq.topic", "routing_key": "#"}]
+        expected_bindings = [
+            {"queue": queue_new, "exchange": "amq.topic", "routing_key": "#"}
+        ]
+        consumer = Consumer(queue=queue_orig, callback=callback)
+        self.factory._consumers = [
+            ConsumerRecord(consumer=consumer, queue=queue_config, bindings=bindings)
+        ]
+
+        self.factory.buildProtocol(None)
+        self.protocol.ready.callback(None)
+        d = self.factory.when_connected()
+
+        def _check(_):
+            self.assertEqual(len(self.factory._consumers), 1)
+            self.protocol.declare_queue.assert_called_once_with(queue_config)
+            self.protocol.bind_queues.assert_called_once_with(expected_bindings)
+            self.protocol.consume.assert_called_once_with(callback, queue_new, consumer)
+
+        d.addCallback(_check)
+        return pytest_twisted.blockon(d)
 
 
 @pytest.mark.parametrize(

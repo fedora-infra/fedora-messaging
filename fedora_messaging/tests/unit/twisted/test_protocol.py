@@ -35,6 +35,7 @@ from fedora_messaging.exceptions import (
 from fedora_messaging.message import Message
 from fedora_messaging.twisted.protocol import (
     Consumer,
+    ConsumerV2,
     FedoraMessagingProtocol,
     FedoraMessagingProtocolV2,
     _add_timeout,
@@ -595,6 +596,51 @@ class ProtocolV2Tests(unittest.TestCase):
             assert isinstance(failure.value, ConnectionException)
 
         d = proto.consume(lambda x: x, "test_queue")
+        d.addBoth(check)
+        return pytest_twisted.blockon(d)
+
+    def test_consume_existing_consumer(self):
+        """Consuming should re-use an existing consumer if possible."""
+        proto = FedoraMessagingProtocolV2(None)
+        proto._allocate_channel = mock.Mock()
+
+        new_callback = mock.Mock(name="new_callback")
+
+        # Prepare the existing consumer
+        existing_callback = mock.Mock(name="existing_callback")
+        consumer = ConsumerV2(queue="test_queue", callback=existing_callback)
+        proto._consumers["test_queue"] = consumer
+
+        def check(result):
+            self.assertEqual(consumer, result)
+            self.assertEqual(consumer.callback, new_callback)
+            proto._allocate_channel.assert_not_called()
+
+        d = proto.consume(new_callback, "test_queue", consumer)
+        d.addBoth(check)
+        return pytest_twisted.blockon(d)
+
+    def test_consume_provided_consumer(self):
+        """The consume() method must handle being passed a consumer."""
+        proto = FedoraMessagingProtocolV2(None)
+        mock_channel = mock.Mock(name="mock_channel")
+        deferred_channel = defer.succeed(mock_channel)
+        proto._allocate_channel = mock.Mock(return_value=deferred_channel)
+        # Don't go into the read loop
+        proto._read = mock.Mock(retrun_value=defer.succeed(None))
+        # basic_consume() must return a tuple
+        mock_channel.basic_consume.return_value = (mock.Mock(), mock.Mock())
+        # Prepare the consumer
+        callback = mock.Mock()
+        consumer = ConsumerV2(queue="queue_orig", callback=callback)
+
+        def check(result):
+            self.assertEqual(consumer, result)
+            self.assertEqual(consumer.queue, "queue_new")
+            self.assertEqual(consumer._protocol, proto)
+            self.assertEqual(consumer._channel, mock_channel)
+
+        d = proto.consume(callback, "queue_new", consumer)
         d.addBoth(check)
         return pytest_twisted.blockon(d)
 
