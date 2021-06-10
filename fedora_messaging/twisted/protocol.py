@@ -357,6 +357,8 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
 
         if previous_consumer is not None:
             consumer = previous_consumer
+            # The queue name may have changed, especially in the case of server-generated queues.
+            consumer.queue = queue
         else:
             consumer = ConsumerV2(queue=queue, callback=callback)
         consumer._protocol = self
@@ -550,6 +552,15 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
             except pika.exceptions.AMQPError:
                 pass  # pika doesn't handle repeated closes gracefully
         defer.returnValue(result_queues)
+
+    @defer.inlineCallbacks
+    def declare_queue(self, queue):
+        """
+        Declare a queue. This is a convenience method to call :meth:`declare_queues` with a single
+        argument.
+        """
+        names = yield self.declare_queues([queue])
+        defer.returnValue(names[0])
 
     @defer.inlineCallbacks
     def bind_queues(self, bindings):
