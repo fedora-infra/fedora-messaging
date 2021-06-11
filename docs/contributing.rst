@@ -61,12 +61,14 @@ you're not certain how to write tests, we will be happy to help you.
 Release notes
 -------------
 
-To add entries to the release notes, run ``towncrier create <source.type>`` to create a news fragment file in the ``news`` directory, where ``type`` is one of:
+To add entries to the release notes, run ``towncrier create <source.type>`` to
+create a news fragment file in the ``news`` directory, where ``type`` is one of:
 
 * ``feature``: for new features
 * ``bug``: for bug fixes
 * ``api``: for API changes
 * ``dev``: for development-related changes
+* ``docs``: for documentation changes
 * ``author``: for contributor names
 * ``other``: for other changes
 
@@ -86,7 +88,9 @@ For example,
 
     towncrier create PR42.feature    
 
-The contents of the news fragment must be written in RST format. See the `towncrier documentation for more information <https://github.com/twisted/towncrier>`_.
+The contents of the news fragment must be written in RST format.
+See the `towncrier documentation formore information
+<https://github.com/twisted/towncrier>`_.
 
 A preview of the release notes can be generated with ``towncrier --draft``.
 
