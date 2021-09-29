@@ -1,0 +1,10 @@
+# This file contains the list of known schema packages
+
+anitya-schema
+bodhi-messages
+fedocal-messages
+fedora-messaging-the-new-hotness-schema
+fedora-planet-messages
+noggin-messages
+git+https://github.com/fedora-infra/fedorainfra-ansible-messages.git@master
+git+https://github.com/fedora-infra/nuancier-messages.git@dev
