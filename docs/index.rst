@@ -25,6 +25,7 @@ User Guide
    consuming
    messages
    testing
+   schemas
    changelog
 
 
