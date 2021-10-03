@@ -89,7 +89,7 @@ For example,
     towncrier create PR42.feature    
 
 The contents of the news fragment must be written in RST format.
-See the `towncrier documentation formore information
+See the `towncrier documentation for more information
 <https://github.com/twisted/towncrier>`_.
 
 A preview of the release notes can be generated with ``towncrier --draft``.
