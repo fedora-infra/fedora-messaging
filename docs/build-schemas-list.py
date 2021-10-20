@@ -24,6 +24,9 @@ These are the topics that you can expect to see on Fedora's message bus,
 sorted by the python package that contains their schema.
 Install the corresponding python package if you want to make use of the schema
 and access additional information on the message you're receiving.
+
+In the Fedora Infrastructure, some of those topics will be prefixed by
+`org.fedoraproject.stg.` in staging and `org.fedoraproject.prod.` in production.
 """
 
 
