@@ -1,0 +1,33 @@
+version: "2.0"
+
+services:
+  fedora-msg:
+    image: fedora-msg-base
+    build:
+      context: .
+      dockerfile: Containerfile.dev
+      args:
+        FEDORA_VERSION: 34
+    container_name: "fedora-msg"
+    network_mode: host
+    volumes:
+      - ./:/app:z
+    privileged: true
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_started
+
+  rabbitmq:
+    image: docker.io/library/rabbitmq:3.8.16-management-alpine
+    container_name: "rabbitmq"
+    network_mode: host
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "localhost", "5672" ]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest

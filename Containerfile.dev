@@ -1,0 +1,24 @@
+ARG FEDORA_VERSION
+FROM registry.fedoraproject.org/fedora:${FEDORA_VERSION}
+
+WORKDIR /app
+
+RUN dnf upgrade --refresh -y
+
+# Python3 and packages
+RUN dnf install -y python3 python3-pip python3-devel
+
+RUN dnf autoremove -y && dnf clean all -y
+
+# Create aliases for python and pip
+RUN echo 'alias python="python3"' >> ~/.bashrc
+RUN echo 'alias pip="pip3"' >> ~/.bashrc
+
+COPY . .
+
+# Pip installations
+RUN pip install -r /app/dev-requirements.txt
+RUN pip install -r /app/requirements.txt
+
+CMD ["sh","-c", "pip3 install -e /app && tail -f /dev/null"]
+
