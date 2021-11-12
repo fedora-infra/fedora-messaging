@@ -635,11 +635,11 @@ SERIALIZED_MESSAGE_SCHEMA = {
         "id": {"type": "string", "description": "The message's UUID."},
         "body": {"type": "object", "description": "The message body."},
         "queue": {
-            "type": "string",
+            "type": ["string", "null"],
             "description": "The queue the message arrived on, if any.",
         },
     },
-    "required": ["topic", "headers", "id", "body", "queue"],
+    "required": ["topic", "headers", "id", "body"],
 }
 
 
@@ -714,7 +714,7 @@ def loads(serialized_messages):
             headers=message_dict["headers"],
             severity=message_dict["headers"]["fedora_messaging_severity"],
         )
-        message.queue = message_dict["queue"]
+        message.queue = message_dict["queue"] if "queue" in message_dict else None
         message.id = message_dict["id"]
         messages.append(message)
 

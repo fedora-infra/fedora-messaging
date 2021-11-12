@@ -110,3 +110,7 @@ config.toml
 
 # VS Code
 .vscode
+
+# Vim
+*.swp
+*.swo
