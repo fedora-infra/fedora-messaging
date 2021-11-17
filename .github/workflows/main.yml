@@ -2,9 +2,11 @@ on:
   push:
     branches:
       - stable
+      - develop
   pull_request:
     branches:
       - stable
+      - develop
 
 name: Run Tox tests
 
