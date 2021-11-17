@@ -196,13 +196,15 @@ class MessageLoadsTests(unittest.TestCase):
         self.assertRaises(exceptions.ValidationError, message.loads, message_json)
 
     def test_missing_queue(self):
-        """Assert message without queue is returned and warning is printed."""
+        """Assert message without queue is accepted and the queue is set to None."""
         message_json = (
             '{"topic": "test topic", "headers": {"fedora_messaging_schema": '
             '"base.message", "fedora_messaging_severity": 30}, "id": "test id", '
             '"body": {"test_key": "test_value"}}'
         )
-        self.assertRaises(exceptions.ValidationError, message.loads, message_json)
+        messages = message.loads(message_json)
+        test_message = messages[0]
+        self.assertIsNone(test_message.queue)
 
     def test_missing_topic(self):
         """Assert proper exception is raised when topic is missing."""
