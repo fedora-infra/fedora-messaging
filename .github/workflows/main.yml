@@ -46,7 +46,6 @@ jobs:
     strategy:
       matrix:
         tox_env:
-          - py27-unittest
           - py36-unittest
           - py37-unittest
           - py38-unittest
@@ -73,7 +72,6 @@ jobs:
     strategy:
       matrix:
         python:
-          - 2.7
           - 3.6
           - 3.7
           - 3.8
