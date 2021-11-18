@@ -15,12 +15,10 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-from __future__ import absolute_import, unicode_literals
 
 import logging
-import unittest
+from unittest import mock, TestCase
 
-import mock
 import pika
 import pytest
 from fedora_messaging import config
@@ -42,7 +40,7 @@ except ImportError:
     pytest.skip("pytest-twisted is missing, skipping tests", allow_module_level=True)
 
 
-class FactoryTests(unittest.TestCase):
+class FactoryTests(TestCase):
     def setUp(self):
         self.protocol = mock.Mock()
         self.protocol.ready = defer.Deferred()
@@ -328,7 +326,7 @@ class FactoryTests(unittest.TestCase):
         return pytest_twisted.blockon(d)
 
 
-class FactoryV2Tests(unittest.TestCase):
+class FactoryV2Tests(TestCase):
     def setUp(self):
         self.protocol = mock.Mock()
         self.protocol.ready = defer.Deferred()
@@ -396,7 +394,7 @@ class FactoryV2Tests(unittest.TestCase):
         self.factory.protocol = _get_protocol
         connected_d = self.factory.when_connected()
         connected_d.addCallbacks(
-            lambda r: ValueError("This should fail but I got: {!r}".format(r)), _check
+            lambda r: ValueError(f"This should fail but I got: {r!r}"), _check
         )
         self.factory.buildProtocol(None)
         return pytest_twisted.blockon(connected_d)
@@ -438,7 +436,7 @@ class FactoryV2Tests(unittest.TestCase):
         self.factory.protocol = _get_protocol
         connected_d = self.factory.when_connected()
         connected_d.addCallbacks(
-            lambda r: ValueError("This should fail but I got: {!r}".format(r)), _check
+            lambda r: ValueError(f"This should fail but I got: {r!r}"), _check
         )
         with mock.patch("fedora_messaging.twisted.factory._std_log") as mock_log:
             self.factory.buildProtocol(None)

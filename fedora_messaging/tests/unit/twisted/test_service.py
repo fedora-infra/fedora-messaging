@@ -15,15 +15,13 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-from __future__ import absolute_import, unicode_literals
 
-import unittest
 import os
+from unittest import mock, TestCase
 
 from twisted.application.internet import TCPClient, SSLClient
 from twisted.internet import ssl as twisted_ssl
 from pika import URLParameters
-import mock
 import pika
 
 from fedora_messaging import config, exceptions
@@ -38,7 +36,7 @@ from fedora_messaging.twisted.service import (
 from fedora_messaging.tests import FIXTURES_DIR
 
 
-class ServiceTests(unittest.TestCase):
+class ServiceTests(TestCase):
     def test_init(self):
         service = FedoraMessagingService(
             "amqp://example.com:4242", queues=[{"queue": "my_queue"}]
@@ -120,7 +118,7 @@ class ServiceTests(unittest.TestCase):
             stopService.assert_not_called()
 
 
-class ServiceV2Tests(unittest.TestCase):
+class ServiceV2Tests(TestCase):
     def test_init_tls(self):
         """Assert creating the service with an amqps URL configures TLS."""
         service = FedoraMessagingServiceV2("amqps://")
@@ -129,7 +127,7 @@ class ServiceV2Tests(unittest.TestCase):
         self.assertIsNotNone(service._parameters.ssl_options)
 
 
-class ConfigureTlsParameters(unittest.TestCase):
+class ConfigureTlsParameters(TestCase):
     """Tests for :func:`fedora_messaging._session._configure_tls_parameters`"""
 
     def test_key_and_cert(self):
@@ -179,7 +177,7 @@ class ConfigureTlsParameters(unittest.TestCase):
         self.assertTrue(isinstance(params.ssl_options, SSLOptions))
 
 
-class SslContextFactoryTests(unittest.TestCase):
+class SslContextFactoryTests(TestCase):
     @mock.patch("fedora_messaging.twisted.service.twisted_ssl.Certificate.loadPEM")
     @mock.patch("fedora_messaging.twisted.service.twisted_ssl.optionsForClientTLS")
     def test_no_key(self, mock_opts, mock_load_pem):

@@ -1,5 +1,5 @@
 """The API for publishing messages and consuming from message queues."""
-from __future__ import absolute_import
+
 
 import inspect
 import logging
@@ -317,7 +317,7 @@ def publish(message, exchange=None, timeout=30):
     except crochet.TimeoutError:
         eventual_result.cancel()
         wrapper = exceptions.PublishTimeout(
-            "Publishing timed out after waiting {} seconds.".format(timeout)
+            f"Publishing timed out after waiting {timeout} seconds."
         )
         publish_failed_signal.send(publish, message=message, reason=wrapper)
         raise wrapper

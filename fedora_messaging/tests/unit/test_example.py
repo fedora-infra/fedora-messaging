@@ -16,35 +16,29 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """Tests for :mod:`fedora_messaging.example`."""
 
-try:
-    from io import StringIO
-except ImportError:
-    # Python 2
-    from StringIO import StringIO
-import unittest
-
-import mock
+from io import StringIO
+from unittest import mock, TestCase
 
 from fedora_messaging import api, example
 
 
-class PrinterTests(unittest.TestCase):
+class PrinterTests(TestCase):
     def test_printer(self):
         """Assert the printer callback prints messages."""
-        message = api.Message(body=u"Hello world", topic=u"hi")
+        message = api.Message(body="Hello world", topic="hi")
         message._headers = {
             "fedora_messaging_schema": "fedora_messaging.message:Message",
             "sent-at": "2019-07-30T19:12:22+00:00",
         }
         message.id = "95383db8-8cdc-4464-8276-d482ac28b0b6"
         expected_stdout = (
-            u"Id: 95383db8-8cdc-4464-8276-d482ac28b0b6\n"
-            u"Topic: hi\n"
-            u"Headers: {\n"
-            u'    "fedora_messaging_schema": "fedora_messaging.message:Message",\n'
-            u'    "sent-at": "2019-07-30T19:12:22+00:00"\n'
-            u"}\n"
-            u'Body: "Hello world"\n'
+            "Id: 95383db8-8cdc-4464-8276-d482ac28b0b6\n"
+            "Topic: hi\n"
+            "Headers: {\n"
+            '    "fedora_messaging_schema": "fedora_messaging.message:Message",\n'
+            '    "sent-at": "2019-07-30T19:12:22+00:00"\n'
+            "}\n"
+            'Body: "Hello world"\n'
         )
 
         with mock.patch("sys.stdout", new_callable=StringIO) as mock_stdout:

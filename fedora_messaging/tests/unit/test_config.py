@@ -16,9 +16,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """Unit tests for :module:`fedora_messaging.config`."""
 
-import unittest
-
-import mock
+from unittest import mock, TestCase
 from fedora_messaging import config as msg_config
 from fedora_messaging.exceptions import ConfigurationException
 
@@ -88,11 +86,11 @@ partial_config = 'publish_exchange = "special_exchange"'
 malformed_config = 'publish_exchange = "special_exchange'  # missing close quote
 
 
-class TestObj(object):
-    """This exists purely to make __repr__ the same on Python 2 and 3."""
+class TestObj:
+    pass
 
 
-class ValidateBindingsTests(unittest.TestCase):
+class ValidateBindingsTests(TestCase):
     """Unit tests for :func:`fedora_messaging.config.validate_bindings`."""
 
     def test_valid(self):
@@ -138,7 +136,7 @@ class ValidateBindingsTests(unittest.TestCase):
         )
 
 
-class ValidateQueuesTests(unittest.TestCase):
+class ValidateQueuesTests(TestCase):
     """Unit tests for :func:`fedora_messaging.config.validate_queues`."""
 
     def test_valid(self):
@@ -186,7 +184,7 @@ class ValidateQueuesTests(unittest.TestCase):
         self.assertIn("arguments", str(cm.exception))
 
 
-class LoadTests(unittest.TestCase):
+class LoadTests(TestCase):
     """Unit tests for :func:`fedora_messaging.config.load`."""
 
     def test_deep_copy(self):

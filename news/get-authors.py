@@ -16,6 +16,6 @@ for line in output.splitlines():
     authors[email] = fullname
 
 for nick, fullname in authors.items():
-    with open("{}.author".format(nick), "w") as f:
+    with open(f"{nick}.author", "w") as f:
         f.write(fullname)
         f.write("\n")

@@ -17,16 +17,15 @@
 
 import datetime
 import json
-import unittest
 
 import jsonschema
-import mock
+from unittest import mock, TestCase
 import pika
 
 from fedora_messaging import message, exceptions
 
 
-class GetMessageTests(unittest.TestCase):
+class GetMessageTests(TestCase):
     """Tests for the :func:`fedora_messaging.message.get_message` function."""
 
     def test_missing_severity(self):
@@ -57,7 +56,7 @@ class GetMessageTests(unittest.TestCase):
         self.assertIsInstance(received_msg, message.Message)
 
 
-class MessageDumpsTests(unittest.TestCase):
+class MessageDumpsTests(TestCase):
     """Tests for the :func:`fedora_messaging.message.dumps` function."""
 
     def test_proper_message(self):
@@ -131,7 +130,7 @@ class MessageDumpsTests(unittest.TestCase):
         self.assertRaises(exceptions.ValidationError, message.dumps, messages)
 
 
-class MessageLoadsTests(unittest.TestCase):
+class MessageLoadsTests(TestCase):
     """Tests for the :func:`fedora_messaging.message.loads` function."""
 
     def test_proper_json(self):
@@ -234,7 +233,7 @@ class MessageLoadsTests(unittest.TestCase):
         self.assertRaises(exceptions.ValidationError, message.loads, message_json)
 
 
-class MessageTests(unittest.TestCase):
+class MessageTests(TestCase):
     """Tests for the :class:`fedora_messaging.message.Message` class."""
 
     def test_summary(self):
@@ -456,7 +455,7 @@ class CustomMessage(message.Message):
 
 
 @mock.patch.dict(message._class_to_schema_name, {CustomMessage: "custom_id"})
-class CustomMessageTests(unittest.TestCase):
+class CustomMessageTests(TestCase):
     """Tests for a Message subclass that provides filter headers"""
 
     def test_usernames(self):
@@ -500,7 +499,7 @@ class CustomMessageTests(unittest.TestCase):
         self.assertIn("fedora_messaging_flatpak_hexchat", msg._headers)
 
 
-class ClassRegistryTests(unittest.TestCase):
+class ClassRegistryTests(TestCase):
     """Tests for the :func:`fedora_messaging.message.load_message_classes`."""
 
     def test_load_message_name_to_class(self):

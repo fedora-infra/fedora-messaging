@@ -29,7 +29,7 @@ class, it's easy to create AMQP consumers that last across connections.
 For an overview of Twisted clients, see the `Twisted client documentation
 <https://twistedmatrix.com/documents/current/core/howto/clients.html#protocol>`_.
 """
-from __future__ import absolute_import
+
 
 import logging
 import uuid
@@ -109,7 +109,7 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
             the publish call will wait for that confirmation.
     """
 
-    name = u"FedoraMessaging:Protocol"
+    name = "FedoraMessaging:Protocol"
 
     def __init__(self, parameters, confirms=True):
         TwistedProtocolConnection.__init__(self, parameters)
@@ -676,7 +676,7 @@ class FedoraMessagingProtocol(FedoraMessagingProtocolV2):
             the publish call will wait for that confirmation.
     """
 
-    name = u"FedoraMessaging:Protocol"
+    name = "FedoraMessaging:Protocol"
 
     def __init__(self, parameters, confirms=True):
         FedoraMessagingProtocolV2.__init__(self, parameters, confirms=confirms)
@@ -704,7 +704,7 @@ class FedoraMessagingProtocol(FedoraMessagingProtocolV2):
             except (error.ConnectionDone, ChannelClosedByClient):
                 # This is deliberate.
                 _legacy_twisted_log.msg(
-                    "Stopping the AMQP consumer with tag {tag}".format(tag=consumer.tag)
+                    f"Stopping the AMQP consumer with tag {consumer.tag}"
                 )
                 break
             except pika.exceptions.ChannelClosed as e:
@@ -816,7 +816,7 @@ class FedoraMessagingProtocol(FedoraMessagingProtocolV2):
             yield self.cancel(consumer.queue)
         except Exception:
             _legacy_twisted_log.msg(
-                "Received unexpected exception from consumer {c}".format(c=consumer),
+                f"Received unexpected exception from consumer {consumer}",
                 logLevel=logging.ERROR,
             )
             yield consumer.channel.basic_nack(
@@ -881,12 +881,10 @@ class FedoraMessagingProtocol(FedoraMessagingProtocolV2):
         deferred = self._read(queue_object, consumer)
         deferred.addErrback(
             lambda f: _legacy_twisted_log.msg,
-            "_read failed on consumer {c}".format(c=consumer),
+            f"_read failed on consumer {consumer}",
             logLevel=logging.ERROR,
         )
-        _legacy_twisted_log.msg(
-            "Successfully registered AMQP consumer {c}".format(c=consumer)
-        )
+        _legacy_twisted_log.msg(f"Successfully registered AMQP consumer {consumer}")
         defer.returnValue(consumer)
 
     @defer.inlineCallbacks
@@ -943,7 +941,7 @@ class FedoraMessagingProtocol(FedoraMessagingProtocolV2):
             deferred = self._read(queue_object, consumer)
             deferred.addErrback(
                 lambda f: _legacy_twisted_log.msg,
-                "_read failed on consumer {c}".format(c=consumer),
+                f"_read failed on consumer {consumer}",
                 logLevel=logging.ERROR,
             )
         _legacy_twisted_log.msg("AMQP connection successfully established")

@@ -15,11 +15,8 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """Tests for the testing utilities."""
-try:
-    from unittest import mock
-except ImportError:
-    import mock
-import unittest
+
+from unittest import mock, TestCase
 
 from fedora_messaging import testing, api, message
 
@@ -28,7 +25,7 @@ class CustomMessage(api.Message):
     pass
 
 
-class MockSendsTests(unittest.TestCase):
+class MockSendsTests(TestCase):
     """Tests for the :func:`fedora_messaging.testing.mock_sends` function."""
 
     def test_class(self):
