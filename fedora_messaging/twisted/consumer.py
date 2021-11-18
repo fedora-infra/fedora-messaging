@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-from __future__ import absolute_import
+
 
 import uuid
 
@@ -23,7 +23,7 @@ import pika
 from twisted.internet import defer
 
 
-class Consumer(object):
+class Consumer:
     """
     Represents a Twisted AMQP consumer and is returned from the call to
     :func:`fedora_messaging.api.twisted_consume`.
@@ -64,7 +64,7 @@ class Consumer(object):
         self._protocol = None
 
     def __repr__(self):
-        return "Consumer(queue={}, callback={})".format(self.queue, self.callback)
+        return f"Consumer(queue={self.queue}, callback={self.callback})"
 
     @defer.inlineCallbacks
     def cancel(self):

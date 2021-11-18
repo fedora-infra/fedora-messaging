@@ -32,7 +32,7 @@ In the Fedora Infrastructure, some of those topics will be prefixed by
 
 def read_packages(schemas_filepath):
     packages = []
-    with open(schemas_filepath, "r") as schemas_file:
+    with open(schemas_filepath) as schemas_file:
         for line in schemas_file:
             line = line.strip()
             if not line or line.startswith("#"):

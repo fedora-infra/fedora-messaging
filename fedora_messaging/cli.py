@@ -19,7 +19,7 @@ The ``fedora-messaging`` `Click`_ CLI.
 
 .. _Click: http://click.pocoo.org/
 """
-from __future__ import absolute_import
+
 
 import importlib
 import logging
@@ -92,7 +92,7 @@ def cli(conf):
     """The fedora-messaging command line interface."""
     if conf:
         if not os.path.isfile(conf):
-            raise click.exceptions.BadParameter("{} is not a file".format(conf))
+            raise click.exceptions.BadParameter(f"{conf} is not a file")
         try:
             config.conf.load_config(config_path=conf)
         except exceptions.ConfigurationException as e:
@@ -203,8 +203,7 @@ def _callback_from_filesystem(callback_file):
                 exec(compile(fd.read(), file_path, "exec"), file_namespace)  # nosec
             except Exception as e:
                 raise click.ClickException(
-                    "The {} file raised the following exception during execution:"
-                    " {}".format(file_path, str(e))
+                    f"The {file_path} file raised the following exception during execution: {e}"
                 )
 
         if callable_name not in file_namespace:
@@ -214,8 +213,8 @@ def _callback_from_filesystem(callback_file):
             raise click.ClickException(err)
         else:
             return file_namespace[callable_name]
-    except IOError as e:
-        raise click.ClickException("An IO error occurred: {}".format(str(e)))
+    except OSError as e:
+        raise click.ClickException(f"An IO error occurred: {e}")
 
 
 def _callback_from_python_path(callback):
@@ -251,19 +250,15 @@ def _callback_from_python_path(callback):
     except ImportError as e:
         provider = "--callback argument" if callback else "configuration file"
         raise click.ClickException(
-            "Failed to import the callback module ({}) provided in the {}".format(
-                str(e), provider
-            )
+            f"Failed to import the callback module ({e}) provided in the {provider}"
         )
 
     try:
         callback_object = getattr(module, cls)
     except AttributeError as e:
         raise click.ClickException(
-            "Unable to import {} ({}); is the package installed? The python path should "
-            'be in the format "my_package.module:callable_object"'.format(
-                callback_path, str(e)
-            )
+            f"Unable to import {callback_path} ({e}); is the package installed? The python "
+            'path should be in the format "my_package.module:callable_object"'
         )
     _log.info("Starting consumer with %s callback", callback_path)
     return callback_object
@@ -368,22 +363,20 @@ def publish(exchange, file):
         try:
             messages = loads(msgs_json_str)
         except exceptions.ValidationError as e:
-            raise click.BadArgumentUsage(
-                "Unable to validate message: {}".format(str(e))
-            )
+            raise click.BadArgumentUsage(f"Unable to validate message: {e}")
 
         for msg in messages:
-            click.echo("Publishing message with topic {}".format(msg.topic))
+            click.echo(f"Publishing message with topic {msg.topic}")
             try:
                 api.publish(msg, exchange)
             except (exceptions.PublishReturned, exceptions.PublishForbidden) as e:
-                click.echo("Unable to publish message: {}".format(str(e)))
+                click.echo(f"Unable to publish message: {e}")
                 sys.exit(errno.EREMOTEIO)
             except exceptions.PublishTimeout as e:
-                click.echo("Unable to connect to the message broker: {}".format(str(e)))
+                click.echo(f"Unable to connect to the message broker: {e}")
                 sys.exit(errno.ECONNREFUSED)
             except exceptions.PublishException as e:
-                click.echo("A general publish exception occurred: {}".format(str(e)))
+                click.echo(f"A general publish exception occurred: {e}")
                 sys.exit(1)
 
 
@@ -421,7 +414,7 @@ class Recorder:
         try:
             json_str = dumps(message)
         except exceptions.ValidationError as e:
-            click.echo("Unable to save messages to file: {}".format(str(e)))
+            click.echo(f"Unable to save messages to file: {e}")
             raise exceptions.HaltConsumer(exit_code=1, requeue=False)
         else:
             self._file.write(json_str)

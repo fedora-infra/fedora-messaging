@@ -1,5 +1,3 @@
-# coding: utf-8
-
 # This file is part of fedora_messaging.
 # Copyright (C) 2018 Red Hat, Inc.
 #
@@ -17,10 +15,9 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """Tests for the :module:`fedora_messaging.api` module."""
-from __future__ import absolute_import
 
-import unittest
-import mock
+
+from unittest import mock, TestCase
 
 from twisted.internet import threads, defer
 import pytest
@@ -36,13 +33,13 @@ from fedora_messaging.signals import (
 )
 
 
-class CheckCallbackTests(unittest.TestCase):
+class CheckCallbackTests(TestCase):
     """Tests for :func:`api._check_callback`"""
 
     def test_method(self):
         """Assert methods are valid."""
 
-        class Callback(object):
+        class Callback:
             def callback(self):
                 return
 
@@ -65,7 +62,7 @@ class CheckCallbackTests(unittest.TestCase):
     def test_class(self):
         """Assert classes are instantiated."""
 
-        class Callback(object):
+        class Callback:
             def __call__(self, message):
                 return "It worked"
 
@@ -76,7 +73,7 @@ class CheckCallbackTests(unittest.TestCase):
     def test_class_no_call(self):
         """Assert classes are instantiated."""
 
-        class Callback(object):
+        class Callback:
             pass
 
         try:
@@ -88,7 +85,7 @@ class CheckCallbackTests(unittest.TestCase):
     def test_class_init_args(self):
         """Assert classes are instantiated."""
 
-        class Callback(object):
+        class Callback:
             def __init__(self, args):
                 self.args = args
 
@@ -108,7 +105,7 @@ class CheckCallbackTests(unittest.TestCase):
 
 
 @mock.patch("fedora_messaging.api._twisted_service")
-class TwistedConsumeTests(unittest.TestCase):
+class TwistedConsumeTests(TestCase):
     """Tests for :func:`api.twisted_consume`"""
 
     def dummy_callback(self):
@@ -188,7 +185,7 @@ class TwistedConsumeTests(unittest.TestCase):
         )
 
 
-class ConsumeTests(unittest.TestCase):
+class ConsumeTests(TestCase):
     @mock.patch("fedora_messaging.api.crochet")
     @mock.patch("fedora_messaging.api._twisted_consume_wrapper")
     def test_consume(self, mock_wrapper, mock_crochet):
@@ -200,7 +197,7 @@ class ConsumeTests(unittest.TestCase):
 
 
 @mock.patch("fedora_messaging.api._twisted_publish")
-class PublishTests(unittest.TestCase):
+class PublishTests(TestCase):
     def setUp(self):
         self.pre_publish_signal_data = {"called": False, "sender": None, "args": None}
         self.publish_signal_data = {"called": False, "sender": None, "args": None}

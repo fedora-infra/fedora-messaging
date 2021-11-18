@@ -15,12 +15,10 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-from __future__ import absolute_import, unicode_literals
 
 import json
-import unittest
+from unittest import mock, TestCase
 
-import mock
 import pika
 import pytest
 from fedora_messaging import config
@@ -53,7 +51,7 @@ class MockChannel(mock.Mock):
     """A mock object with Channel-specific methods that return Deferreds."""
 
     def __init__(self, *args, **kwargs):
-        super(MockChannel, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         deferred_methods = (
             "basic_qos",
             "confirm_delivery",
@@ -95,7 +93,7 @@ class MockProtocol(FedoraMessagingProtocol):
         self._running = False
 
 
-class ProtocolTests(unittest.TestCase):
+class ProtocolTests(TestCase):
     def setUp(self):
         self.protocol = MockProtocol(None)
         self.factory = mock.Mock()
@@ -379,7 +377,7 @@ class ProtocolTests(unittest.TestCase):
         return pytest_twisted.blockon(d)
 
 
-class ProtocolReadTests(unittest.TestCase):
+class ProtocolReadTests(TestCase):
     """Test the _read() method on the Protocol."""
 
     def setUp(self):
@@ -463,7 +461,7 @@ class ProtocolReadTests(unittest.TestCase):
         return pytest_twisted.blockon(d)
 
 
-class ProtocolOnMessageTests(unittest.TestCase):
+class ProtocolOnMessageTests(TestCase):
     """Test the _on_message() method on the Protocol."""
 
     def setUp(self):
@@ -579,7 +577,7 @@ class ProtocolOnMessageTests(unittest.TestCase):
         return pytest_twisted.blockon(d)
 
 
-class ProtocolV2Tests(unittest.TestCase):
+class ProtocolV2Tests(TestCase):
     """Unit tests for the ProtocolV2 class."""
 
     def test_consume_connection_exception(self):
@@ -645,7 +643,7 @@ class ProtocolV2Tests(unittest.TestCase):
         return pytest_twisted.blockon(d)
 
 
-class AddTimeoutTests(unittest.TestCase):
+class AddTimeoutTests(TestCase):
     """Unit tests for the _add_timeout helper function."""
 
     def test_twisted12_timeout(self):

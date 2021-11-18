@@ -4,12 +4,12 @@ import socket
 import time
 import uuid
 from collections import defaultdict
+from urllib.parse import quote
 
-import mock
+from unittest import mock
 import pika
 import pytest
 import pytest_twisted
-import six
 import treq
 from fedora_messaging import api, config, exceptions, message
 from fedora_messaging.twisted import service
@@ -42,14 +42,14 @@ def admin_user():
     """
     # Create a user with no permissions
     username = str(uuid.uuid4())
-    url = "{base}users/{user}".format(base=HTTP_API, user=username)
+    url = f"{HTTP_API}users/{username}"
     body = {"username": username, "password": "guest", "tags": "administrator"}
     deferred_resp = treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
 
     @pytest_twisted.inlineCallbacks
     def cp(resp):
         assert resp.code == 201
-        url = "{base}permissions/%2F/{user}".format(base=HTTP_API, user=username)
+        url = f"{HTTP_API}permissions/%2F/{username}"
         body = {"configure": ".*", "write": ".*", "read": ".*"}
         resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
         assert resp.code == 201
@@ -80,7 +80,7 @@ def get_queue(queue_dict, delay=10):
     name = queues[0]
     # Assert both messages are delivered, no messages are un-acked, and only one
     # message got a positive acknowledgment.
-    url = "{base}queues/%2F/{queue}".format(base=HTTP_API, queue=name)
+    url = f"{HTTP_API}queues/%2F/{name}"
     server_queue = yield task.deferLater(
         reactor, delay, treq.get, url, auth=HTTP_AUTH, timeout=3
     )
@@ -111,14 +111,14 @@ def test_twisted_consume_halt_consumer(queue_and_binding):
     """
     queues, bindings = queue_and_binding
     msg = message.Message(
-        topic=u"nice.message",
-        headers={u"niceness": u"very"},
-        body={u"encouragement": u"You're doing great!"},
+        topic="nice.message",
+        headers={"niceness": "very"},
+        body={"encouragement": "You're doing great!"},
     )
     expected_headers = {
-        u"fedora_messaging_severity": 20,
-        u"fedora_messaging_schema": u"base.message",
-        u"niceness": u"very",
+        "fedora_messaging_severity": 20,
+        "fedora_messaging_schema": "base.message",
+        "niceness": "very",
     }
     messages_received = []
 
@@ -144,8 +144,8 @@ def test_twisted_consume_halt_consumer(queue_and_binding):
         assert len(messages_received) == 3
         assert e.exit_code == 0
         for m in messages_received:
-            assert u"nice.message" == m.topic
-            assert {u"encouragement": u"You're doing great!"} == m.body
+            assert "nice.message" == m.topic
+            assert {"encouragement": "You're doing great!"} == m.body
             assert "sent-at" in m._headers
             del m._headers["sent-at"]
             assert expected_headers == m._headers
@@ -230,9 +230,9 @@ def test_twisted_consume_halt_consumer_requeue(queue_and_binding):
     """Assert raising HaltConsumer with requeue=True re-queues the message."""
     queues, bindings = queue_and_binding
     msg = message.Message(
-        topic=u"nice.message",
-        headers={u"niceness": u"very"},
-        body={u"encouragement": u"You're doing great!"},
+        topic="nice.message",
+        headers={"niceness": "very"},
+        body={"encouragement": "You're doing great!"},
     )
 
     def callback(message):
@@ -265,9 +265,9 @@ def test_twisted_consume_drop_message(queue_and_binding):
     """Assert raising Drop causes the message to be dropped, but processing continues."""
     queues, bindings = queue_and_binding
     msg = message.Message(
-        topic=u"nice.message",
-        headers={u"niceness": u"very"},
-        body={u"encouragement": u"You're doing great!"},
+        topic="nice.message",
+        headers={"niceness": "very"},
+        body={"encouragement": "You're doing great!"},
     )
     dropped_messages = []
 
@@ -305,9 +305,9 @@ def test_twisted_consume_nack_message(queue_and_binding):
     """Assert raising Nack causes the message to be replaced in the queue."""
     queues, bindings = queue_and_binding
     msg = message.Message(
-        topic=u"nice.message",
-        headers={u"niceness": u"very"},
-        body={u"encouragement": u"You're doing great!"},
+        topic="nice.message",
+        headers={"niceness": "very"},
+        body={"encouragement": "You're doing great!"},
     )
     nacked_messages = []
 
@@ -346,9 +346,9 @@ def test_twisted_consume_general_exception(queue_and_binding):
     """
     queues, bindings = queue_and_binding
     msg = message.Message(
-        topic=u"nice.message",
-        headers={u"niceness": u"very"},
-        body={u"encouragement": u"You're doing great!"},
+        topic="nice.message",
+        headers={"niceness": "very"},
+        body={"encouragement": "You're doing great!"},
     )
 
     def callback(message):
@@ -388,9 +388,9 @@ def test_twisted_consume_connection_reset(queue_and_binding):
     """
     queues, bindings = queue_and_binding
     msg = message.Message(
-        topic=u"nice.message",
-        headers={u"niceness": u"very"},
-        body={u"encouragement": u"You're doing great!"},
+        topic="nice.message",
+        headers={"niceness": "very"},
+        body={"encouragement": "You're doing great!"},
     )
     messages_received = []
     two_received = defer.Deferred()  # Fired by the callback on 2 messages
@@ -427,7 +427,7 @@ def test_twisted_consume_connection_reset(queue_and_binding):
             and c["client_properties"]["app"] == "test_twisted_consume_connection_reset"
         ]
         if this_conn:
-            cname = six.moves.urllib.parse.quote(this_conn[0]["name"])
+            cname = quote(this_conn[0]["name"])
             yield treq.delete(
                 HTTP_API + "connections/" + cname, auth=HTTP_AUTH, timeout=3
             )
@@ -459,7 +459,7 @@ def test_twisted_consume_serverside_cancel(queue_and_binding):
     consumers = yield api.twisted_consume(lambda x: x, bindings, queues)
 
     # Delete the queue and assert the consumer errbacks
-    url = "{base}queues/%2F/{queue}".format(base=HTTP_API, queue=list(queues.keys())[0])
+    url = f"{HTTP_API}queues/%2F/{list(queues.keys())[0]}"
     yield treq.delete(url, auth=HTTP_AUTH, timeout=3)
 
     _add_timeout(consumers[0].result, 10)
@@ -475,13 +475,13 @@ def test_twisted_consume_serverside_cancel(queue_and_binding):
 @pytest_twisted.inlineCallbacks
 def test_no_vhost_permissions(admin_user, queue_and_binding):
     """Assert a hint is given if the user doesn't have any access to the vhost"""
-    url = "{base}permissions/%2F/{user}".format(base=HTTP_API, user=admin_user)
+    url = f"{HTTP_API}permissions/%2F/{admin_user}"
     resp = yield treq.delete(url, auth=HTTP_AUTH, timeout=3)
     assert resp.code == 204
 
     queues, _ = queue_and_binding
 
-    amqp_url = "amqp://{user}:guest@localhost:5672/%2F".format(user=admin_user)
+    amqp_url = f"amqp://{admin_user}:guest@localhost:5672/%2F"
     with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
         try:
             yield api.twisted_consume(lambda x: x, [], queues)
@@ -503,12 +503,12 @@ def test_no_read_permissions_queue_read_failure_pika1(admin_user, queue_and_bind
     what errors back.
     """
     queues, bindings = queue_and_binding
-    url = "{base}permissions/%2F/{user}".format(base=HTTP_API, user=admin_user)
+    url = f"{HTTP_API}permissions/%2F/{admin_user}"
     body = {"configure": ".*", "write": ".*", "read": ""}
     resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
     assert resp.code == 204
 
-    amqp_url = "amqp://{user}:guest@localhost:5672/%2F".format(user=admin_user)
+    amqp_url = f"amqp://{admin_user}:guest@localhost:5672/%2F"
     with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
         try:
             consumers = api.twisted_consume(lambda x: x, [], queues)
@@ -528,12 +528,12 @@ def test_no_read_permissions_queue_read_failure_pika1(admin_user, queue_and_bind
 def test_no_read_permissions_bind_failure(admin_user, queue_and_binding):
     """Assert the call to twisted_consume errbacks on read permissions errors on binding."""
     queues, bindings = queue_and_binding
-    url = "{base}permissions/%2F/{user}".format(base=HTTP_API, user=admin_user)
+    url = f"{HTTP_API}permissions/%2F/{admin_user}"
     body = {"configure": ".*", "write": ".*", "read": ""}
     resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
     assert resp.code == 204
 
-    amqp_url = "amqp://{user}:guest@localhost:5672/%2F".format(user=admin_user)
+    amqp_url = f"amqp://{admin_user}:guest@localhost:5672/%2F"
     try:
         with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
             yield api.twisted_consume(lambda x: x, bindings, queues)
@@ -550,12 +550,12 @@ def test_no_read_permissions_bind_failure(admin_user, queue_and_binding):
 def test_no_write_permissions(admin_user, queue_and_binding):
     """Assert the call to twisted_consume errbacks on write permissions errors."""
     queues, bindings = queue_and_binding
-    url = "{base}permissions/%2F/{user}".format(base=HTTP_API, user=admin_user)
+    url = f"{HTTP_API}permissions/%2F/{admin_user}"
     body = {"configure": ".*", "write": "", "read": ".*"}
     resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
     assert resp.code == 204
 
-    amqp_url = "amqp://{user}:guest@localhost:5672/%2F".format(user=admin_user)
+    amqp_url = f"amqp://{admin_user}:guest@localhost:5672/%2F"
     try:
         with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
             yield api.twisted_consume(lambda x: x, bindings, queues)
@@ -673,12 +673,12 @@ def test_protocol_publish_connection_error(queue_and_binding):
 @pytest_twisted.inlineCallbacks
 def test_protocol_publish_forbidden(admin_user):
     """Assert individual protocols raise exceptions when the topic is not allowed."""
-    url = "{base}topic-permissions/%2F/{user}".format(base=HTTP_API, user=admin_user)
+    url = f"{HTTP_API}topic-permissions/%2F/{admin_user}"
     body = {"exchange": "amq.topic", "write": "^allowed$", "read": ".*"}
     resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
     assert resp.code == 201
 
-    amqp_url = "amqp://{user}:guest@localhost:5672/%2F".format(user=admin_user)
+    amqp_url = f"amqp://{admin_user}:guest@localhost:5672/%2F"
     with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
         try:
             api._init_twisted_service()
@@ -703,12 +703,12 @@ def test_protocol_publish_forbidden(admin_user):
 def test_protocol_publish_forbidden_in_vhost(admin_user):
     """Assert individual protocols raise a forbidden exception immediately when
     the user is not allowed to publish against the virtual host."""
-    url = "{base}permissions/%2F/{user}".format(base=HTTP_API, user=admin_user)
+    url = f"{HTTP_API}permissions/%2F/{admin_user}"
     body = {"configure": ".*", "write": "", "read": ".*"}
     resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
     assert resp.code == 204
 
-    amqp_url = "amqp://{user}:guest@localhost:5672/%2F".format(user=admin_user)
+    amqp_url = f"amqp://{admin_user}:guest@localhost:5672/%2F"
     with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
         try:
             api._init_twisted_service()
@@ -752,9 +752,9 @@ def test_pub_sub_default_settings(queue_and_binding):
     def delayed_publish():
         """Give the consumer time to setup."""
         msg = message.Message(
-            topic=u"nice.message",
-            headers={u"niceness": u"very"},
-            body={u"encouragement": u"You're doing great!"},
+            topic="nice.message",
+            headers={"niceness": "very"},
+            body={"encouragement": "You're doing great!"},
         )
         for _ in range(0, 3):
             try:
@@ -786,7 +786,7 @@ def test_pub_timeout():
         yield threads.deferToThread(api.publish, api.Message(), 5)
     except Exception as e:
         if not isinstance(e, exceptions.PublishTimeout):
-            pytest.fail("Expected a timeout exception, not {}".format(e))
+            pytest.fail(f"Expected a timeout exception, not {e}")
     finally:
         sock.close()
     # Ensure the deferred has been renewed
@@ -818,14 +818,14 @@ def test_basic_pub_sub():
         }
     ]
     msg = message.Message(
-        topic=u"nice.message",
-        headers={u"niceness": u"very"},
-        body={u"encouragement": u"You're doing great!"},
+        topic="nice.message",
+        headers={"niceness": "very"},
+        body={"encouragement": "You're doing great!"},
     )
     expected_headers = {
-        u"fedora_messaging_severity": 20,
-        u"fedora_messaging_schema": u"base.message",
-        u"niceness": u"very",
+        "fedora_messaging_severity": 20,
+        "fedora_messaging_schema": "base.message",
+        "niceness": "very",
     }
     messages_received = []
     serv = service.FedoraMessagingService(amqp_url="amqp://")
@@ -850,8 +850,8 @@ def test_basic_pub_sub():
 
     assert len(messages_received) == 3
     for m in messages_received:
-        assert u"nice.message" == m.topic
-        assert {u"encouragement": u"You're doing great!"} == m.body
+        assert "nice.message" == m.topic
+        assert {"encouragement": "You're doing great!"} == m.body
         assert "sent-at" in m._headers
         del m._headers["sent-at"]
         assert expected_headers == m._headers
@@ -926,7 +926,7 @@ def test_nack_handled():
     yield task.deferLater(reactor, 3.0, lambda: True)
 
     assert len(messages) == 3
-    assert len(set([m.id for m in messages])) == 1
+    assert len({m.id for m in messages}) == 1
     assert len(client._consumers) == 1
 
     yield client.cancel(queue)

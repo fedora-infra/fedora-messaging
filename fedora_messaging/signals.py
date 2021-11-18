@@ -17,7 +17,7 @@
 """
 Signals sent by fedora_messaging APIs using :class:`blinker.base.Signal` signals.
 """
-from __future__ import absolute_import, unicode_literals
+
 
 import blinker
 

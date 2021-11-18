@@ -15,14 +15,13 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """Tests for the :module:`fedora_messaging.cli` module."""
-from __future__ import absolute_import
+
 
 import errno
 import os
-import unittest
 
 import click
-import mock
+from unittest import mock, TestCase
 from click.testing import CliRunner
 from fedora_messaging import cli, config, exceptions, message, testing
 from fedora_messaging.tests import FIXTURES_DIR
@@ -45,7 +44,7 @@ def echo(message):
     print(str(message))
 
 
-class BaseCliTests(unittest.TestCase):
+class BaseCliTests(TestCase):
     """Unit tests for the base command of the CLI."""
 
     def test_no_conf(self):
@@ -56,7 +55,7 @@ class BaseCliTests(unittest.TestCase):
 
 
 @mock.patch("fedora_messaging.cli.reactor", mock.Mock())
-class ConsumeCliTests(unittest.TestCase):
+class ConsumeCliTests(TestCase):
     """Unit tests for the 'consume' command of the CLI."""
 
     def setUp(self):
@@ -281,10 +280,12 @@ class ConsumeCliTests(unittest.TestCase):
 
         result = self.runner.invoke(cli.cli, ["consume"])
 
-        # Python 2 import exceptions print differently, so break this assert up :(
-        self.assertIn("Failed to import the callback module", result.output)
-        self.assertIn("donotmakethismoduleorthetestbreaks", result.output)
-        self.assertIn("provided in the configuration file", result.output)
+        self.assertEqual(
+            result.output,
+            "Error: Failed to import the callback module "
+            "(No module named 'donotmakethismoduleorthetestbreaks') "
+            "provided in the configuration file\n",
+        )
         self.assertEqual(1, result.exit_code)
 
     @mock.patch("fedora_messaging.cli.getattr")
@@ -328,7 +329,7 @@ class ConsumeCliTests(unittest.TestCase):
 
 
 @mock.patch("fedora_messaging.cli.reactor")
-class ConsumeCallbackTests(unittest.TestCase):
+class ConsumeCallbackTests(TestCase):
     """Unit tests for the twisted_consume callback."""
 
     def test_callback(self, mock_reactor):
@@ -407,7 +408,7 @@ class ConsumeCallbackTests(unittest.TestCase):
         )
 
 
-class ConsumeErrbackTests(unittest.TestCase):
+class ConsumeErrbackTests(TestCase):
     """Unit tests for the twisted_consume errback."""
 
     def setUp(self):
@@ -453,7 +454,7 @@ class ConsumeErrbackTests(unittest.TestCase):
         self.assertEqual(11, cli._exit_code)
 
 
-class CallbackFromFilesytem(unittest.TestCase):
+class CallbackFromFilesytem(TestCase):
     """Unit tests for :func:`fedora_messaging.cli._callback_from_filesystem`."""
 
     def test_good_callback(self):
@@ -515,7 +516,7 @@ class CallbackFromFilesytem(unittest.TestCase):
         )
 
 
-class PublishCliTests(unittest.TestCase):
+class PublishCliTests(TestCase):
     """Unit tests for the 'publish' command of the CLI."""
 
     def setUp(self):
@@ -659,7 +660,7 @@ class PublishCliTests(unittest.TestCase):
         self.assertEqual(1, result.exit_code)
 
 
-class RecordCliTests(unittest.TestCase):
+class RecordCliTests(TestCase):
     """Unit tests for the 'record' command of the CLI."""
 
     def setUp(self):
@@ -695,7 +696,7 @@ class RecordCliTests(unittest.TestCase):
         )
 
 
-class RecorderClassTests(unittest.TestCase):
+class RecorderClassTests(TestCase):
     """Unit tests for the 'Recorder' class."""
 
     def test_save_recorded_messages_when_limit_is_reached(self):

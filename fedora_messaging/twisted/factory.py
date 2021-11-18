@@ -26,7 +26,6 @@ See the `Twisted client
 documentation for more information.
 """
 
-from __future__ import absolute_import
 
 import collections
 import logging
@@ -61,7 +60,7 @@ def _remap_queue_name(bindings, queue_name):
 class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
     """Reconnecting factory for the Fedora Messaging protocol."""
 
-    name = u"FedoraMessaging:Factory"
+    name = "FedoraMessaging:Factory"
     protocol = FedoraMessagingProtocol
 
     def __init__(
@@ -183,7 +182,7 @@ class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
         if not self._client_ready.called:
             self._client_ready.errback(
                 pika.exceptions.AMQPConnectionError(
-                    u"Could not connect, reconnection cancelled."
+                    "Could not connect, reconnection cancelled."
                 )
             )
 

@@ -78,7 +78,7 @@ def get_class(schema_name):
     If no match is found, the default schema is returned and a warning is logged.
 
     Args:
-        schema_name (six.text_type): The name of the :class:`Message` sub-class;
+        schema_name (str): The name of the :class:`Message` sub-class;
             this is typically the Python path.
 
     Returns:
@@ -216,7 +216,7 @@ def get_message(routing_key, properties, body):
     return message
 
 
-class Message(object):
+class Message:
     """
     Messages are simply JSON-encoded objects. This allows message authors to
     define a schema and implement Python methods to abstract the raw message
@@ -234,7 +234,7 @@ class Message(object):
         body (dict): The message body. Consult the body schema for expected keys
             and values. This dictionary must be JSON-serializable by the default
             serializer.
-        topic (six.text_type): The message topic as a unicode string. If this is
+        topic (str): The message topic as a unicode string. If this is
             not provided, the default topic for the class is used. See the
             attribute documentation below for details.
         properties (pika.BasicProperties): The AMQP properties. If this is not
@@ -247,10 +247,10 @@ class Message(object):
             an instance-by-instance basis.
 
     Attributes:
-        id (six.text_type): The message id as a unicode string. This attribute is
+        id (str): The message id as a unicode string. This attribute is
             automatically generated and set by the library and users should only
             set it themselves in testing scenarios.
-        topic (six.text_type): The message topic as a unicode string. The topic
+        topic (str): The message topic as a unicode string. The topic
             is used by message consumers to filter what messages they receive.
             Topics should be a string of words separated by '.' characters,
             with a length limit of 255 bytes. Because of this byte limit, it is
@@ -344,15 +344,15 @@ class Message(object):
         """
         headers = {}
         for user in self.usernames:
-            headers["fedora_messaging_user_{}".format(user)] = True
+            headers[f"fedora_messaging_user_{user}"] = True
         for package in self.packages:
-            headers["fedora_messaging_rpm_{}".format(package)] = True
+            headers[f"fedora_messaging_rpm_{package}"] = True
         for container in self.containers:
-            headers["fedora_messaging_container_{}".format(container)] = True
+            headers[f"fedora_messaging_container_{container}"] = True
         for module in self.modules:
-            headers["fedora_messaging_module_{}".format(module)] = True
+            headers[f"fedora_messaging_module_{module}"] = True
         for flatpak in self.flatpaks:
-            headers["fedora_messaging_flatpak_{}".format(flatpak)] = True
+            headers[f"fedora_messaging_flatpak_{flatpak}"] = True
         return headers
 
     @property

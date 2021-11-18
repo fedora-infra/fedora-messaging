@@ -15,9 +15,6 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """Example consumers that can be used when starting out with the library to test."""
-from __future__ import print_function
-
-import six
 
 
 def printer(message):
@@ -29,4 +26,4 @@ def printer(message):
     Args:
         message (fedora_messaging.api.Message): The message that was received.
     """
-    print(six.text_type(message))
+    print(str(message))
