@@ -35,6 +35,7 @@ Install RabbitMQ and start it::
     systemctl start rabbitmq-server
 
 Enable RabbitMQ web admin interface::
+
    rabbitmq-plugins enable rabbitmq_management
 
 RabbitMQ has a web admin interface that you can access at:

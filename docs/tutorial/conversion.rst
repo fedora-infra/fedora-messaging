@@ -316,8 +316,7 @@ Configuration
 -------------
 First we need to convert configuration file from fedmsg format to Fedora
 Messaging. Unlike fedmsg, fedora-messaging does not allow for arbitrary
-configuration keys. You will need to place any application-specific configuration
-in the :ref: dictionary.
+configuration keys.
 
 The converted configuration ``config.toml`` could look like following::
 
@@ -350,8 +349,7 @@ Any application specific configuration should go to ``consumer_config`` section
 Init method
 -----------
 The ``BugzillaTicketFiler`` class in ``consumers.py`` is doing all the consuming work.
-First we need to change the inheritance of this class. Fedora Messaging consumer class
-needs to inherit only from ``object``.
+First we need to change the inheritance of this class.
 
 Then we need to modify the ``__init__`` method and use the ``fedora_messaging.config.conf``
 dictionary instead of the fedmsg configuration. The ``__init__`` method could look something
@@ -359,7 +357,7 @@ like this after the change::
 
     from fedora_messaging.config import conf
 
-    class BugzillaTicketFiler(object):
+    class BugzillaTicketFiler:
     """
     A fedora-messaging consumer that is the heart of the-new-hotness.
 
