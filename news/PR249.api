@@ -1,0 +1,1 @@
+Drop the Twisted classes that had been flagged as deprecated. Drop the deprecated ``Message._body`` property.

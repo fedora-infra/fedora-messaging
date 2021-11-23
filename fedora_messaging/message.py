@@ -27,7 +27,6 @@ this class in a small Python package of its own.
 import datetime
 import json
 import logging
-import warnings
 import uuid
 
 import jsonschema
@@ -599,24 +598,6 @@ class Message:
             list(str): A list of affected flatpaks names.
         """
         return []
-
-    @property
-    def _body(self):
-        warnings.warn(
-            "The '_body' property has been renamed to 'body'.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.body
-
-    @_body.setter
-    def _body(self, value):
-        warnings.warn(
-            "The '_body' property has been renamed to 'body'.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.body = value
 
 
 #: The schema for each JSON object produced by :func:`dumps`, consumed by

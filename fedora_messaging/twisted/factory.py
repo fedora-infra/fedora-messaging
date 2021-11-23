@@ -16,7 +16,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """
 A Twisted Factory for creating and configuring instances of the
-:class:`.FedoraMessagingProtocol`.
+:class:`.FedoraMessagingProtocolV2`.
 
 A factory is used to implement automatic re-connections by producing protocol
 instances (connections) on demand. Twisted uses factories for its services APIs.
@@ -29,18 +29,15 @@ documentation for more information.
 
 import collections
 import logging
-import warnings
 from collections import namedtuple
 
 import pika
 
 from twisted.internet import defer, error, protocol
-from twisted.python import log as _legacy_twisted_log
 from twisted.python.failure import Failure
 
-from .. import config
 from ..exceptions import ConnectionException
-from .protocol import FedoraMessagingProtocol, FedoraMessagingProtocolV2
+from .protocol import FedoraMessagingProtocolV2
 
 _std_log = logging.getLogger(__name__)
 
@@ -55,230 +52,6 @@ def _remap_queue_name(bindings, queue_name):
     for binding in bindings:
         binding["queue"] = queue_name
     # The dicts are changed in-place, don't return anything to make that clear.
-
-
-class FedoraMessagingFactory(protocol.ReconnectingClientFactory):
-    """Reconnecting factory for the Fedora Messaging protocol."""
-
-    name = "FedoraMessaging:Factory"
-    protocol = FedoraMessagingProtocol
-
-    def __init__(
-        self, parameters, confirms=True, exchanges=None, queues=None, bindings=None
-    ):
-        """
-        Create a new factory for protocol objects.
-
-        Any exchanges, queues, bindings, or consumers provided here will be
-        declared and set up each time a new protocol instance is created. In
-        other words, each time a new connection is set up to the broker, it
-        will start with the declaration of these objects.
-
-        Args:
-            parameters (pika.ConnectionParameters): The connection parameters.
-            confirms (bool): If true, attempt to turn on publish confirms extension.
-            exchanges (list of dicts): List of exchanges to declare. Each dictionary is
-                passed to :meth:`pika.channel.Channel.exchange_declare` as keyword arguments,
-                so any parameter to that method is a valid key.
-            queues (list of dicts): List of queues to declare each dictionary is
-                passed to :meth:`pika.channel.Channel.queue_declare` as keyword arguments,
-                so any parameter to that method is a valid key.
-            bindings (list of dicts): A list of bindings to be created between
-                queues and exchanges. Each dictionary is passed to
-                :meth:`pika.channel.Channel.queue_bind`. The "queue" and "exchange" keys
-                are required.
-        """
-        self._parameters = parameters
-        self.confirms = confirms
-        self.exchanges = exchanges or []
-        self.queues = queues or []
-        self.bindings = bindings or []
-        self.consumers = {}
-        self.client = None
-        self._client_ready = defer.Deferred()
-        warnings.warn(
-            "The FedoraMessagingFactory class is deprecated and will be removed"
-            " in fedora-messaging v2.0, please use FedoraMessagingFactoryV2 instead.",
-            DeprecationWarning,
-        )
-
-    def startedConnecting(self, connector):
-        """Called when the connection to the broker has started.
-
-        See the documentation of
-        `twisted.internet.protocol.ReconnectingClientFactory` for details.
-        """
-        _legacy_twisted_log.msg("Started new connection to the AMQP broker")
-
-    def buildProtocol(self, addr):
-        """Create the Protocol instance.
-
-        See the documentation of
-        `twisted.internet.protocol.ReconnectingClientFactory` for details.
-        """
-        self.resetDelay()
-        self.client = self.protocol(self._parameters)
-        self.client.factory = self
-        self.client.ready.addCallback(lambda _: self._on_client_ready())
-        return self.client
-
-    @defer.inlineCallbacks
-    def _on_client_ready(self):
-        """Called when the client is ready to send and receive messages."""
-        _legacy_twisted_log.msg("Successfully connected to the AMQP broker.")
-        yield self.client.resumeProducing()
-
-        yield self.client.declare_exchanges(self.exchanges)
-        yield self.client.declare_queues(self.queues)
-        yield self.client.bind_queues(self.bindings)
-        for queue, callback in self.consumers.items():
-            yield self.client.consume(callback, queue)
-
-        _legacy_twisted_log.msg("Successfully declared all AMQP objects.")
-        self._client_ready.callback(None)
-
-    def clientConnectionLost(self, connector, reason):
-        """Called when the connection to the broker has been lost.
-
-        See the documentation of
-        `twisted.internet.protocol.ReconnectingClientFactory` for details.
-        """
-        if not isinstance(reason.value, error.ConnectionDone):
-            _legacy_twisted_log.msg(
-                "Lost connection to the AMQP broker ({reason})".format(
-                    reason=reason.value
-                ),
-                logLevel=logging.WARNING,
-            )
-        if self._client_ready.called:
-            # Renew the ready deferred, it will callback when the
-            # next connection is ready.
-            self._client_ready = defer.Deferred()
-        protocol.ReconnectingClientFactory.clientConnectionLost(self, connector, reason)
-
-    def clientConnectionFailed(self, connector, reason):
-        """Called when the client has failed to connect to the broker.
-
-        See the documentation of
-        `twisted.internet.protocol.ReconnectingClientFactory` for details.
-        """
-        _legacy_twisted_log.msg(
-            "Connection to the AMQP broker failed ({reason})".format(
-                reason=reason.value
-            ),
-            logLevel=logging.WARNING,
-        )
-        protocol.ReconnectingClientFactory.clientConnectionFailed(
-            self, connector, reason
-        )
-
-    def stopTrying(self):
-        """Stop trying to reconnect to the broker.
-
-        See the documentation of
-        `twisted.internet.protocol.ReconnectingClientFactory` for details.
-        """
-        protocol.ReconnectingClientFactory.stopTrying(self)
-        if not self._client_ready.called:
-            self._client_ready.errback(
-                pika.exceptions.AMQPConnectionError(
-                    "Could not connect, reconnection cancelled."
-                )
-            )
-
-    @defer.inlineCallbacks
-    def stopFactory(self):
-        """Stop the factory.
-
-        See the documentation of
-        `twisted.internet.protocol.ReconnectingClientFactory` for details.
-        """
-        if self.client:
-            yield self.client.stopProducing()
-        protocol.ReconnectingClientFactory.stopFactory(self)
-
-    def consume(self, callback, queue):
-        """
-        Register a new consumer.
-
-        This consumer will be configured for every protocol this factory
-        produces so it will be reconfigured on network failures. If a connection
-        is already active, the consumer will be added to it.
-
-        Args:
-            callback (callable): The callback to invoke when a message arrives.
-            queue (str): The name of the queue to consume from.
-        """
-        self.consumers[queue] = callback
-        if self._client_ready.called:
-            return self.client.consume(callback, queue)
-
-    def cancel(self, queue):
-        """
-        Cancel the consumer for a queue.
-
-        This removes the consumer from the list of consumers to be configured for
-        every connection.
-
-        Args:
-            queue (str): The name of the queue the consumer is subscribed to.
-        Returns:
-            defer.Deferred or None: Either a Deferred that fires when the consumer
-                is canceled, or None if the consumer was already canceled. Wrap
-                the call in :func:`defer.maybeDeferred` to always receive a Deferred.
-        """
-        try:
-            del self.consumers[queue]
-        except KeyError:
-            pass
-        if self.client:
-            return self.client.cancel(queue)
-
-    @defer.inlineCallbacks
-    def whenConnected(self):
-        """
-        Get the next connected protocol instance.
-
-        Returns:
-            defer.Deferred: A deferred that results in a connected
-                :class:`FedoraMessagingProtocol`.
-        """
-        yield self._client_ready
-        defer.returnValue(self.client)
-
-    @defer.inlineCallbacks
-    def publish(self, message, exchange=None):
-        """
-        Publish a :class:`fedora_messaging.message.Message` to an `exchange`_
-        on the message broker. This call will survive connection failures and try
-        until it succeeds or is canceled.
-
-        Args:
-            message (message.Message): The message to publish.
-            exchange (str): The name of the AMQP exchange to publish to; defaults
-                to :ref:`conf-publish-exchange`
-
-        returns:
-            defer.Deferred: A deferred that fires when the message is published.
-
-        Raises:
-            PublishReturned: If the published message is rejected by the broker.
-            PublishForbidden: If the published message is rejected by the broker because
-                of permission issues.
-            ConnectionException: If a connection error occurs while publishing. Calling
-                this method again will wait for the next connection and publish when it
-                is available.
-
-        .. _exchange: https://www.rabbitmq.com/tutorials/amqp-concepts.html#exchanges
-        """
-        exchange = exchange or config.conf["publish_exchange"]
-        while True:
-            client = yield self.whenConnected()
-            try:
-                yield client.publish(message, exchange)
-                break
-            except ConnectionException:
-                continue
 
 
 #: A namedtuple representing the record of an existing AMQP consumer with its config items.

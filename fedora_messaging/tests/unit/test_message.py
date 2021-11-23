@@ -383,30 +383,6 @@ class MessageTests(TestCase):
         """The flatpaks attribute must exist and be a list."""
         self.assertEqual(message.Message().flatpaks, [])
 
-    @mock.patch("fedora_messaging.message.warnings")
-    def test_body_deprecation_setter(self, mock_warning):
-        """Assert a deprecation warning is printed on _body setter usage."""
-        m = message.Message(body={})
-        m._body["old"] = "interface"
-
-        mock_warning.warn.assert_called_once_with(
-            "The '_body' property has been renamed to 'body'.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-    @mock.patch("fedora_messaging.message.warnings")
-    def test_body_deprecation_getter(self, mock_warning):
-        """Assert a deprecation warning is printed on _body getter usage."""
-        m = message.Message(body={"old": "interface"})
-        self.assertEqual(m._body["old"], "interface")
-
-        mock_warning.warn.assert_called_once_with(
-            "The '_body' property has been renamed to 'body'.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
     def test_topic_prefix(self):
         """Assert the topic prefix is used in the encoded routing key."""
         with mock.patch.dict(message.config.conf, {"topic_prefix": "prefix"}):
