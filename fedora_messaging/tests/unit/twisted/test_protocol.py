@@ -26,6 +26,7 @@ from fedora_messaging.exceptions import (
     ConnectionException,
     NoFreeChannels,
     PublishForbidden,
+    PublishReturned,
 )
 from fedora_messaging.message import Message
 from fedora_messaging.twisted.protocol import (
@@ -57,6 +58,19 @@ class ProtocolTests(TestCase):
         d = self.protocol._allocate_channel()
         d.addCallback(pytest.fail, "Expected a NoFreeChannels exception")
         d.addErrback(lambda f: f.trap(NoFreeChannels))
+        pytest_twisted.blockon(d)
+
+    def test_allocate_channel_connection_exception(self):
+        """
+        Assert a pika ConnectionWrongStateError exception turns into a fedora_messaging exception.
+        """
+        self.protocol.channel = mock.Mock(
+            name="channel", side_effect=pika.exceptions.ConnectionWrongStateError()
+        )
+
+        d = self.protocol._allocate_channel()
+        d.addCallback(pytest.fail, "Expected a ConnectionException exception")
+        d.addErrback(lambda f: f.trap(ConnectionException))
         pytest_twisted.blockon(d)
 
     @mock.patch(
@@ -209,6 +223,32 @@ class ProtocolTests(TestCase):
 
         d.addCallback(pytest.fail, "Expected a PublishForbidden exception")
         d.addErrback(lambda f: f.trap(PublishForbidden))
+
+        return pytest_twisted.blockon(d)
+
+    def test_publish_returned(self):
+        body = {"bodykey": "bodyvalue"}
+        headers = {"headerkey": "headervalue"}
+        message = Message(body, headers, "testing.topic")
+        self.protocol._channel.basic_publish.side_effect = pika.exceptions.NackError([])
+        d = self.protocol.publish(message, "test-exchange")
+
+        d.addCallback(pytest.fail, "Expected a PublishReturned exception")
+        d.addErrback(lambda f: f.trap(PublishReturned))
+
+        return pytest_twisted.blockon(d)
+
+    def test_publish_connection_closed(self):
+        body = {"bodykey": "bodyvalue"}
+        headers = {"headerkey": "headervalue"}
+        message = Message(body, headers, "testing.topic")
+        self.protocol._channel.basic_publish.side_effect = (
+            pika.exceptions.ConnectionClosed(42, "testing")
+        )
+        d = self.protocol.publish(message, "test-exchange")
+
+        d.addCallback(pytest.fail, "Expected a ConnectionException exception")
+        d.addErrback(lambda f: f.trap(ConnectionException))
 
         return pytest_twisted.blockon(d)
 
