@@ -24,53 +24,22 @@ import pytest
 from fedora_messaging import config
 from fedora_messaging.exceptions import (
     ConnectionException,
-    Drop,
-    HaltConsumer,
-    Nack,
     NoFreeChannels,
     PublishForbidden,
-    ValidationError,
 )
 from fedora_messaging.message import Message
 from fedora_messaging.twisted.protocol import (
-    ConsumerV2,
+    Consumer,
     FedoraMessagingProtocolV2,
-    _add_timeout,
 )
 
 from twisted.internet import defer
-from .utils import MockChannel
+from .utils import MockProtocol
 
 try:
     import pytest_twisted
 except ImportError:
     pytest.skip("pytest-twisted is missing, skipping tests", allow_module_level=True)
-
-
-class MockProtocol(FedoraMessagingProtocolV2):
-    """A Protocol object that mocks the underlying channel and impl."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._impl = mock.Mock(name="_impl")
-        self._impl.is_closed = True
-        self._channel = MockChannel(name="_channel")
-        self.channel = mock.Mock(
-            name="channel", side_effect=lambda: defer.succeed(self._channel)
-        )
-
-
-class MockDeliveryFrame:
-    def __init__(self, tag, routing_key=None):
-        self.delivery_tag = tag
-        self.routing_key = routing_key or "routing_key"
-
-
-class MockProperties:
-    def __init__(self, msgid=None):
-        self.headers = {}
-        self.content_encoding = None
-        self.message_id = msgid or "msgid"
 
 
 class ProtocolTests(TestCase):
@@ -243,266 +212,6 @@ class ProtocolTests(TestCase):
 
         return pytest_twisted.blockon(d)
 
-
-class ProtocolReadTests(TestCase):
-    """Test the _read() method on the Protocol."""
-
-    def setUp(self):
-        self.protocol = MockProtocol(None)
-        self.protocol._impl.is_closed = False
-        self.queue = mock.Mock()
-        self.callback = mock.Mock()
-        self.consumer = ConsumerV2("my_queue_name", self.callback)
-        self.consumer._channel = mock.Mock()
-
-    def _queue_contents(self, values):
-        for value in values:
-            yield value
-        self.consumer._running = False
-        yield defer.CancelledError()
-
-    def test_read_not_running(self):
-        # When not running, _read() should do nothing.
-        self.consumer._running = False
-        self.queue.get.side_effect = lambda: defer.succeed(None)
-        d = self.protocol._read(self.queue, self.consumer)
-
-        def _check(_):
-            self.queue.get.assert_not_called()
-
-        d.addCallback(_check)
-        return pytest_twisted.blockon(d)
-
-    @mock.patch("fedora_messaging.twisted.protocol.get_message")
-    def test_read(self, get_message):
-        # Check the nominal case for _read().
-        message = mock.Mock(name="message")
-        get_message.return_value = message
-        props = MockProperties()
-        self.queue.get.side_effect = self._queue_contents(
-            [
-                defer.succeed(
-                    (
-                        self.consumer._channel,
-                        MockDeliveryFrame("dt1", "rk1"),
-                        props,
-                        "body1",
-                    )
-                ),
-                defer.succeed(
-                    (
-                        self.consumer._channel,
-                        MockDeliveryFrame("dt2", "rk2"),
-                        props,
-                        "body2",
-                    )
-                ),
-                defer.succeed(
-                    (
-                        self.consumer._channel,
-                        MockDeliveryFrame("dt3", "rk3"),
-                        props,
-                        "body3",
-                    )
-                ),
-            ]
-        )
-
-        def _check(_):
-            self.assertEqual(
-                get_message.call_args_list,
-                [
-                    (("rk1", props, "body1"), {}),
-                    (("rk2", props, "body2"), {}),
-                    (("rk3", props, "body3"), {}),
-                ],
-            )
-            self.assertEqual(message.queue, "my_queue_name")
-            self.assertEqual(
-                self.callback.call_args_list,
-                [
-                    ((message,), {}),
-                    ((message,), {}),
-                    ((message,), {}),
-                ],
-            )
-
-        d = self.protocol._read(self.queue, self.consumer)
-        d.addCallback(_check)
-        return pytest_twisted.blockon(d)
-
-    @mock.patch(
-        "fedora_messaging.twisted.protocol.get_message",
-        mock.Mock(side_effect=ValidationError),
-    )
-    def test_read_no_body(self):
-        # When a message has no body, it should not be passed to the callback.
-        df = MockDeliveryFrame("df")
-        prop = MockProperties()
-        self.queue.get.side_effect = self._queue_contents(
-            [
-                defer.succeed((self.consumer._channel, df, prop, "")),
-                defer.succeed((self.consumer._channel, df, prop, "weird")),
-            ]
-        )
-        d = self.protocol._read(self.queue, self.consumer)
-
-        def _check(_):
-            self.callback.assert_not_called()
-            self.consumer._channel.basic_nack.assert_called_with(
-                delivery_tag="df", requeue=False
-            )
-
-        d.addCallback(_check)
-        return pytest_twisted.blockon(d)
-
-    # TODO: re-enable when the read loop is part of the consumer
-    # def test_read_exit_loop(self):
-    #     # Check the exceptions that cause the read loop to exit.
-    #     exceptions = [
-    #         error.ConnectionDone(),
-    #         pika.exceptions.ChannelClosed(42, "testing"),
-    #         pika.exceptions.ConsumerCancelled(),
-    #         RuntimeError(),
-    #         pika.exceptions.ChannelClosedByClient(42, "testing"),
-    #     ]
-
-    #     deferreds = []
-    #     for exc in exceptions:
-    #         self.queue.get.side_effect = exc
-    #         deferreds.append(self.protocol._read(self.queue, self.consumer))
-
-    #     def _check(_):
-    #         self.protocol._read_one.assert_not_called()
-
-    #     d = defer.DeferredList(deferreds)
-    #     d.addCallback(_check)
-    #     return pytest_twisted.blockon(d)
-
-
-class ProtocolReadOneTests(TestCase):
-    """Test the _read_one() method on the Protocol."""
-
-    def setUp(self):
-        self.protocol = MockProtocol(None)
-        self._message_callback = mock.Mock()
-        self.protocol._impl.is_closed = False
-        consumer = self.protocol._consumers["my_queue_name"] = ConsumerV2(
-            "my_queue_name", self._message_callback
-        )
-        consumer._channel = mock.Mock()
-
-    def _call_read_one(self, topic, headers, body):
-        """Prepare arguments for the _read_one() method and call it."""
-        consumer = self.protocol._consumers["my_queue_name"]
-        full_headers = {"fedora_messaging_schema": "fedora_messaging.message:Message"}
-        full_headers.update(headers)
-        queue = mock.Mock()
-        queue.get.return_value = defer.succeed(
-            (
-                consumer._channel,
-                pika.spec.Basic.Deliver(routing_key=topic, delivery_tag="delivery_tag"),
-                pika.spec.BasicProperties(headers=full_headers),
-                json.dumps(body).encode("utf-8"),
-            )
-        )
-        return self.protocol._read_one(queue, consumer)
-
-    def test_read_one(self):
-        # Check the nominal case.
-        channel = self.protocol._consumers["my_queue_name"]._channel
-        d = self._call_read_one("testing.topic", {}, {"key": "value"})
-
-        def _check(_):
-            self._message_callback.assert_called()
-            channel.basic_ack.assert_called_with(delivery_tag="delivery_tag")
-
-        d.addCallback(_check)
-        return pytest_twisted.blockon(d)
-
-    def test_read_one_invalid(self):
-        # When a message is invalid, it should be Nacked.
-        channel = self.protocol._consumers["my_queue_name"]._channel
-        d = self._call_read_one("testing.topic", {}, "testing")
-
-        def _check(_):
-            self._message_callback.assert_not_called()
-            channel.basic_nack.assert_called_with(
-                delivery_tag="delivery_tag", requeue=False
-            )
-
-        d.addCallback(_check)
-        return pytest_twisted.blockon(d)
-
-    def test_read_one_nack(self):
-        # When the callback raises a Nack, the server should be notified.
-        self._message_callback.side_effect = Nack()
-        channel = self.protocol._consumers["my_queue_name"]._channel
-        d = self._call_read_one("testing.topic", {}, {"key": "value"})
-
-        def _check(_):
-            self._message_callback.assert_called()
-            channel.basic_nack.assert_called_with(
-                delivery_tag="delivery_tag", requeue=True
-            )
-
-        d.addCallback(_check)
-        return pytest_twisted.blockon(d)
-
-    def test_read_one_drop(self):
-        # When the callback raises a Drop, the server should be notified.
-        self._message_callback.side_effect = Drop()
-        channel = self.protocol._consumers["my_queue_name"]._channel
-        d = self._call_read_one("testing.topic", {}, {"key": "value"})
-
-        def _check(_):
-            self._message_callback.assert_called()
-            channel.basic_nack.assert_called_with(
-                delivery_tag="delivery_tag", requeue=False
-            )
-
-        d.addCallback(_check)
-        return pytest_twisted.blockon(d)
-
-    def test_read_one_halt(self):
-        """Assert the consumer is canceled when HaltConsumer is raised"""
-        self._message_callback.side_effect = HaltConsumer()
-        channel = self.protocol._consumers["my_queue_name"]._channel
-        tag = self.protocol._consumers["my_queue_name"]._tag
-        d = self._call_read_one("testing.topic", {}, {"key": "value"})
-
-        def _check(_):
-            self._message_callback.assert_called()
-            channel.basic_ack.assert_called_with(delivery_tag="delivery_tag")
-            channel.basic_cancel.assert_called_with(consumer_tag=tag)
-            channel.close.assert_called_once_with()
-
-        d.addCallback(_check)
-        d.addErrback(lambda failure: self.assertIsInstance(failure.value, HaltConsumer))
-        return pytest_twisted.blockon(d)
-
-    def test_read_one_exception(self):
-        # On an unknown exception, the consumer should stop and all
-        # unacknowledged messages should be requeued.
-        self._message_callback.side_effect = ValueError()
-        channel = self.protocol._consumers["my_queue_name"]._channel
-        d = self._call_read_one("testing.topic", {}, {"key": "value"})
-
-        def _check(_):
-            self._message_callback.assert_called()
-            channel.basic_nack.assert_called_with(
-                delivery_tag=0, multiple=True, requeue=True
-            )
-            channel.close.assert_called_once_with()
-
-        d.addCallback(_check)
-        d.addErrback(lambda failure: self.assertIsInstance(failure.value, ValueError))
-        return pytest_twisted.blockon(d)
-
-
-class ProtocolV2Tests(TestCase):
-    """Unit tests for the ProtocolV2 class."""
-
     def test_consume_connection_exception(self):
         """If consuming fails due to a non-permission error, a ConnectionException happens."""
         proto = FedoraMessagingProtocolV2(None)
@@ -529,7 +238,7 @@ class ProtocolV2Tests(TestCase):
 
         # Prepare the existing consumer
         existing_callback = mock.Mock(name="existing_callback")
-        consumer = ConsumerV2(queue="test_queue", callback=existing_callback)
+        consumer = Consumer(queue="test_queue", callback=existing_callback)
         proto._consumers["test_queue"] = consumer
 
         def check(result):
@@ -547,13 +256,13 @@ class ProtocolV2Tests(TestCase):
         mock_channel = mock.Mock(name="mock_channel")
         deferred_channel = defer.succeed(mock_channel)
         proto._allocate_channel = mock.Mock(return_value=deferred_channel)
-        # Don't go into the read loop
-        proto._read = mock.Mock(retrun_value=defer.succeed(None))
         # basic_consume() must return a tuple
         mock_channel.basic_consume.return_value = (mock.Mock(), mock.Mock())
         # Prepare the consumer
         callback = mock.Mock()
-        consumer = ConsumerV2(queue="queue_orig", callback=callback)
+        consumer = Consumer(queue="queue_orig", callback=callback)
+        # Don't go into the read loop
+        consumer._read = mock.Mock(retrun_value=defer.succeed(None))
 
         def check(result):
             self.assertEqual(consumer, result)
@@ -564,31 +273,3 @@ class ProtocolV2Tests(TestCase):
         d = proto.consume(callback, "queue_new", consumer)
         d.addBoth(check)
         return pytest_twisted.blockon(d)
-
-
-class AddTimeoutTests(TestCase):
-    """Unit tests for the _add_timeout helper function."""
-
-    def test_twisted12_timeout(self):
-        """Assert timeouts work for Twisted 12.2 (EL7)"""
-        d = defer.Deferred()
-        d.addTimeout = mock.Mock(side_effect=AttributeError())
-        _add_timeout(d, 0.1)
-
-        d.addCallback(self.fail, "Expected errback to be called")
-        d.addErrback(
-            lambda failure: self.assertIsInstance(failure.value, defer.CancelledError)
-        )
-
-        return pytest_twisted.blockon(d)
-
-    def test_twisted12_cancel_cancel_callback(self):
-        """Assert canceling the cancel call for Twisted 12.2 (EL7) works."""
-        d = defer.Deferred()
-        d.addTimeout = mock.Mock(side_effect=AttributeError())
-        d.cancel = mock.Mock()
-        with mock.patch("fedora_messaging.twisted.protocol.reactor") as mock_reactor:
-            _add_timeout(d, 1)
-            delayed_cancel = mock_reactor.callLater.return_value
-            d.callback(None)
-            delayed_cancel.cancel.assert_called_once_with()

@@ -35,55 +35,19 @@ import logging
 import pika
 from pika.adapters.twisted_connection import TwistedProtocolConnection
 
-from twisted.internet import defer, error, reactor, threads
-from twisted.python.failure import Failure
+from twisted.internet import defer, error
 
 from .. import config
 from ..exceptions import (
     BadDeclaration,
     ConnectionException,
-    ConsumerCanceled,
-    Drop,
-    HaltConsumer,
-    Nack,
     NoFreeChannels,
-    PermissionException,
     PublishForbidden,
     PublishReturned,
-    ValidationError,
 )
-from ..message import get_message
-from .consumer import Consumer as ConsumerV2
+from .consumer import Consumer
 
 _std_log = logging.getLogger(__name__)
-
-
-def _add_timeout(deferred, timeout):
-    """
-    Add a timeout to the given deferred. This is designed to work with both old
-    Twisted and versions of Twisted with the addTimeout API. This is
-    exclusively to support EL7.
-
-    The deferred will errback with a :class:`defer.CancelledError` if the
-    version of Twisted being used doesn't have the
-    ``defer.Deferred.addTimeout`` API, otherwise it will errback with the
-    normal ``error.TimeoutError``
-    """
-    try:
-        deferred.addTimeout(timeout, reactor)
-    except AttributeError:
-        # Twisted 12.2 (in EL7) does not have the addTimeout API, so make do with
-        # the slightly more annoying approach of scheduling a call to cancel which
-        # is then canceled if the deferred succeeds before the timeout is up.
-        delayed_cancel = reactor.callLater(timeout, deferred.cancel)
-
-        def cancel_cancel_call(result):
-            """Halt the delayed call to cancel if the deferred fires before the timeout."""
-            if not delayed_cancel.called:
-                delayed_cancel.cancel()
-            return result
-
-        deferred.addBoth(cancel_cancel_call)
 
 
 class FedoraMessagingProtocolV2(TwistedProtocolConnection):
@@ -146,118 +110,6 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
                 versions lower than 1.0.0.
         """
         self._channel = yield self._allocate_channel()
-
-    @defer.inlineCallbacks
-    def _read(self, queue_object, consumer):
-        """
-        The loop that reads from the message queue and calls the consumer callback
-        wrapper.
-
-        Serialized Processing
-        ---------------------
-        This loop processes messages serially. This is because a second
-        ``queue_object.get()`` operation can only occur after the Deferred from
-        ``self._on_message`` completes. Thus, we can be sure that callbacks
-        never run concurrently in two different threads.
-
-        This is done rather than saturating the Twisted thread pool as the
-        documentation for callbacks (in fedmsg and here) has never indicated
-        that they are not thread-safe. In the future we can add a flag for users
-        who are confident in their ability to write thread-safe code.
-
-
-        Gracefully Halting
-        ------------------
-        This is a loop that only exits when the consumer._running variable is
-        set to False. The call to cancel will set this to false, as will the
-        call to :meth:`pauseProducing`. These calls will then wait for the
-        Deferred from this function to call back in order to ensure the message
-        finishes processing.
-
-        The Deferred object only completes when this method returns, so we need
-        to periodically check the status of consumer._running. That's why
-        there's a short timeout on the call to ``queue_object.get``.
-
-        queue_object (pika.adapters.twisted_connection.ClosableDeferredQueue):
-            The AMQP queue the consumer is bound to.
-        consumer (dict): A dictionary describing the consumer for the given
-            queue_object.
-        """
-        while consumer._running:
-            yield self._read_one(queue_object, consumer)
-
-    @defer.inlineCallbacks
-    def _read_one(self, queue_object, consumer):
-        try:
-            deferred_get = queue_object.get()
-            _add_timeout(deferred_get, 1)
-            channel, delivery_frame, properties, body = yield deferred_get
-        except (defer.TimeoutError, defer.CancelledError):
-            return
-
-        _std_log.debug(
-            "Message arrived with delivery tag %s for %r",
-            delivery_frame.delivery_tag,
-            consumer._tag,
-        )
-        try:
-            message = get_message(delivery_frame.routing_key, properties, body)
-            message.queue = consumer.queue
-        except ValidationError:
-            _std_log.warning(
-                "Message id %s did not pass validation; ignoring message",
-                properties.message_id,
-            )
-            yield channel.basic_nack(
-                delivery_tag=delivery_frame.delivery_tag, requeue=False
-            )
-            return
-
-        try:
-            _std_log.info(
-                "Consuming message from topic %s (message id %s)",
-                message.topic,
-                properties.message_id,
-            )
-            yield threads.deferToThread(consumer.callback, message)
-        except Nack:
-            _std_log.warning(
-                "Returning message id %s to the queue", properties.message_id
-            )
-            yield channel.basic_nack(
-                delivery_tag=delivery_frame.delivery_tag, requeue=True
-            )
-        except Drop:
-            _std_log.warning(
-                "Consumer requested message id %s be dropped", properties.message_id
-            )
-            yield channel.basic_nack(
-                delivery_tag=delivery_frame.delivery_tag, requeue=False
-            )
-        except HaltConsumer as e:
-            _std_log.info(
-                "Consumer indicated it wishes consumption to halt, shutting down"
-            )
-            if e.requeue:
-                yield channel.basic_nack(
-                    delivery_tag=delivery_frame.delivery_tag, requeue=True
-                )
-            else:
-                yield channel.basic_ack(delivery_tag=delivery_frame.delivery_tag)
-            raise e
-        except Exception as e:
-            _std_log.exception(
-                "Received unexpected exception from consumer %r", consumer
-            )
-            yield channel.basic_nack(delivery_tag=0, multiple=True, requeue=True)
-            raise e
-        else:
-            _std_log.info(
-                "Successfully consumed message from topic %s (message id %s)",
-                message.topic,
-                properties.message_id,
-            )
-            yield channel.basic_ack(delivery_tag=delivery_frame.delivery_tag)
 
     @defer.inlineCallbacks
     def publish(self, message, exchange):
@@ -334,14 +186,14 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         Args:
             callback (callable): The callback to invoke when a message is received.
             queue (str): The name of the queue to consume from.
-            previous_consumer (ConsumerV2): If this is the resumption of a prior
+            previous_consumer (Consumer): If this is the resumption of a prior
                 consumer, you can provide the previous consumer so its result
                 deferred can be re-used.
 
         Returns:
             Deferred: A Deferred that fires when the consumer is successfully
                 registered with the message broker. The callback receives a
-                :class:`.ConsumerV2` object that represents the AMQP consumer.
+                :class:`.Consumer` object that represents the AMQP consumer.
                 The Deferred may error back with a :class:`PermissionException`
                 if the user cannot read from the queue, a
                 :class:`NoFreeChannels` if this connection has hit its channel
@@ -361,104 +213,11 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
             # The queue name may have changed, especially in the case of server-generated queues.
             consumer.queue = queue
         else:
-            consumer = ConsumerV2(queue=queue, callback=callback)
+            consumer = Consumer(queue=queue, callback=callback)
         consumer._protocol = self
         consumer._channel = yield self._allocate_channel()
-        yield consumer._channel.basic_qos(
-            prefetch_count=config.conf["qos"]["prefetch_count"],
-            prefetch_size=config.conf["qos"]["prefetch_size"],
-        )
-        try:
-            queue_object, _ = yield consumer._channel.basic_consume(
-                queue=consumer.queue, consumer_tag=consumer._tag
-            )
-        except pika.exceptions.ChannelClosed as exc:
-            if exc.args[0] == 403:
-                raise PermissionException(
-                    obj_type="queue", description=queue, reason=exc.args[1]
-                )
-            else:
-                raise ConnectionException(reason=exc)
 
-        def on_cancel_callback(frame):
-            """
-            Called when the consumer is canceled server-side.
-
-            This can happen, for example, when the queue is deleted.
-            To handle this, we do the necessary book-keeping to remove the consumer
-            and then fire the errback on the consumer so the caller of
-            :func:`fedora_messaging.api.consume` can decide what to do.
-
-            Args:
-                frame (pika.frame.Method): The cancel method from the server,
-                    unused here because we already know what consumer is being
-                    canceled.
-            """
-            _std_log.error("%r was canceled by the AMQP broker!", consumer)
-
-            self._forget_consumer(consumer.queue)
-            consumer._running = False
-            consumer.result.errback(fail=ConsumerCanceled())
-
-        try:
-            consumer._channel.add_on_cancel_callback(on_cancel_callback)
-        except AttributeError:
-            pass  # pika 1.0.0+
-
-        def read_loop_errback(failure):
-            """
-            Handle errors coming out of the read loop.
-
-            There are two basic categories of errors: ones where the ``consumer.result``
-            Deferred needs to be fired because the error is not recoverable, ones
-            where we can recover from by letting the connection restart, and ones
-            which are fatal for this consumer only (the queue was deleted by an
-            administrator).
-
-            Args:
-                failure (twisted.python.failure.Failure): The exception raised by
-                    the read loop encapsulated in a Failure.
-            """
-            exc = failure.value
-            if failure.check(pika.exceptions.ConsumerCancelled):
-                # Pika 1.0.0+ raises this exception. To support previous versions
-                # we register a callback (called below) ourselves with the channel.
-                on_cancel_callback(None)
-            elif failure.check(pika.exceptions.ChannelClosed):
-                if exc.args[0] == 403:
-                    # This is a mis-configuration, the consumer can register itself,
-                    # but it doesn't have permissions to read from the queue,
-                    # so no amount of restarting will help.
-                    e = PermissionException(
-                        obj_type="queue",
-                        description=queue,
-                        reason=failure.value.args[1],
-                    )
-                    consumer.result.errback(Failure(e, PermissionException))
-                    consumer.cancel()
-                else:
-                    _std_log.exception(
-                        "Consumer halted (%r) unexpectedly; "
-                        "the connection should restart.",
-                        failure,
-                    )
-            elif failure.check(error.ConnectionDone, error.ConnectionLost):
-                _std_log.warning(
-                    "The connection to the broker was lost (%r), consumer halted; "
-                    "the connection should restart and consuming will resume.",
-                    exc,
-                )
-            elif failure.check(pika.exceptions.AMQPError):
-                _std_log.exception(
-                    "An unexpected AMQP error occurred; the connection should "
-                    "restart, but please report this as a bug."
-                )
-            else:
-                consumer.result.errback(failure)
-                consumer.cancel()
-
-        consumer._read_loop = self._read(queue_object, consumer)
-        consumer._read_loop.addErrback(read_loop_errback)
+        yield consumer.consume()
 
         self._consumers[queue] = consumer
         _std_log.info("Successfully registered AMQP consumer %r", consumer)

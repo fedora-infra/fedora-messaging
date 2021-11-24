@@ -25,7 +25,7 @@ import pytest_twisted
 
 from fedora_messaging import api, config
 from fedora_messaging.exceptions import PublishException
-from fedora_messaging.twisted import consumer, protocol
+from fedora_messaging.twisted import consumer
 from fedora_messaging.signals import (
     pre_publish_signal,
     publish_signal,
@@ -352,7 +352,7 @@ def test_consume_successful_halt():
         with mock.patch("fedora_messaging.api.twisted_consume") as mock_consume:
             mock_consume.return_value = defer.succeed(consumers)
             d = threads.deferToThread(api.consume, None)
-            protocol._add_timeout(d, 0.1)
+            consumer._add_timeout(d, 0.1)
             yield d
     except (defer.TimeoutError, defer.CancelledError):
         pytest.fail("Expected the consume call to immediately finish, not time out")

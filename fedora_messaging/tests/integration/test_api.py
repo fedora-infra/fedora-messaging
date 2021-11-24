@@ -11,7 +11,7 @@ import pytest
 import pytest_twisted
 import treq
 from fedora_messaging import api, config, exceptions, message
-from fedora_messaging.twisted.protocol import _add_timeout
+from fedora_messaging.twisted.consumer import _add_timeout
 from twisted.internet import defer, reactor, task, threads
 
 HTTP_API = "http://localhost:15672/api/"
