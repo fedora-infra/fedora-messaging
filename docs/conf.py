@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Configuration file for the Sphinx documentation builder.
 #
@@ -154,7 +153,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ("fedora-messaging", "fedora-messaging", u"Fedora Messaging CLI", [author], 1)
+    ("fedora-messaging", "fedora-messaging", "Fedora Messaging CLI", [author], 1)
 ]
 
 
@@ -185,7 +184,6 @@ intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "pika": ("https://pika.readthedocs.io/en/latest/", None),
     "jsonschema": ("https://python-jsonschema.readthedocs.io/en/latest/", None),
-    "six": ("https://six.readthedocs.io/", None),
     "blinker": ("https://pythonhosted.org/blinker/", None),
     "Twisted": ("https://twistedmatrix.com/documents/current/api/", None),
 }

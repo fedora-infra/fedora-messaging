@@ -8,7 +8,6 @@ toml
 pytz
 pytest-twisted
 pyOpenSSL
-six
 service_identity
 sphinx
 towncrier

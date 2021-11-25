@@ -21,7 +21,7 @@ the Python API of your message schemas.
 import collections
 from hashlib import sha256
 
-from six.moves.urllib import parse
+from urllib import parse
 
 
 def user_avatar_url(username, size=64, default="retro"):
@@ -36,7 +36,7 @@ def user_avatar_url(username, size=64, default="retro"):
     Returns:
         str: The URL to the avatar image.
     """
-    openid = "http://{}.id.fedoraproject.org/".format(username)
+    openid = f"http://{username}.id.fedoraproject.org/"
     return libravatar_url(openid=openid, size=size, default=default)
 
 
@@ -70,4 +70,4 @@ def libravatar_url(email=None, openid=None, size=64, default="retro"):
     else:
         raise ValueError("You must provide either the email or the openid.")
     idhash = sha256(value.encode("utf-8")).hexdigest()
-    return "https://seccdn.libravatar.org/avatar/%s?%s" % (idhash, query)
+    return f"https://seccdn.libravatar.org/avatar/{idhash}?{query}"

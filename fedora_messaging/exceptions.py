@@ -78,7 +78,7 @@ class PublishException(BaseException):
     """Base class for exceptions related to publishing."""
 
     def __init__(self, reason=None, **kwargs):
-        super(PublishException, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.reason = reason
 
     def __str__(self):
@@ -121,7 +121,7 @@ class ConnectionException(BaseException):
     """
 
     def __init__(self, *args, **kwargs):
-        super(ConnectionException, self).__init__(*args)
+        super().__init__(*args)
         self.reason = kwargs.get("reason")
 
 
@@ -164,7 +164,7 @@ class HaltConsumer(ConsumeException):
     """
 
     def __init__(self, exit_code=0, reason=None, requeue=False, **kwargs):
-        super(HaltConsumer, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.exit_code = exit_code
         self.reason = reason
         self.requeue = requeue

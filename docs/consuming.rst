@@ -106,7 +106,7 @@ one-time initialization or a callback that maintains state between calls::
     from fedora_messaging import config
 
 
-    class SaveMessage(object):
+    class SaveMessage:
         """
         A fedora-messaging consumer that saves the message to a file.
 

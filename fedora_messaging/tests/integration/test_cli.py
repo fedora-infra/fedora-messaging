@@ -67,10 +67,10 @@ def test_consume_halt_with_exitcode(callback, exit_code, msg, queue):
     """Assert user execution halt with reason and exit_code is reported."""
     args = [
         "fedora-messaging",
-        "--conf={}".format(CLI_CONF),
+        f"--conf={CLI_CONF}",
         "consume",
-        "--callback=fedora_messaging.tests.integration.test_cli:{}".format(callback),
-        "--queue-name={}".format(queue),
+        f"--callback=fedora_messaging.tests.integration.test_cli:{callback}",
+        f"--queue-name={queue}",
         "--exchange=amq.topic",
         "--routing-key=#",
     ]
@@ -85,7 +85,7 @@ def test_consume_halt_with_exitcode(callback, exit_code, msg, queue):
             break
     else:
         process.kill()
-        pytest.fail("Process never stopped!: {}".format(process.stdout.read()))
+        pytest.fail(f"Process never stopped!: {process.stdout.read()}")
 
     assert process.returncode == exit_code
     assert msg in process.stdout.read()

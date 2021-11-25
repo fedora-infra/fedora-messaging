@@ -26,10 +26,7 @@ consider contributing it here!
 from contextlib import contextmanager
 import inspect
 
-try:
-    from unittest import mock
-except ImportError:
-    import mock
+from unittest import mock
 
 
 @contextmanager

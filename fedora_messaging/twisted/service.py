@@ -24,15 +24,13 @@ fedmsg-migration-tools for a use case.
 See https://twistedmatrix.com/documents/current/core/howto/application.html
 """
 
-from __future__ import absolute_import, unicode_literals
-import locale
+
 import logging
 import ssl
 import warnings
 
 from pika import SSLOptions
 import pika
-import six
 from twisted.application import service
 from twisted.application.internet import TCPClient, SSLClient
 from twisted.internet import ssl as twisted_ssl, defer
@@ -226,7 +224,7 @@ def _configure_tls_parameters(parameters):
             ssl_context.load_verify_locations(cafile=config.conf["tls"]["ca_cert"])
         except ssl.SSLError as e:
             raise exceptions.ConfigurationException(
-                'The "ca_cert" setting in the "tls" section is invalid ({})'.format(e)
+                f'The "ca_cert" setting in the "tls" section is invalid ({e})'
             )
     ssl_context.options |= ssl.OP_NO_SSLv2
     ssl_context.options |= ssl.OP_NO_SSLv3
@@ -239,7 +237,7 @@ def _configure_tls_parameters(parameters):
             ssl_context.load_cert_chain(cert, key)
         except ssl.SSLError as e:
             raise exceptions.ConfigurationException(
-                'The "keyfile" setting in the "tls" section is invalid ({})'.format(e)
+                f'The "keyfile" setting in the "tls" section is invalid ({e})'
             )
     parameters.ssl_options = SSLOptions(ssl_context, server_hostname=parameters.host)
 
@@ -274,11 +272,6 @@ def _ssl_context_factory(parameters):
         client_cert = twisted_ssl.PrivateCertificate.loadPEM(client_keypair)
 
     hostname = parameters.host
-    if not isinstance(hostname, six.text_type):
-        # Twisted requires the hostname as decoded text, which it isn't in Python 2
-        # Decode with the system encoding since this came from the config file. Die,
-        # Python 2, die.
-        hostname = hostname.decode(locale.getdefaultlocale()[1])
     try:
         context_factory = twisted_ssl.optionsForClientTLS(
             hostname,

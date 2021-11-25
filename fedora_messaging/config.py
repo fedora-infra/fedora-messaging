@@ -277,7 +277,7 @@ meaning there is no limit. The default settings are::
         'prefetch_size': 0,
     }
 """
-from __future__ import unicode_literals
+
 
 import copy
 import logging
@@ -445,7 +445,7 @@ def validate_client_properties(props):
         # Don't let users override these as they identify this library in AMQP
         if props[key] != DEFAULTS["client_properties"][key]:
             raise exceptions.ConfigurationException(
-                '"{}" is a reserved keyword in client_properties'.format(key)
+                f'"{key}" is a reserved keyword in client_properties'
             )
 
 
@@ -457,12 +457,12 @@ class LazyConfig(dict):
     def __getitem__(self, *args, **kw):
         if not self.loaded:
             self.load_config()
-        return super(LazyConfig, self).__getitem__(*args, **kw)
+        return super().__getitem__(*args, **kw)
 
     def get(self, *args, **kw):
         if not self.loaded:
             self.load_config()
-        return super(LazyConfig, self).get(*args, **kw)
+        return super().get(*args, **kw)
 
     def pop(self, *args, **kw):
         raise exceptions.ConfigurationException("Configuration keys cannot be removed!")
@@ -470,12 +470,12 @@ class LazyConfig(dict):
     def copy(self, *args, **kw):
         if not self.loaded:
             self.load_config()
-        return super(LazyConfig, self).copy(*args, **kw)
+        return super().copy(*args, **kw)
 
     def update(self, *args, **kw):
         if not self.loaded:
             self.load_config()
-        return super(LazyConfig, self).update(*args, **kw)
+        return super().update(*args, **kw)
 
     def setup_logging(self):
         if not self.loaded:
@@ -519,7 +519,7 @@ class LazyConfig(dict):
                 config_path = "/etc/fedora-messaging/config.toml"
 
         if os.path.exists(config_path):
-            _log.info("Loading configuration from {}".format(config_path))
+            _log.info(f"Loading configuration from {config_path}")
             with open(config_path) as fd:
                 try:
                     file_config = toml.load(fd)
@@ -531,7 +531,7 @@ class LazyConfig(dict):
                     )
                     raise exceptions.ConfigurationException(msg)
         else:
-            _log.info("The configuration file, {}, does not exist.".format(config_path))
+            _log.info(f"The configuration file, {config_path}, does not exist.")
 
         self.update(config)
         self._validate()
