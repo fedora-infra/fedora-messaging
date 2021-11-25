@@ -17,7 +17,6 @@
 """Tests for the ``fedora-messaging`` command-line interface."""
 import os
 import subprocess
-import time
 import uuid
 
 from twisted.internet import threads
@@ -27,6 +26,8 @@ import requests
 
 from fedora_messaging import api, exceptions, message
 from fedora_messaging.tests import FIXTURES_DIR
+
+from .utils import sleep
 
 
 CLI_CONF = os.path.join(FIXTURES_DIR, "cli_integration.toml")
@@ -76,11 +77,11 @@ def test_consume_halt_with_exitcode(callback, exit_code, msg, queue):
     ]
 
     process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    time.sleep(5)
+    yield sleep(5)
 
     yield threads.deferToThread(api.publish, message.Message())
     for _ in range(5):
-        time.sleep(1)
+        yield sleep(1)
         if process.poll() is not None:
             break
     else:

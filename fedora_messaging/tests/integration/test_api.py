@@ -14,6 +14,7 @@ from fedora_messaging import api, config, exceptions, message
 from fedora_messaging.twisted.consumer import _add_timeout
 from twisted.internet import defer, reactor, task, threads
 
+
 HTTP_API = "http://localhost:15672/api/"
 HTTP_AUTH = ("guest", "guest")
 
@@ -771,21 +772,28 @@ def test_pub_sub_default_settings(queue_and_binding):
         assert 0 == e.exit_code
 
 
-@pytest_twisted.inlineCallbacks
-def test_pub_timeout():
-    """Assert PublishTimeout is raised if a connection just hangs."""
+@pytest.fixture
+def bad_amqp_url():
+    amqp_url_backup = config.conf["amqp_url"]
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind(("", 0))
     config.conf["amqp_url"] = "amqp://localhost:{port}/".format(
         port=sock.getsockname()[1]
     )
+    yield
+    config.conf["amqp_url"] = amqp_url_backup
+    sock.close()
+    # The cached service is borked, reset it.
+    api._twisted_service = None
 
+
+@pytest_twisted.inlineCallbacks
+def test_pub_timeout(bad_amqp_url):
+    """Assert PublishTimeout is raised if a connection just hangs."""
     try:
         yield threads.deferToThread(api.publish, api.Message(), 5)
     except Exception as e:
         if not isinstance(e, exceptions.PublishTimeout):
             pytest.fail(f"Expected a timeout exception, not {e}")
-    finally:
-        sock.close()
     # Ensure the deferred has been renewed
     assert api._twisted_service._service.factory.when_connected().called is False
