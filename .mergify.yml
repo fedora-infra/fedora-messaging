@@ -1,9 +1,27 @@
+queue_rules:
+  - name: default
+    conditions:
+      # Conditions to get out of the queue (= merged)
+      - status-success=Misc tests (lint)
+      - status-success=Misc tests (format)
+      - status-success=Misc tests (licenses)
+      - status-success=Misc tests (bandit)
+      - status-success=Unit tests (py36-unittest)
+      - status-success=Unit tests (py37-unittest)
+      - status-success=Unit tests (py38-unittest)
+      - status-success=Unit tests (py39-unittest)
+      - status-success=Integration tests (3.6)
+      - status-success=Integration tests (3.7)
+      - status-success=Integration tests (3.8)
+      - status-success=Integration tests (3.9)
+
 pull_request_rules:
-  - actions:
-      merge:
+  - name: default
+    actions:
+      queue:
+        name: default
         method: rebase
-        rebase_fallback: null
-        strict: true
+        rebase_fallback: none
     conditions:
       - label!=no-mergify
       - approved-reviews-by=@fedora-infra/fedora-messaging-maintainers
@@ -20,12 +38,12 @@ pull_request_rules:
       - status-success=Integration tests (3.7)
       - status-success=Integration tests (3.8)
       - status-success=Integration tests (3.9)
-    name: default
-  - actions:
-      merge:
+  - name: default-from-fedora-messaging-team
+    actions:
+      queue:
+        name: default
         method: rebase
-        rebase_fallback: null
-        strict: true
+        rebase_fallback: none
     conditions:
       - label!=no-mergify
       - author=@fedora-infra/fedora-messaging-maintainers
@@ -43,4 +61,3 @@ pull_request_rules:
       - status-success=Integration tests (3.7)
       - status-success=Integration tests (3.8)
       - status-success=Integration tests (3.9)
-    name: default-from-fedora-messaging-team
