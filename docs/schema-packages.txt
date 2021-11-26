@@ -8,3 +8,4 @@ fedora-planet-messages
 noggin-messages
 git+https://github.com/fedora-infra/fedorainfra-ansible-messages.git@master
 git+https://github.com/fedora-infra/nuancier-messages.git@dev
+discourse2fedmsg-messages

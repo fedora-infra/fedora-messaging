@@ -50,6 +50,7 @@ class Schema:
 
 
 def create_venv(dirname):
+    print("Creating virtualenv...")
     venv.create(dirname, with_pip=True)
     # Activate venv
     sys.prefix = sys.exec_prefix = dirname
@@ -60,8 +61,11 @@ def install_packages(dirname, packages):
     # Don't use pip as a library:
     # https://pip.pypa.io/en/stable/user_guide/#using-pip-from-your-program
     pip = os.path.join(dirname, "bin", "pip")
+    print("Upgrading pip...")
+    run([pip, "-q", "install", "--upgrade", "pip"], check=True)
     for package in packages:
-        run([pip, "install", package], check=True)
+        print(f"Installing {package}...")
+        run([pip, "-q", "install", package], check=True)
 
 
 def get_schemas():
@@ -71,6 +75,9 @@ def get_schemas():
     for entry_point in pkg_resources.iter_entry_points("fedora.messages"):
         msg_cls = entry_point.load()
         if not msg_cls.topic:
+            target = f"{entry_point.module_name}:{'.'.join(entry_point.attrs)}"
+            if target != "fedora_messaging.message:Message":
+                print(f"The {target} schema has no declared topic, skipping.")
             continue
         package_name = entry_point.dist.project_name
         doc = " ".join(wrap(msg_cls.__doc__)) if msg_cls.__doc__ else None
