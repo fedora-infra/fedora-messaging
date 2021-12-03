@@ -2,10 +2,8 @@ queue_rules:
   - name: default
     conditions:
       # Conditions to get out of the queue (= merged)
-      - status-success=Misc tests (lint)
-      - status-success=Misc tests (format)
+      - status-success=Misc tests (checks)
       - status-success=Misc tests (licenses)
-      - status-success=Misc tests (bandit)
       - status-success=Unit tests (py36-unittest)
       - status-success=Unit tests (py37-unittest)
       - status-success=Unit tests (py38-unittest)
@@ -26,10 +24,8 @@ pull_request_rules:
       - label!=no-mergify
       - approved-reviews-by=@fedora-infra/fedora-messaging-maintainers
       - status-success=DCO
-      - status-success=Misc tests (lint)
-      - status-success=Misc tests (format)
+      - status-success=Misc tests (checks)
       - status-success=Misc tests (licenses)
-      - status-success=Misc tests (bandit)
       - status-success=Unit tests (py36-unittest)
       - status-success=Unit tests (py37-unittest)
       - status-success=Unit tests (py38-unittest)
@@ -49,10 +45,8 @@ pull_request_rules:
       - author=@fedora-infra/fedora-messaging-maintainers
       - "#approved-reviews-by>=1"
       - status-success=DCO
-      - status-success=Misc tests (lint)
-      - status-success=Misc tests (format)
+      - status-success=Misc tests (checks)
       - status-success=Misc tests (licenses)
-      - status-success=Misc tests (bandit)
       - status-success=Unit tests (py36-unittest)
       - status-success=Unit tests (py37-unittest)
       - status-success=Unit tests (py38-unittest)

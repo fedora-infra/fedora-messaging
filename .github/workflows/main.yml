@@ -22,10 +22,8 @@ jobs:
     strategy:
       matrix:
         tox_env:
-          - lint
-          - format
+          - checks
           - licenses
-          - bandit
     runs-on: ubuntu-latest
 
   unit_test:
