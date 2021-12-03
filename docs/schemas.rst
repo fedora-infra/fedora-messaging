@@ -17,93 +17,117 @@ In the Fedora Infrastructure, some of those topics will be prefixed by
 anitya-schema
 =============
 
-* ``org.release-monitoring.prod.anitya.distro.add``: Message sent by Anitya to the "anitya.distro.add" topic when a new     distribution is added.
-* ``org.release-monitoring.prod.anitya.distro.edit``: Message sent by Anitya when a distribution is edited.
-* ``org.release-monitoring.prod.anitya.distro.remove``: Message sent by Anitya when a distribution is removed.
-* ``org.release-monitoring.prod.anitya.project.add``: The message sent when a new project is created in Anitya.
-* ``org.release-monitoring.prod.anitya.project.edit``: The message sent when a project is edited in Anitya.
-* ``org.release-monitoring.prod.anitya.project.flag``: Sent when a new flag is created for a project.
-* ``org.release-monitoring.prod.anitya.project.flag.set``: Sent when a flag is closed for a project.
-* ``org.release-monitoring.prod.anitya.project.map.new``
-* ``org.release-monitoring.prod.anitya.project.map.remove``
-* ``org.release-monitoring.prod.anitya.project.map.update``
-* ``org.release-monitoring.prod.anitya.project.remove``: The message sent when a project is deleted in Anitya.
-* ``org.release-monitoring.prod.anitya.project.version.remove``
-* ``org.release-monitoring.prod.anitya.project.version.update``
-* ``org.release-monitoring.prod.anitya.project.version.update.v2``
+You can view the history of `all anitya messages <https://apps.fedoraproject.org/datagrepper/raw?category=anitya>`__ in datagrepper.
+
+
+* ``org.release-monitoring.prod.anitya.distro.add``: Message sent by Anitya to the "anitya.distro.add" topic when a new     distribution is added. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.distro.add>`__)
+* ``org.release-monitoring.prod.anitya.distro.edit``: Message sent by Anitya when a distribution is edited. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.distro.edit>`__)
+* ``org.release-monitoring.prod.anitya.distro.remove``: Message sent by Anitya when a distribution is removed. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.distro.remove>`__)
+* ``org.release-monitoring.prod.anitya.project.add``: The message sent when a new project is created in Anitya. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.project.add>`__)
+* ``org.release-monitoring.prod.anitya.project.edit``: The message sent when a project is edited in Anitya. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.project.edit>`__)
+* ``org.release-monitoring.prod.anitya.project.flag``: Sent when a new flag is created for a project. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.project.flag>`__)
+* ``org.release-monitoring.prod.anitya.project.flag.set``: Sent when a flag is closed for a project. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.project.flag.set>`__)
+* ``org.release-monitoring.prod.anitya.project.map.new`` (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.project.map.new>`__)
+* ``org.release-monitoring.prod.anitya.project.map.remove`` (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.project.map.remove>`__)
+* ``org.release-monitoring.prod.anitya.project.map.update`` (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.project.map.update>`__)
+* ``org.release-monitoring.prod.anitya.project.remove``: The message sent when a project is deleted in Anitya. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.project.remove>`__)
+* ``org.release-monitoring.prod.anitya.project.version.remove`` (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.project.version.remove>`__)
+* ``org.release-monitoring.prod.anitya.project.version.update`` (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.project.version.update>`__)
+* ``org.release-monitoring.prod.anitya.project.version.update.v2`` (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.project.version.update.v2>`__)
 
 
 bodhi-messages
 ==============
 
-* ``bodhi.buildroot_override.tag``: Sent when a buildroot override is added and tagged into the build root.
-* ``bodhi.buildroot_override.untag``: Sent when a buildroot override is untagged from the build root.
-* ``bodhi.compose.complete``: Sent when a compose task completes.
-* ``bodhi.compose.composing``: Sent when the compose task composes.
-* ``bodhi.compose.start``: Sent when a compose task starts.
-* ``bodhi.compose.sync.done``: Sent when a compose task sync is done.
-* ``bodhi.compose.sync.wait``: Sent when a compose task sync is waiting.
-* ``bodhi.errata.publish``: Sent when an errata is published.
-* ``bodhi.repo.done``: Sent when a repo is created and ready to be signed or otherwise processed.
-* ``bodhi.update.comment``: Sent when a comment is made on an update.
-* ``bodhi.update.complete.stable``: Sent when an update is available in the stable repository.
-* ``bodhi.update.complete.testing``: Sent when an update is available in the testing repository.
-* ``bodhi.update.edit``: Sent when an update is edited.
-* ``bodhi.update.eject``: Sent when an update is ejected from the push.
-* ``bodhi.update.karma.threshold.reach``: Sent when an update reaches its karma threshold.
-* ``bodhi.update.request.obsolete``: Sent when an update is requested to be obsoleted.
-* ``bodhi.update.request.revoke``: Sent when an update is revoked.
-* ``bodhi.update.request.stable``: Sent when an update is submitted as a stable candidate.
-* ``bodhi.update.request.testing``: Sent when an update is submitted as a testing candidate.
-* ``bodhi.update.request.unpush``: Sent when an update is requested to be unpushed.
-* ``bodhi.update.requirements_met.stable``: Sent when all the update requirements are meant for stable.
-* ``bodhi.update.status.testing.koji-build-group.build.complete``: Sent when an update is ready to be tested.
+You can view the history of `all bodhi messages <https://apps.fedoraproject.org/datagrepper/raw?category=bodhi>`__ in datagrepper.
+
+
+* ``bodhi.buildroot_override.tag``: Sent when a buildroot override is added and tagged into the build root. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.buildroot_override.tag>`__)
+* ``bodhi.buildroot_override.untag``: Sent when a buildroot override is untagged from the build root. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.buildroot_override.untag>`__)
+* ``bodhi.compose.complete``: Sent when a compose task completes. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.compose.complete>`__)
+* ``bodhi.compose.composing``: Sent when the compose task composes. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.compose.composing>`__)
+* ``bodhi.compose.start``: Sent when a compose task starts. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.compose.start>`__)
+* ``bodhi.compose.sync.done``: Sent when a compose task sync is done. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.compose.sync.done>`__)
+* ``bodhi.compose.sync.wait``: Sent when a compose task sync is waiting. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.compose.sync.wait>`__)
+* ``bodhi.errata.publish``: Sent when an errata is published. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.errata.publish>`__)
+* ``bodhi.repo.done``: Sent when a repo is created and ready to be signed or otherwise processed. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.repo.done>`__)
+* ``bodhi.update.comment``: Sent when a comment is made on an update. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.update.comment>`__)
+* ``bodhi.update.complete.stable``: Sent when an update is available in the stable repository. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.update.complete.stable>`__)
+* ``bodhi.update.complete.testing``: Sent when an update is available in the testing repository. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.update.complete.testing>`__)
+* ``bodhi.update.edit``: Sent when an update is edited. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.update.edit>`__)
+* ``bodhi.update.eject``: Sent when an update is ejected from the push. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.update.eject>`__)
+* ``bodhi.update.karma.threshold.reach``: Sent when an update reaches its karma threshold. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.update.karma.threshold.reach>`__)
+* ``bodhi.update.request.obsolete``: Sent when an update is requested to be obsoleted. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.update.request.obsolete>`__)
+* ``bodhi.update.request.revoke``: Sent when an update is revoked. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.update.request.revoke>`__)
+* ``bodhi.update.request.stable``: Sent when an update is submitted as a stable candidate. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.update.request.stable>`__)
+* ``bodhi.update.request.testing``: Sent when an update is submitted as a testing candidate. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.update.request.testing>`__)
+* ``bodhi.update.request.unpush``: Sent when an update is requested to be unpushed. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.update.request.unpush>`__)
+* ``bodhi.update.requirements_met.stable``: Sent when all the update requirements are meant for stable. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.update.requirements_met.stable>`__)
+* ``bodhi.update.status.testing.koji-build-group.build.complete``: Sent when an update is ready to be tested. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.update.status.testing.koji-build-group.build.complete>`__)
 
 
 fedocal-messages
 ================
 
-* ``fedocal.calendar.clear``: A sub-class of a Fedora message that defines a message schema for messages     published by fedocal when a calendar is cleared.
-* ``fedocal.calendar.delete``: A sub-class of a Fedora message that defines a message schema for messages     published by fedocal when a calendar is deleted.
-* ``fedocal.calendar.new``: A sub-class of a Fedora message that defines a message schema for messages     published by fedocal when a calendar is created.
-* ``fedocal.calendar.update``: A sub-class of a Fedora message that defines a message schema for messages     published by fedocal when a calendar is updated.
-* ``fedocal.calendar.upload``: A sub-class of a Fedora message that defines a message schema for messages     published by fedocal when meetings have been uploaded into the calendar.
-* ``fedocal.meeting.delete``: A sub-class of a Fedora message that defines a message schema for messages     published by fedocal when a meeting is deleted.
-* ``fedocal.meeting.new``: A sub-class of a Fedora message that defines a message schema for messages     published by fedocal when a meeting is created.
-* ``fedocal.meeting.reminder``: A sub-class of a Fedora message that defines a message schema for messages     published by fedocal when a reminder is sent.
-* ``fedocal.meeting.update``: A sub-class of a Fedora message that defines a message schema for messages     published by fedocal when a meeting is updated.
+You can view the history of `all fedocal messages <https://apps.fedoraproject.org/datagrepper/raw?category=fedocal>`__ in datagrepper.
+
+
+* ``fedocal.calendar.clear``: A sub-class of a Fedora message that defines a message schema for messages     published by fedocal when a calendar is cleared. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedocal.calendar.clear>`__)
+* ``fedocal.calendar.delete``: A sub-class of a Fedora message that defines a message schema for messages     published by fedocal when a calendar is deleted. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedocal.calendar.delete>`__)
+* ``fedocal.calendar.new``: A sub-class of a Fedora message that defines a message schema for messages     published by fedocal when a calendar is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedocal.calendar.new>`__)
+* ``fedocal.calendar.update``: A sub-class of a Fedora message that defines a message schema for messages     published by fedocal when a calendar is updated. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedocal.calendar.update>`__)
+* ``fedocal.calendar.upload``: A sub-class of a Fedora message that defines a message schema for messages     published by fedocal when meetings have been uploaded into the calendar. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedocal.calendar.upload>`__)
+* ``fedocal.meeting.delete``: A sub-class of a Fedora message that defines a message schema for messages     published by fedocal when a meeting is deleted. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedocal.meeting.delete>`__)
+* ``fedocal.meeting.new``: A sub-class of a Fedora message that defines a message schema for messages     published by fedocal when a meeting is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedocal.meeting.new>`__)
+* ``fedocal.meeting.reminder``: A sub-class of a Fedora message that defines a message schema for messages     published by fedocal when a reminder is sent. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedocal.meeting.reminder>`__)
+* ``fedocal.meeting.update``: A sub-class of a Fedora message that defines a message schema for messages     published by fedocal when a meeting is updated. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedocal.meeting.update>`__)
 
 
 fedora-messaging-the-new-hotness-schema
 =======================================
 
-* ``org.fedoraproject.prod.hotness.update.bug.file``: Message sent by the-new-hotness to "hotness.update.bug.file" topic when     bugzilla issue is filled.
-* ``org.fedoraproject.prod.hotness.update.drop``: Message sent by the-new-hotness to "hotness.update.drop" topic when update     is dropped.
+You can view the history of `all hotness messages <https://apps.fedoraproject.org/datagrepper/raw?category=hotness>`__ in datagrepper.
+
+
+* ``org.fedoraproject.prod.hotness.update.bug.file``: Message sent by the-new-hotness to "hotness.update.bug.file" topic when     bugzilla issue is filled. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.hotness.update.bug.file>`__)
+* ``org.fedoraproject.prod.hotness.update.drop``: Message sent by the-new-hotness to "hotness.update.drop" topic when update     is dropped. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.hotness.update.drop>`__)
 
 
 fedora-planet-messages
 ======================
 
-* ``org.fedoraproject.prod.planet.post.new``: The message sent when a new post is published in planet.
+You can view the history of `all planet messages <https://apps.fedoraproject.org/datagrepper/raw?category=planet>`__ in datagrepper.
+
+
+* ``org.fedoraproject.prod.planet.post.new``: The message sent when a new post is published in planet. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.planet.post.new>`__)
 
 
 fedorainfra-ansible-messages
 ============================
 
-* ``ansible.playbook.complete``: Defines the message that is sent when an Ansible Playbook completes
-* ``ansible.playbook.start``: Defines the message that is sent when an Ansible Playbook starts
-* ``git.receive``: Defines the message that is sent when an Ansible Playbook starts
+You can view the history of `all ansible messages <https://apps.fedoraproject.org/datagrepper/raw?category=ansible>`__ in datagrepper.
+
+
+* ``ansible.playbook.complete``: Defines the message that is sent when an Ansible Playbook completes (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.ansible.playbook.complete>`__)
+* ``ansible.playbook.start``: Defines the message that is sent when an Ansible Playbook starts (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.ansible.playbook.start>`__)
+* ``git.receive``: Defines the message that is sent when an Ansible Playbook starts (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.git.receive>`__)
 
 
 noggin-messages
 ===============
 
-* ``fas.group.member.sponsor``: The message sent when a user is added to a group by a sponsor
-* ``fas.user.create``: The message sent when a user is created
-* ``fas.user.update``: The message sent when a user is updated
+You can view the history of `all fas messages <https://apps.fedoraproject.org/datagrepper/raw?category=fas>`__ in datagrepper.
+
+
+* ``fas.group.member.sponsor``: The message sent when a user is added to a group by a sponsor (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fas.group.member.sponsor>`__)
+* ``fas.user.create``: The message sent when a user is created (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fas.user.create>`__)
+* ``fas.user.update``: The message sent when a user is updated (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fas.user.update>`__)
 
 
 nuancier-messages
 =================
 
-* ``nuancier.new``: A sub-class of a Fedora message that defines a message schema for messages     published by nuancier when a new thing is created.
+You can view the history of `all nuancier messages <https://apps.fedoraproject.org/datagrepper/raw?category=nuancier>`__ in datagrepper.
+
+
+* ``nuancier.new``: A sub-class of a Fedora message that defines a message schema for messages     published by nuancier when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.nuancier.new>`__)

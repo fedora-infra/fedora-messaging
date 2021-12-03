@@ -8,6 +8,7 @@ import site
 from subprocess import run
 from collections import defaultdict
 from dataclasses import dataclass
+from urllib.parse import urljoin
 from textwrap import wrap
 
 
@@ -28,6 +29,8 @@ and access additional information on the message you're receiving.
 In the Fedora Infrastructure, some of those topics will be prefixed by
 ``org.fedoraproject.stg.`` in staging and ``org.fedoraproject.prod.`` in production.
 """
+DATAGREPPER_URL = "https://apps.fedoraproject.org/datagrepper/"
+PREFIXES = ("org.fedoraproject.", "org.release-monitoring.")
 
 
 def read_packages(schemas_filepath):
@@ -87,6 +90,18 @@ def get_schemas():
     return schemas
 
 
+def _is_prefixed(topic):
+    return any(topic.startswith(prefix) for prefix in PREFIXES)
+
+
+def _get_category(topic):
+    if _is_prefixed(topic):
+        index = 3
+    else:
+        index = 0
+    return topic.split(".")[index]
+
+
 def write_doc(schemas, doc_filepath):
     with open(doc_filepath, "w") as doc_file:
         doc_file.write(HEADER)
@@ -94,21 +109,43 @@ def write_doc(schemas, doc_filepath):
             package_schemas = schemas[package_name]
             print(f"\n\n{package_name}", file=doc_file)
             print("=" * len(package_name), end="\n\n", file=doc_file)
+            category = _get_category(package_schemas[0].topic)
+            history_url = urljoin(DATAGREPPER_URL, f"raw?category={category}")
+            print(
+                f"You can view the history of `all {category} messages <{history_url}>`__ "
+                "in datagrepper.\n\n",
+                file=doc_file,
+            )
             for schema in package_schemas:
+                prod_topic = (
+                    schema.topic
+                    if _is_prefixed(schema.topic)
+                    else f"org.fedoraproject.prod.{schema.topic}"
+                )
+                history_url = urljoin(DATAGREPPER_URL, f"raw?topic={prod_topic}")
                 if schema.doc:
-                    print(f"* ``{schema.topic}``: {schema.doc.strip()}", file=doc_file)
+                    print(
+                        f"* ``{schema.topic}``: {schema.doc.strip()} (`history <{history_url}>`__)",
+                        file=doc_file,
+                    )
                 else:
-                    print(f"* ``{schema.topic}``", file=doc_file)
+                    print(
+                        f"* ``{schema.topic}`` (`history <{history_url}>`__)",
+                        file=doc_file,
+                    )
 
 
 def main():
-    packages = read_packages(SCHEMAS_FILE)
+    here = os.path.dirname(__file__)
+    schemas_file = os.path.normpath(os.path.join(here, SCHEMAS_FILE))
+    packages = read_packages(schemas_file)
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_venv(tmpdirname)
         install_packages(tmpdirname, packages)
         schemas = get_schemas()
-        write_doc(schemas, DOC_FILE)
-        print(f"Wrote the documentation in {DOC_FILE}")
+    doc_file = os.path.normpath(os.path.join(here, DOC_FILE))
+    write_doc(schemas, doc_file)
+    print(f"Wrote the documentation in {doc_file}")
 
 
 if __name__ == "__main__":
