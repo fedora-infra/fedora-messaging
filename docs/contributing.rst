@@ -46,6 +46,9 @@ We are using `Black <https://github.com/ambv/black>` to automatically format
 the source code. It is also checked in CI. The Black webpage contains
 instructions to configure your editor to run it on the files you edit.
 
+We use `pre-commit <https://pre-commit.com/>`_ to run a set of linters and formatters upon commit.
+To setup to hook for your repo clone, install pre-commit and run ``pre-commit install``.
+
 
 Tests
 -----
@@ -86,7 +89,7 @@ For example,
 
 ::
 
-    towncrier create PR42.feature    
+    towncrier create PR42.feature
 
 The contents of the news fragment must be written in RST format.
 See the `towncrier documentation for more information

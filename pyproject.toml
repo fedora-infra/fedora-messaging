@@ -40,3 +40,9 @@ template = "news/_template.rst"
   directory = "author"
   name = "Contributors"
   showcontent = true
+
+
+[tool.isort]
+profile = "black"
+lines_after_imports = 2
+force_alphabetical_sort_within_sections = true
