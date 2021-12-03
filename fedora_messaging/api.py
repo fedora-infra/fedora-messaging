@@ -4,20 +4,21 @@
 import inspect
 import logging
 
-from twisted.internet import reactor, defer
 import crochet
+from twisted.internet import defer, reactor
 
-from . import exceptions, config
-from .signals import pre_publish_signal, publish_signal, publish_failed_signal
-from .message import (
-    Message,
-    SEVERITIES,
-    loads,
+from . import config, exceptions
+from .message import (  # noqa: F401
     dumps,
+    loads,
+    Message,
     SERIALIZED_MESSAGE_SCHEMA,
-)  # noqa: F401
+    SEVERITIES,
+)
+from .signals import pre_publish_signal, publish_failed_signal, publish_signal
 from .twisted import service
 from .twisted.consumer import Consumer  # noqa: F401
+
 
 _log = logging.getLogger(__name__)
 

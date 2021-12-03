@@ -34,7 +34,6 @@ import logging
 
 import pika
 from pika.adapters.twisted_connection import TwistedProtocolConnection
-
 from twisted.internet import defer, error
 
 from .. import config
@@ -46,6 +45,7 @@ from ..exceptions import (
     PublishReturned,
 )
 from .consumer import Consumer
+
 
 _std_log = logging.getLogger(__name__)
 

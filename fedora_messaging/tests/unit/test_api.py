@@ -19,18 +19,18 @@
 
 from unittest import mock, TestCase
 
-from twisted.internet import threads, defer
 import pytest
 import pytest_twisted
+from twisted.internet import defer, threads
 
 from fedora_messaging import api, config
 from fedora_messaging.exceptions import PublishException
-from fedora_messaging.twisted import consumer
 from fedora_messaging.signals import (
     pre_publish_signal,
-    publish_signal,
     publish_failed_signal,
+    publish_signal,
 )
+from fedora_messaging.twisted import consumer
 
 
 class CheckCallbackTests(TestCase):

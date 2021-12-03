@@ -17,6 +17,7 @@
 import unittest
 
 from jsonschema import ValidationError
+
 from .. import messages
 
 

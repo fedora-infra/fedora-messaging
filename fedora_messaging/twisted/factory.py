@@ -32,12 +32,12 @@ import logging
 from collections import namedtuple
 
 import pika
-
 from twisted.internet import defer, error, protocol
 from twisted.python.failure import Failure
 
 from ..exceptions import ConnectionException
 from .protocol import FedoraMessagingProtocolV2
+
 
 _std_log = logging.getLogger(__name__)
 

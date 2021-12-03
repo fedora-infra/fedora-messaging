@@ -20,7 +20,6 @@ the Python API of your message schemas.
 
 import collections
 from hashlib import sha256
-
 from urllib import parse
 
 

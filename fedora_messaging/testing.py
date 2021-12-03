@@ -23,9 +23,8 @@ If you find yourself implementing a pattern over and over in your test code,
 consider contributing it here!
 """
 
-from contextlib import contextmanager
 import inspect
-
+from contextlib import contextmanager
 from unittest import mock
 
 

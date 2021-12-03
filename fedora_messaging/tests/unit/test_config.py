@@ -17,8 +17,10 @@
 """Unit tests for :module:`fedora_messaging.config`."""
 
 from unittest import mock, TestCase
+
 from fedora_messaging import config as msg_config
 from fedora_messaging.exceptions import ConfigurationException
+
 
 full_config = """
 amqp_url = "amqp://guest:guest@rabbit-server1:5672/%2F"

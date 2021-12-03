@@ -2,6 +2,7 @@
 
 from subprocess import check_output
 
+
 last_tag = check_output(["git", "describe", "--abbrev=0"], universal_newlines=True)
 authors = {}
 log_range = last_tag.strip() + "..HEAD"

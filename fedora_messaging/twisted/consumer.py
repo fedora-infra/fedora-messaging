@@ -20,11 +20,10 @@ import logging
 import uuid
 
 import pika
-from twisted.internet import defer, reactor, threads, error
+from twisted.internet import defer, error, reactor, threads
 from twisted.python.failure import Failure
 
 from .. import config
-from ..message import get_message
 from ..exceptions import (
     ConnectionException,
     ConsumerCanceled,
@@ -34,6 +33,8 @@ from ..exceptions import (
     PermissionException,
     ValidationError,
 )
+from ..message import get_message
+
 
 _std_log = logging.getLogger(__name__)
 

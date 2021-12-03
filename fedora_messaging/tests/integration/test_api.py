@@ -4,15 +4,16 @@ import socket
 import time
 import uuid
 from collections import defaultdict
+from unittest import mock
 from urllib.parse import quote
 
-from unittest import mock
 import pytest
 import pytest_twisted
 import treq
+from twisted.internet import defer, reactor, task, threads
+
 from fedora_messaging import api, config, exceptions, message
 from fedora_messaging.twisted.consumer import _add_timeout
-from twisted.internet import defer, reactor, task, threads
 
 
 HTTP_API = "http://localhost:15672/api/"

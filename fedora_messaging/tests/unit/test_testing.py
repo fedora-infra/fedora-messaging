@@ -18,7 +18,7 @@
 
 from unittest import mock, TestCase
 
-from fedora_messaging import testing, api, message
+from fedora_messaging import api, message, testing
 
 
 class CustomMessage(api.Message):

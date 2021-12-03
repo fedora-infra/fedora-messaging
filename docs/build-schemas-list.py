@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
 import os
-import tempfile
-import sys
-import venv
 import site
-from subprocess import run
+import sys
+import tempfile
+import venv
 from collections import defaultdict
 from dataclasses import dataclass
-from urllib.parse import urljoin
+from subprocess import run
 from textwrap import wrap
+from urllib.parse import urljoin
 
 
 SCHEMAS_FILE = "schema-packages.txt"

@@ -21,20 +21,21 @@ The ``fedora-messaging`` `Click`_ CLI.
 """
 
 
+import errno
 import importlib
 import logging
 import logging.config
 import os
 import sys
-import errno
 
-from twisted.python import log as legacy_twisted_log
-from twisted.internet import reactor, error
 import click
 import pkg_resources
+from twisted.internet import error, reactor
+from twisted.python import log as legacy_twisted_log
 
-from . import config, api, exceptions
+from . import api, config, exceptions
 from .message import dumps, loads
+
 
 _log = logging.getLogger(__name__)
 

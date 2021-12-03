@@ -25,15 +25,16 @@ from twisted.internet import defer, error
 
 from fedora_messaging.exceptions import (
     ConnectionException,
-    PermissionException,
     ConsumerCanceled,
-    Nack,
     Drop,
     HaltConsumer,
+    Nack,
+    PermissionException,
 )
-from fedora_messaging.twisted.consumer import Consumer, _add_timeout
+from fedora_messaging.twisted.consumer import _add_timeout, Consumer
 
 from .utils import MockProtocol
+
 
 try:
     import pytest_twisted
@@ -102,8 +103,7 @@ class ConsumerTests(TestCase):
     # Consuming
 
     def _queue_contents(self, values):
-        for value in values:
-            yield value
+        yield from values
         self.consumer._running = False
         yield defer.CancelledError()
 

@@ -18,6 +18,7 @@ import os
 
 import crochet
 
+
 FIXTURES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "fixtures/"))
 
 # Tests use pytest-twisted, which manages the Twisted reactor for us. This stops

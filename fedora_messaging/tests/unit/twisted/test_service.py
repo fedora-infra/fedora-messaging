@@ -19,20 +19,20 @@
 import os
 from unittest import mock, TestCase
 
-from twisted.application.internet import TCPClient, SSLClient
-from twisted.internet import ssl as twisted_ssl
-from pika import URLParameters
 import pika
+from pika import URLParameters
+from twisted.application.internet import SSLClient, TCPClient
+from twisted.internet import ssl as twisted_ssl
 
 from fedora_messaging import config, exceptions
+from fedora_messaging.tests import FIXTURES_DIR
 from fedora_messaging.twisted.factory import FedoraMessagingFactoryV2
 from fedora_messaging.twisted.service import (
-    FedoraMessagingServiceV2,
     _configure_tls_parameters,
     _ssl_context_factory,
+    FedoraMessagingServiceV2,
     SSLOptions,
 )
-from fedora_messaging.tests import FIXTURES_DIR
 
 
 class ServiceTests(TestCase):

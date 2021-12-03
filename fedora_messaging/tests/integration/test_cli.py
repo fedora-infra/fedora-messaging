@@ -19,10 +19,10 @@ import os
 import subprocess
 import uuid
 
-from twisted.internet import threads
 import pytest
 import pytest_twisted
 import requests
+from twisted.internet import threads
 
 from fedora_messaging import api, exceptions, message
 from fedora_messaging.tests import FIXTURES_DIR

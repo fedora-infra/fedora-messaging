@@ -289,6 +289,7 @@ import toml
 
 from . import exceptions
 
+
 _log = logging.getLogger(__name__)
 
 _fedora_version = pkg_resources.get_distribution("fedora_messaging").version

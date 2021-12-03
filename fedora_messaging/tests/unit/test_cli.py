@@ -19,16 +19,17 @@
 
 import errno
 import os
+from unittest import mock, TestCase
 
 import click
-from unittest import mock, TestCase
 from click.testing import CliRunner
+from twisted.internet import error
+from twisted.python import failure
+
 from fedora_messaging import cli, config, exceptions, message, testing
 from fedora_messaging.tests import FIXTURES_DIR
 from fedora_messaging.twisted import consumer
 
-from twisted.internet import error
-from twisted.python import failure
 
 GOOD_CONF = os.path.join(FIXTURES_DIR, "good_conf.toml")
 BAD_CONF = os.path.join(FIXTURES_DIR, "bad_conf.toml")

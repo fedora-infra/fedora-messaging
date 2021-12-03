@@ -17,7 +17,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 import os
 
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 
 here = os.path.abspath(os.path.dirname(__file__))

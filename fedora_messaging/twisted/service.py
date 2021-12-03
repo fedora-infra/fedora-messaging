@@ -28,11 +28,12 @@ See https://twistedmatrix.com/documents/current/core/howto/application.html
 import logging
 import ssl
 
-from pika import SSLOptions
 import pika
+from pika import SSLOptions
 from twisted.application import service
-from twisted.application.internet import TCPClient, SSLClient
-from twisted.internet import ssl as twisted_ssl, defer
+from twisted.application.internet import SSLClient, TCPClient
+from twisted.internet import defer
+from twisted.internet import ssl as twisted_ssl
 
 from .. import config, exceptions
 from .factory import FedoraMessagingFactoryV2

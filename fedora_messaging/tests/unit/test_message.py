@@ -17,12 +17,12 @@
 
 import datetime
 import json
+from unittest import mock, TestCase
 
 import jsonschema
-from unittest import mock, TestCase
 import pika
 
-from fedora_messaging import message, exceptions
+from fedora_messaging import exceptions, message
 
 
 class GetMessageTests(TestCase):

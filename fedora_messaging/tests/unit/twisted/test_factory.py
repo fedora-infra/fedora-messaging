@@ -20,15 +20,13 @@ from unittest import mock, TestCase
 
 import pika
 import pytest
-from fedora_messaging.exceptions import ConnectionException
-from fedora_messaging.twisted.consumer import Consumer
-from fedora_messaging.twisted.factory import (
-    ConsumerRecord,
-    FedoraMessagingFactoryV2,
-)
-
 from twisted.internet import defer
 from twisted.internet.error import ConnectionDone, ConnectionLost
+
+from fedora_messaging.exceptions import ConnectionException
+from fedora_messaging.twisted.consumer import Consumer
+from fedora_messaging.twisted.factory import ConsumerRecord, FedoraMessagingFactoryV2
+
 
 try:
     import pytest_twisted

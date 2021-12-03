@@ -21,6 +21,8 @@ from unittest import mock, TestCase
 
 import pika
 import pytest
+from twisted.internet import defer
+
 from fedora_messaging import config
 from fedora_messaging.exceptions import (
     ConnectionException,
@@ -29,13 +31,10 @@ from fedora_messaging.exceptions import (
     PublishReturned,
 )
 from fedora_messaging.message import Message
-from fedora_messaging.twisted.protocol import (
-    Consumer,
-    FedoraMessagingProtocolV2,
-)
+from fedora_messaging.twisted.protocol import Consumer, FedoraMessagingProtocolV2
 
-from twisted.internet import defer
 from .utils import MockProtocol
+
 
 try:
     import pytest_twisted
