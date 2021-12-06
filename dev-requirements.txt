@@ -3,7 +3,7 @@ sphinx
 mock
 twisted
 treq
-pytest<=5.3.5
+pytest
 pytest-twisted
 pyOpenSSL
 towncrier
