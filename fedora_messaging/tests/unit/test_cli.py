@@ -19,6 +19,7 @@
 
 import errno
 import os
+import sys
 from unittest import mock, TestCase
 
 import click
@@ -485,10 +486,15 @@ class CallbackFromFilesytem(TestCase):
                 os.path.join(FIXTURES_DIR, "bad_cb") + ":missing"
             )
 
+        if sys.version_info >= (3, 10):
+            exc_msg = "invalid syntax. Perhaps you forgot a comma?"
+        else:
+            exc_msg = "invalid syntax"
         self.assertEqual(
             "The {} file raised the following exception during execution: "
-            "invalid syntax (bad_cb, line 1)".format(
-                os.path.join(FIXTURES_DIR, "bad_cb")
+            "{} (bad_cb, line 1)".format(
+                os.path.join(FIXTURES_DIR, "bad_cb"),
+                exc_msg,
             ),
             cm.exception.message,
         )
