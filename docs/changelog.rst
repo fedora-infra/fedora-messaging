@@ -4,6 +4,78 @@ Release Notes
 
 .. towncrier release notes start
 
+3.0.0 (2021-12-14)
+==================
+
+API Changes
+-----------
+
+* Queues created by the CLI are now non-durable, auto-deleted and exclusive, as
+  server-named queues are.
+  (`PR#239 <https://github.com/fedora-infra/fedora-messaging/pull/239>`_)
+
+* It is no longer necessary to declare a queue in the configuration file: a
+  server-named queue will be created. Configured bindings which do not specify
+  a queue name will be applied to the server-named queue.
+  (`PR#239 <https://github.com/fedora-infra/fedora-messaging/pull/239>`_)
+
+* Drop support for Python 2
+  (`PR#246 <https://github.com/fedora-infra/fedora-messaging/pull/246>`_)
+
+* Drop the Twisted classes that had been flagged as deprecated.
+  Drop the deprecated ``Message._body`` property.
+  Refactor the consuming code into the ``Consumer`` class.
+  (`PR#249 <https://github.com/fedora-infra/fedora-messaging/pull/249>`_)
+
+
+Features
+--------
+
+* Support anonymous (server-named) queues.
+  (`PR#239 <https://github.com/fedora-infra/fedora-messaging/pull/239>`_)
+
+* Support Python 3.10
+  (`PR#250 <https://github.com/fedora-infra/fedora-messaging/pull/250>`_)
+
+* Raise ``PublishForbidden`` exception immediately if publishing to `virtual host <https://www.rabbitmq.com/access-control.html>`_ is denied rather than waiting until timeout occurs.
+  (`#203 <https://github.com/fedora-infra/fedora-messaging/issues/203>`_)
+
+
+Bug Fixes
+---------
+
+* Fixed validation exception of queue field on serialized schemas.
+  (`#240 <https://github.com/fedora-infra/fedora-messaging/issues/240>`_)
+
+
+Documentation Improvements
+--------------------------
+
+* Improve release notes process documentation.
+  (`PR#238 <https://github.com/fedora-infra/fedora-messaging/pull/238>`_)
+
+* Build a list of available topics in the documentation from known schema packages
+  (`PR#242 <https://github.com/fedora-infra/fedora-messaging/pull/242>`_)
+
+
+Development Changes
+-------------------
+
+* Start using pre-commit for linters and formatters
+  (`732c7fb <https://github.com/fedora-infra/fedora-messaging/commit/732c7fb>`_)
+
+
+Contributors
+------------
+Many thanks to the contributors of bug reports, pull requests, and pull request
+reviews for this release:
+
+* Aurélien Bompard
+* David Jimenez
+* Michal Konečný
+* Onur Ozkan
+
+
 2.1.0 (2021-05-12)
 ==================
 
