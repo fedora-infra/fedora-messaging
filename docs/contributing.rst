@@ -152,14 +152,27 @@ Releasing
 When cutting a new release, follow these steps:
 
 * update the version in ``fedora_messaging/__init__.py``
+* add missing authors to the release notes fragments by changing to the ``news``
+  directory and running the ``get-authors.py`` script, but check for duplicates
+  and errors
 * generate the changelog by running ``towncrier``
+* adjust the release notes in ``docs/changelog.rst``
+* generate the docs with ``tox -e docs`` and check them in ``docs/_build/html``
 * change the ``Development Status`` classifier in ``setup.py`` if necessary
 * commit the changes
-* tag the commit
-* push to GitHub
+* push the commit to the upstream Github repository (via a PR or not).
+* change to the stable branch and merge the ``develop`` branch
+* run the checks with ``tox`` one last time to be sure
+* tag the commit with ``-s`` to generate a signed tag
+* push the commit to the upstream Github repository with ``git push`` and the
+  new tag with ``git push --tags``
 * generate a tarball and push to PyPI with the commands:
 
 ::
 
     python setup.py sdist bdist_wheel
     twine upload -s dist/*
+
+* create `the release on GitHub <https://github.com/fedora-infra/fedora-messaging/tags>`_
+  and copy the release notes in there
+* deploy and announce
