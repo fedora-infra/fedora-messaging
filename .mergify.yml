@@ -15,7 +15,9 @@ queue_rules:
       - status-success=Integration tests (3.9)
       - status-success=Integration tests (3.10)
 
+
 pull_request_rules:
+
   - name: default
     actions:
       queue:
@@ -24,7 +26,9 @@ pull_request_rules:
         rebase_fallback: none
     conditions:
       - label!=no-mergify
+      - -draft
       - approved-reviews-by=@fedora-infra/fedora-messaging-maintainers
+      - "#changes-requested-reviews-by=0"
       - status-success=DCO
       - status-success=Misc tests (checks)
       - status-success=Misc tests (licenses)
@@ -38,6 +42,8 @@ pull_request_rules:
       - status-success=Integration tests (3.8)
       - status-success=Integration tests (3.9)
       - status-success=Integration tests (3.10)
+
+  # Merge contributions from the team as long as they have one approval by anyone
   - name: default-from-fedora-messaging-team
     actions:
       queue:
@@ -46,8 +52,10 @@ pull_request_rules:
         rebase_fallback: none
     conditions:
       - label!=no-mergify
+      - -draft
       - author=@fedora-infra/fedora-messaging-maintainers
       - "#approved-reviews-by>=1"
+      - "#changes-requested-reviews-by=0"
       - status-success=DCO
       - status-success=Misc tests (checks)
       - status-success=Misc tests (licenses)
