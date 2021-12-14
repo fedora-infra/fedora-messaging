@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import importlib
 import os
 import site
 import sys
@@ -55,9 +56,19 @@ class Schema:
 def create_venv(dirname):
     print("Creating virtualenv...")
     venv.create(dirname, with_pip=True)
-    # Activate venv
-    sys.prefix = sys.exec_prefix = dirname
+    activate_venv(dirname)
+
+
+def activate_venv(dirname):
+    prev_length = len(sys.path)
     site.addsitepackages(None, [dirname])
+    # Put the new paths in front
+    sys.path[:] = sys.path[prev_length:] + sys.path[0:prev_length]
+    sys.prefix = sys.exec_prefix = dirname
+    site.PREFIXES = [dirname]
+    site.ENABLE_USER_SITE = False
+    os.environ["VIRTUAL_ENV"] = dirname
+    importlib.invalidate_caches()
 
 
 def install_packages(dirname, packages):

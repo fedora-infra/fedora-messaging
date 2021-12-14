@@ -66,6 +66,20 @@ You can view the history of `all bodhi messages <https://apps.fedoraproject.org/
 * ``bodhi.update.status.testing.koji-build-group.build.complete``: Sent when an update is ready to be tested. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.update.status.testing.koji-build-group.build.complete>`__)
 
 
+copr-messaging
+==============
+
+You can view the history of `all copr messages <https://apps.fedoraproject.org/datagrepper/raw?category=copr>`__ in datagrepper.
+
+
+* ``copr.build.end``: schema for the old fedmsg-era 'copr.build.end' message (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.copr.build.end>`__)
+* ``copr.build.start``: schema for the old fedmsg-era 'copr.build.start' message (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.copr.build.start>`__)
+* ``copr.chroot.start``: Schema for the old fedmsg-era 'copr.chroot.start' message, this message     duplicated the 'copr.build.start' message, so you should never use this. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.copr.chroot.start>`__)
+* ``build.end`` (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.build.end>`__)
+* ``build.start`` (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.build.start>`__)
+* ``chroot.start`` (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.chroot.start>`__)
+
+
 fedocal-messages
 ================
 

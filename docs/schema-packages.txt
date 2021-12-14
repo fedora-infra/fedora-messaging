@@ -2,6 +2,7 @@
 
 anitya-schema
 bodhi-messages
+copr-messaging
 fedocal-messages
 fedora-messaging-the-new-hotness-schema
 fedora-planet-messages
