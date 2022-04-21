@@ -17,7 +17,7 @@ app = "Example Application"
 app_url = "https://github.com/fedora-infra/fedora-messaging"
 # Contact emails for the maintainer(s) of the consumer - in case the
 # broker admin needs to contact them, for e.g.
-app_contacts_email = ["jcline@fedoraproject.org"]
+app_contacts_email = ["admin@fedoraproject.org"]
 
 [exchanges."amq.topic"]
 type = "topic"
