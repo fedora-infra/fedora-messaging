@@ -3,10 +3,13 @@
 anitya-schema
 bodhi-messages
 copr-messaging
+discourse2fedmsg-messages
 fedocal-messages
+fedorainfra-ansible-messages
+fedora-elections-messages
 fedora-messaging-the-new-hotness-schema
 fedora-planet-messages
+mdapi-messages
 noggin-messages
-git+https://github.com/fedora-infra/fedorainfra-ansible-messages.git@master
-git+https://github.com/fedora-infra/nuancier-messages.git@dev
-discourse2fedmsg-messages
+nuancier-messages
+pagure-messages

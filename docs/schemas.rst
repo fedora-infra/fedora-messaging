@@ -97,6 +97,19 @@ You can view the history of `all fedocal messages <https://apps.fedoraproject.or
 * ``fedocal.meeting.update``: A sub-class of a Fedora message that defines a message schema for messages     published by fedocal when a meeting is updated. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedocal.meeting.update>`__)
 
 
+fedora-elections-messages
+=========================
+
+You can view the history of `all fedora_elections messages <https://apps.fedoraproject.org/datagrepper/raw?category=fedora_elections>`__ in datagrepper.
+
+
+* ``fedora_elections.candidate.delete``: A sub-class of a Fedora message that defines a message schema for messages     published by Elections when a candidate is deleted. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedora_elections.candidate.delete>`__)
+* ``fedora_elections.candidate.edit``: A sub-class of a Fedora message that defines a message schema for messages     published by Elections when a candidate is edited. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedora_elections.candidate.edit>`__)
+* ``fedora_elections.candidate.new``: A sub-class of a Fedora message that defines a message schema for messages     published by Elections when a new candidate is added. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedora_elections.candidate.new>`__)
+* ``fedora_elections.election.edit``: A sub-class of a Fedora message that defines a message schema for messages     published by Elections when an election is edited. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedora_elections.election.edit>`__)
+* ``fedora_elections.election.new``: A sub-class of a Fedora message that defines a message schema for messages     published by Elections when a new election is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedora_elections.election.new>`__)
+
+
 fedora-messaging-the-new-hotness-schema
 =======================================
 
@@ -127,6 +140,15 @@ You can view the history of `all ansible messages <https://apps.fedoraproject.or
 * ``git.receive``: Defines the message that is sent when an Ansible Playbook starts (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.git.receive>`__)
 
 
+mdapi-messages
+==============
+
+You can view the history of `all mdapi messages <https://apps.fedoraproject.org/datagrepper/raw?category=mdapi>`__ in datagrepper.
+
+
+* ``mdapi.repo.update``: A sub-class of a Fedora message that defines a message schema for messages     published by mdapi when a repo's info is updated. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.mdapi.repo.update>`__)
+
+
 noggin-messages
 ===============
 
@@ -145,3 +167,56 @@ You can view the history of `all nuancier messages <https://apps.fedoraproject.o
 
 
 * ``nuancier.new``: A sub-class of a Fedora message that defines a message schema for messages     published by nuancier when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.nuancier.new>`__)
+
+
+pagure-messages
+===============
+
+You can view the history of `all pagure messages <https://apps.fedoraproject.org/datagrepper/raw?category=pagure>`__ in datagrepper.
+
+
+* ``pagure.Test.notification``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.Test.notification>`__)
+* ``pagure.commit.flag.added``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.commit.flag.added>`__)
+* ``pagure.commit.flag.updated``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.commit.flag.updated>`__)
+* ``pagure.git.branch.creation``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.git.branch.creation>`__)
+* ``pagure.git.branch.deletion``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.git.branch.deletion>`__)
+* ``pagure.git.receive``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.git.receive>`__)
+* ``pagure.git.tag.creation``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.git.tag.creation>`__)
+* ``pagure.git.tag.deletion``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.git.tag.deletion>`__)
+* ``pagure.group.edit``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.group.edit>`__)
+* ``pagure.issue.assigned.added``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when an issue is deleted. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.issue.assigned.added>`__)
+* ``pagure.issue.assigned.reset``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when an issue is deleted. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.issue.assigned.reset>`__)
+* ``pagure.issue.comment.added``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when an issue is deleted. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.issue.comment.added>`__)
+* ``pagure.issue.dependency.added``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when an issue is deleted. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.issue.dependency.added>`__)
+* ``pagure.issue.dependency.removed``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when an issue is deleted. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.issue.dependency.removed>`__)
+* ``pagure.issue.drop``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when an issue is deleted. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.issue.drop>`__)
+* ``pagure.issue.edit``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when an issue is updated. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.issue.edit>`__)
+* ``pagure.issue.new``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.issue.new>`__)
+* ``pagure.issue.tag.added``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when an issue is deleted. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.issue.tag.added>`__)
+* ``pagure.issue.tag.removed``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when an issue is deleted. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.issue.tag.removed>`__)
+* ``pagure.project.deleted``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.project.deleted>`__)
+* ``pagure.project.edit``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.project.edit>`__)
+* ``pagure.project.forked``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.project.forked>`__)
+* ``pagure.project.group.access.updated``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.project.group.access.updated>`__)
+* ``pagure.project.group.added``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.project.group.added>`__)
+* ``pagure.project.group.removed``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.project.group.removed>`__)
+* ``pagure.project.new``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.project.new>`__)
+* ``pagure.project.tag.edited``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.project.tag.edited>`__)
+* ``pagure.project.tag.removed``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.project.tag.removed>`__)
+* ``pagure.project.user.access.updated``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.project.user.access.updated>`__)
+* ``pagure.project.user.added``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.project.user.added>`__)
+* ``pagure.project.user.removed``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.project.user.removed>`__)
+* ``pagure.pull-request.assigned.added``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.pull-request.assigned.added>`__)
+* ``pagure.pull-request.assigned.reset``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.pull-request.assigned.reset>`__)
+* ``pagure.pull-request.closed``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.pull-request.closed>`__)
+* ``pagure.pull-request.comment.added``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.pull-request.comment.added>`__)
+* ``pagure.pull-request.comment.edited``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.pull-request.comment.edited>`__)
+* ``pagure.pull-request.flag.added``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.pull-request.flag.added>`__)
+* ``pagure.pull-request.flag.updated``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.pull-request.flag.updated>`__)
+* ``pagure.pull-request.initial_comment.edited``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.pull-request.initial_comment.edited>`__)
+* ``pagure.pull-request.new``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.pull-request.new>`__)
+* ``pagure.pull-request.rebased``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.pull-request.rebased>`__)
+* ``pagure.pull-request.reopened``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.pull-request.reopened>`__)
+* ``pagure.pull-request.tag.added``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.pull-request.tag.added>`__)
+* ``pagure.pull-request.tag.removed``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.pull-request.tag.removed>`__)
+* ``pagure.pull-request.updated``: A sub-class of a Fedora message that defines a message schema for messages     published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.pull-request.updated>`__)
