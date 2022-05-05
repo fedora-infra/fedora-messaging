@@ -486,7 +486,8 @@ class CallbackFromFilesytem(TestCase):
                 os.path.join(FIXTURES_DIR, "bad_cb") + ":missing"
             )
 
-        if sys.version_info >= (3, 10):
+        if sys.version_info >= (3, 10) and sys.version_info < (3, 10, 4):
+            # https://github.com/python/cpython/issues/90398
             exc_msg = "invalid syntax. Perhaps you forgot a comma?"
         else:
             exc_msg = "invalid syntax"
