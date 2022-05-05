@@ -11,6 +11,10 @@ Fedora Messaging
     :alt: Documentation Status
     :target: https://fedora-messaging.readthedocs.io/en/latest/?badge=latest
 
+.. image:: https://github.com/fedora-infra/fedora-messaging/actions/workflows/main.yml/badge.svg?branch=develop
+    :alt: Tests Status
+    :target: https://fedora-messaging.readthedocs.io/en/latest/?badge=latest
+
 .. image:: https://codecov.io/gh/fedora-infra/fedora-messaging/branch/master/graph/badge.svg
   :target: https://codecov.io/gh/fedora-infra/fedora-messaging
 
