@@ -1,0 +1,56 @@
+# See the documentation for more information:
+# https://packit.dev/docs/configuration/
+
+specfile_path: fedora-messaging.spec
+
+# add or remove files that should be synced
+files_to_sync:
+    - fedora-messaging.spec
+    - packit.yaml
+
+# name in upstream package repository or registry (e.g. in PyPI)
+upstream_package_name: fedora-messaging
+# downstream (Fedora) RPM package name
+downstream_package_name: fedora-messaging
+
+# dependencies needed to prepare for and build the source RPM
+srpm_build_deps:
+  - wget
+
+actions:
+  post-upstream-clone:
+    # fetch specfile from src.fp.o
+    - "wget https://src.fedoraproject.org/fork/t0xic0der/rpms/fedora-messaging/raw/f35-300-src/f/fedora-messaging.spec -O fedora-messaging.spec"
+
+jobs:
+  # upon upstream PRs, perform COPR builds
+  - job: copr_build
+    trigger: pull_request
+    metadata:
+      targets:
+        - fedora-latest-stable
+      branch: packit 
+
+  # upon upstream PRs, test builds
+  - job: tests
+    trigger: pull_request
+    metadata:
+      targets:
+        - fedora-latest-stable
+      branch: packit
+
+  # upon upstream releases, perform COPR builds
+  - job: copr_build
+    trigger: release
+    metadata:
+      targets:
+        - fedora-latest-stable
+      branch: packit
+
+  # upon upstream releases, test builds
+  - job: tests
+    trigger: release
+    metadata:
+      targets:
+        - fedora-latest-stable
+      branch: packit
