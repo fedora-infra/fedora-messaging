@@ -1,0 +1,7 @@
+summary: Check some CLI commands
+execute:
+  script:
+    - fedora-messaging --help
+    - fedora-messaging consume --help
+    - fedora-messaging publish --help
+    - fedora-messaging record --help
