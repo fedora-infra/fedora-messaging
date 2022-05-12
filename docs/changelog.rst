@@ -4,6 +4,23 @@ Release Notes
 
 .. towncrier release notes start
 
+3.0.1 (2022-05-12)
+
+Development Changes
+-------------------
+
+* Add packit configuration allowing us to have automatic downstream RPM builds
+  (`#259 <https://github.com/fedora-infra/fedora-messaging/issues/259>`_)
+
+
+Contributors
+------------
+Many thanks to the contributors of bug reports, pull requests, and pull request
+reviews for this release:
+
+* Akashdeep Dhar
+
+
 3.0.0 (2021-12-14)
 ==================
 
