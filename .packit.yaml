@@ -2,11 +2,12 @@
 # https://packit.dev/docs/configuration/
 
 specfile_path: fedora-messaging.spec
+issue_repository: https://github.com/fedora-infra/fedora-messaging
 
 # add or remove files that should be synced
 files_to_sync:
     - fedora-messaging.spec
-    - packit.yaml
+    - .packit.yaml
 
 # name in upstream package repository or registry (e.g. in PyPI)
 upstream_package_name: fedora-messaging
@@ -21,6 +22,9 @@ actions:
   post-upstream-clone:
     # fetch specfile from src.fp.o
     - "wget https://src.fedoraproject.org/rpms/fedora-messaging/raw/main/f/fedora-messaging.spec -O fedora-messaging.spec"
+  get-current-version:
+    # fetch the version number of the package from the setup.py file
+    - "python3 setup.py --version"
 
 jobs:
   # upon upstream PRs, perform COPR builds
