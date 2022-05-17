@@ -8,21 +8,20 @@ on:
       - stable
       - develop
 
-name: Run Tox tests
+name: Tests
 
 jobs:
   misc_tests:
     name: Misc tests
+    container:
+      image: fedorapython/fedora-python-tox
+      options: --user 1001:1001
     steps:
       - uses: actions/checkout@v3
-      - name: Mark the working directory as safe for Git
-        run: |
-          mkdir -p /home/runner/work/_temp/_github_home/
-          git config --file /home/runner/work/_temp/_github_home/.gitconfig --add safe.directory /github/workspace
       - name: Run tests
-        uses: fedora-python/tox-github-action@master
-        with:
-          tox_env: ${{ matrix.tox_env }}
+        run: |
+          # git config --global --add safe.directory $(pwd)
+          tox -e ${{ matrix.tox_env }}
     strategy:
       matrix:
         tox_env:

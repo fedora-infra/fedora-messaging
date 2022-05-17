@@ -46,3 +46,8 @@ template = "news/_template.rst"
 profile = "black"
 lines_after_imports = 2
 force_alphabetical_sort_within_sections = true
+
+[tool.rstcheck]
+report_level = "warning"
+ignore_directives = ["automodule", "autoclass", "autofunction", "autodata"]
+ignore-messages = ".*is already registered, its visitors will be overridden"
