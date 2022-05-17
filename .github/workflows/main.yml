@@ -14,7 +14,11 @@ jobs:
   misc_tests:
     name: Misc tests
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+      - name: Mark the working directory as safe for Git
+        run: |
+          mkdir -p /home/runner/work/_temp/_github_home/
+          git config --file /home/runner/work/_temp/_github_home/.gitconfig --add safe.directory /github/workspace
       - name: Run tests
         uses: fedora-python/tox-github-action@master
         with:
@@ -29,7 +33,7 @@ jobs:
   unit_test:
     name: Unit tests
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Run tests
         uses: fedora-python/tox-github-action@master
         with:
@@ -54,7 +58,7 @@ jobs:
   integration_test:
     name: Integration tests
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Install RabbitMQ
         uses: mer-team/rabbitmq-mng-action@v1.2
         with:
