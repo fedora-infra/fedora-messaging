@@ -235,7 +235,7 @@ def consume(callback, bindings=None, queues=None):
         # be an acceptably long amount of time. If you hit this limit you
         # should know that I'll feel no sympathy for you as I'll almost
         # certainly be dead.
-        eventual_result.wait(timeout=2 ** 31)
+        eventual_result.wait(timeout=2**31)
     except (ValueError, exceptions.HaltConsumer):
         raise
     except Exception:
