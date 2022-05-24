@@ -4,6 +4,18 @@ Release Notes
 
 .. towncrier release notes start
 
+3.0.2 (2022-05-19)
+
+
+Contributors
+------------
+Many thanks to the contributors of bug reports, pull requests, and pull request
+reviews for this release:
+
+* Akashdeep Dhar
+* Aurélien Bompard
+
+
 3.0.1 (2022-05-12)
 
 Development Changes
