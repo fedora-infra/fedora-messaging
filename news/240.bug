@@ -1,1 +1,0 @@
-Fixed validation exception of queue field on serialized schemas.

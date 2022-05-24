@@ -5,7 +5,17 @@ Release Notes
 .. towncrier release notes start
 
 3.0.2 (2022-05-19)
+==================
 
+Development Changes
+-------------------
+
+* Fix CI in Github actions
+  (`6257100 <https://github.com/fedora-infra/fedora-messaging/commit/6257100>`_)
+* Update pre-commit checkers
+  (`1d35a5d <https://github.com/fedora-infra/fedora-messaging/commit/1d35a5d>`_)
+* Fix Packit configuration
+  (`d2ea85f <https://github.com/fedora-infra/fedora-messaging/commit/d2ea85f>`_)
 
 Contributors
 ------------
@@ -17,12 +27,24 @@ reviews for this release:
 
 
 3.0.1 (2022-05-12)
+==================
 
 Development Changes
 -------------------
 
 * Add packit configuration allowing us to have automatic downstream RPM builds
   (`#259 <https://github.com/fedora-infra/fedora-messaging/issues/259>`_)
+* Don't build universal wheels since we don't run on Python 2 anymore
+  (`e8c5f4c <https://github.com/fedora-infra/fedora-messaging/commit/e8c5f4c>`_)
+
+
+Documentation Improvements
+--------------------------
+
+* Add some schema packages to the docs
+  (`03e7f42 <https://github.com/fedora-infra/fedora-messaging/commit/03e7f42>`_)
+* Change the example email addresses
+  (`1555742 <https://github.com/fedora-infra/fedora-messaging/commit/1555742>`_)
 
 
 Contributors
@@ -31,6 +53,7 @@ Many thanks to the contributors of bug reports, pull requests, and pull request
 reviews for this release:
 
 * Akashdeep Dhar
+* Aurélien Bompard
 
 
 3.0.0 (2021-12-14)
