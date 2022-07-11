@@ -60,11 +60,12 @@ def create_venv(dirname):
 
 
 def activate_venv(dirname):
-    prev_length = len(sys.path)
-    site.addsitepackages(None, [dirname])
-    # Put the new paths in front
-    sys.path[:] = sys.path[prev_length:] + sys.path[0:prev_length]
+    # Remove system site-packages from the path
+    for spdir in site.getsitepackages():
+        if spdir in sys.path:
+            sys.path.remove(spdir)
     sys.prefix = sys.exec_prefix = dirname
+    site.addsitepackages(set(sys.path), [dirname])
     site.PREFIXES = [dirname]
     site.ENABLE_USER_SITE = False
     os.environ["VIRTUAL_ENV"] = dirname
