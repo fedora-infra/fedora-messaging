@@ -2,6 +2,7 @@
 
 anitya-schema
 bodhi-messages
+ci-messages
 copr-messaging
 discourse2fedmsg-messages
 fedocal-messages
