@@ -9,8 +9,10 @@ import venv
 from collections import defaultdict
 from dataclasses import dataclass
 from subprocess import run
-from textwrap import wrap
+from textwrap import dedent
 from urllib.parse import urljoin
+
+from sphinx.ext.napoleon.docstring import GoogleDocstring
 
 
 SCHEMAS_FILE = "schema-packages.txt"
@@ -83,6 +85,20 @@ def install_packages(dirname, packages):
         run([pip, "-q", "install", package], check=True)
 
 
+def extract_docstring(cls):
+    if not cls.__doc__:
+        return None
+    gds = GoogleDocstring(dedent(cls.__doc__), obj=cls)
+    doc = []
+    for line in gds.lines():
+        if line.startswith(".. "):
+            break
+        if not line:
+            continue
+        doc.append(line)
+    return " ".join(doc)
+
+
 def get_schemas():
     import pkg_resources
 
@@ -95,7 +111,7 @@ def get_schemas():
                 print(f"The {target} schema has no declared topic, skipping.")
             continue
         package_name = entry_point.dist.project_name
-        doc = " ".join(wrap(msg_cls.__doc__)) if msg_cls.__doc__ else None
+        doc = extract_docstring(msg_cls)
         schemas[package_name].append(
             Schema(topic=msg_cls.topic, package=package_name, doc=doc)
         )
