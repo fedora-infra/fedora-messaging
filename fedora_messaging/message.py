@@ -344,6 +344,8 @@ class Message:
         headers = {}
         for user in self.usernames:
             headers[f"fedora_messaging_user_{user}"] = True
+        for group in self.groups:
+            headers[f"fedora_messaging_group_{group}"] = True
         for package in self.packages:
             headers[f"fedora_messaging_rpm_{package}"] = True
         for container in self.containers:
@@ -544,6 +546,19 @@ class Message:
 
         Returns:
             list(str): A list of affected usernames.
+        """
+        return []
+
+    @property
+    def groups(self):
+        """List of groups affected by the action that generated this message.
+
+        .. note:: Sub-classes should override this method if the message pertains
+            to a group or groups. The data returned from this property is used to
+            filter notifications.
+
+        Returns:
+            list(str): A list of affected groups.
         """
         return []
 

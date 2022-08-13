@@ -367,6 +367,10 @@ class MessageTests(TestCase):
         # The usenames property must exist and be a list
         self.assertEqual(message.Message().usernames, [])
 
+    def test_groups(self):
+        # The groups property must exist and be a list
+        self.assertEqual(message.Message().groups, [])
+
     def test_packages(self):
         # The packages property must exist and be a list
         self.assertEqual(message.Message().packages, [])
@@ -397,6 +401,13 @@ class CustomMessage(message.Message):
     def usernames(self):
         try:
             return self.body["users"]
+        except KeyError:
+            return []
+
+    @property
+    def groups(self):
+        try:
+            return self.body["groups"]
         except KeyError:
             return []
 
@@ -441,6 +452,14 @@ class CustomMessageTests(TestCase):
         self.assertEqual(msg.usernames, ["jcline", "abompard"])
         self.assertIn("fedora_messaging_user_jcline", msg._headers)
         self.assertIn("fedora_messaging_user_abompard", msg._headers)
+
+    def test_groups(self):
+        """Assert groups are placed in the message headers."""
+        msg = CustomMessage(body={"groups": ["fedora-infra", "copr"]})
+
+        self.assertEqual(msg.groups, ["fedora-infra", "copr"])
+        self.assertIn("fedora_messaging_group_fedora-infra", msg._headers)
+        self.assertIn("fedora_messaging_group_copr", msg._headers)
 
     def test_packages(self):
         """Assert RPM packages are placed in the message headers."""
