@@ -17,7 +17,7 @@
 
 from email.utils import parseaddr
 
-from fedora_messaging import message, schema_utils
+from fedora_messaging import message
 
 
 class BaseMessage(message.Message):
@@ -75,6 +75,14 @@ class BaseMessage(message.Message):
             return None
 
     @property
+    def app_name(self):
+        """The name of the application that generated the message.
+
+        By convention, in Fedora all schemas should provide this property.
+        """
+        return "mailman"
+
+    @property
     def app_icon(self):
         """A URL to the icon of the application that generated the message.
 
@@ -92,12 +100,11 @@ class BaseMessage(message.Message):
         """List of packages affected by the action that generated this message."""
         return []
 
-    def _get_avatar_from_from_header(self, from_header):
-        """Converts a From email header to an avatar."""
+    def _get_username_from_from_header(self, from_header):
+        """Converts a From email header to a username."""
         # Extract the username
         addr = parseaddr(from_header)[1]
-        username = addr.split("@")[0]
-        return schema_utils.user_avatar_url(username)
+        return addr.split("@")[0]
 
 
 class MessageV1(BaseMessage):
@@ -156,9 +163,9 @@ class MessageV1(BaseMessage):
         return self.body["msg"]["body"]
 
     @property
-    def agent_avatar(self):
-        """An URL to the avatar of the user who caused the action."""
-        return self._get_avatar_from_from_header(self.body["msg"]["from"])
+    def agent_name(self):
+        """The username of the user who caused the action."""
+        return self._get_username_from_from_header(self.body["msg"]["from"])
 
     def _get_archived_at(self):
         return self.body["msg"]["archived-at"]
@@ -209,9 +216,9 @@ class MessageV2(BaseMessage):
         return self.body["body"]
 
     @property
-    def agent_avatar(self):
-        """An URL to the avatar of the user who caused the action."""
-        return self._get_avatar_from_from_header(self.body["from"])
+    def agent_name(self):
+        """The username of the user who caused the action."""
+        return self._get_username_from_from_header(self.body["from"])
 
     def _get_archived_at(self):
         return self.body["archived-at"]

@@ -36,6 +36,7 @@ import pytz
 
 from . import config
 from .exceptions import ValidationError
+from .schema_utils import user_avatar_url
 
 
 #: Indicates the message is for debugging or is otherwise very low priority. Users
@@ -512,6 +513,17 @@ class Message:
         return None
 
     @property
+    def app_name(self):
+        """The name of the application that generated the message.
+
+        .. note:: Sub-classes should override this method.
+
+        Returns:
+            str or None: The name of the application.
+        """
+        return None
+
+    @property
     def app_icon(self):
         """An URL to the icon of the application that generated the message.
 
@@ -525,6 +537,18 @@ class Message:
         return None
 
     @property
+    def agent_name(self):
+        """The username of the user who caused the action.
+
+        .. note:: Sub-classes should override this method if the message was
+            triggered by a particular user.
+
+        Returns:
+            str or None: The agent's username.
+        """
+        return None
+
+    @property
     def agent_avatar(self):
         """An URL to the avatar of the user who caused the action.
 
@@ -534,7 +558,7 @@ class Message:
         Returns:
             str or None: The URL to the user's avatar.
         """
-        return None
+        return user_avatar_url(self.agent_name) if self.agent_name is not None else None
 
     @property
     def usernames(self):

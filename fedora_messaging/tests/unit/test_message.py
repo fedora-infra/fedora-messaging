@@ -355,9 +355,17 @@ class MessageTests(TestCase):
         # The url property must exist and defaults to None
         self.assertIsNone(message.Message().url)
 
+    def test_app_name(self):
+        # The app_name property must exist and defaults to None
+        self.assertIsNone(message.Message().app_name)
+
     def test_app_icon(self):
         # The app_icon property must exist and defaults to None
         self.assertIsNone(message.Message().app_icon)
+
+    def test_agent_name(self):
+        # The agent_name property must exist and defaults to None
+        self.assertIsNone(message.Message().agent_name)
 
     def test_agent_avatar(self):
         # The agent_avatar property must exist and defaults to None
