@@ -52,6 +52,8 @@ def read_packages(schemas_filepath):
 class Schema:
     topic: str
     package: str
+    app_name: str
+    category: str
     doc: str
 
 
@@ -112,14 +114,33 @@ def get_schemas():
             continue
         package_name = entry_point.dist.project_name
         doc = extract_docstring(msg_cls)
+        category = _get_category(msg_cls.topic)
+        try:
+            app_name = msg_cls().app_name
+        except Exception:
+            # Sometimes we can't instantiate schema classes without an actual body
+            app_name = None
         schemas[package_name].append(
-            Schema(topic=msg_cls.topic, package=package_name, doc=doc)
+            Schema(
+                topic=msg_cls.topic,
+                package=package_name,
+                doc=doc,
+                category=category,
+                app_name=app_name,
+            )
         )
     return schemas
 
 
 def _is_prefixed(topic):
     return any(topic.startswith(prefix) for prefix in PREFIXES)
+
+
+def _get_app_name(schemas):
+    for schema in schemas:
+        if schema.app_name is not None:
+            return schema.app_name
+    return None
 
 
 def _get_category(topic):
@@ -135,13 +156,15 @@ def write_doc(schemas, doc_filepath):
         doc_file.write(HEADER)
         for package_name in sorted(schemas):
             package_schemas = schemas[package_name]
-            print(f"\n\n{package_name}", file=doc_file)
-            print("=" * len(package_name), end="\n\n", file=doc_file)
-            category = _get_category(package_schemas[0].topic)
+            app_name = _get_app_name(package_schemas)
+            category = package_schemas[0].category
+            title = app_name or category
+            print(f"\n\n{title}", file=doc_file)
+            print("=" * len(title), end="\n\n", file=doc_file)
             history_url = urljoin(DATAGREPPER_URL, f"raw?category={category}")
             print(
-                f"You can view the history of `all {category} messages <{history_url}>`__ "
-                "in datagrepper.\n\n",
+                f"You can view the history of `all {title} messages <{history_url}>`__ "
+                "in datagrepper.\n",
                 file=doc_file,
             )
             for schema in package_schemas:

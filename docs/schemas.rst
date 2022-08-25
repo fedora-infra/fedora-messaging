@@ -14,11 +14,10 @@ In the Fedora Infrastructure, some of those topics will be prefixed by
 ``org.fedoraproject.stg.`` in staging and ``org.fedoraproject.prod.`` in production.
 
 
-anitya-schema
-=============
+Anitya
+======
 
-You can view the history of `all anitya messages <https://apps.fedoraproject.org/datagrepper/raw?category=anitya>`__ in datagrepper.
-
+You can view the history of `all Anitya messages <https://apps.fedoraproject.org/datagrepper/raw?category=anitya>`__ in datagrepper.
 
 * ``org.release-monitoring.prod.anitya.distro.add``: Message sent by Anitya to the "anitya.distro.add" topic when a new distribution is added. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.distro.add>`__)
 * ``org.release-monitoring.prod.anitya.distro.edit``: Message sent by Anitya when a distribution is edited. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.distro.edit>`__)
@@ -36,11 +35,10 @@ You can view the history of `all anitya messages <https://apps.fedoraproject.org
 * ``org.release-monitoring.prod.anitya.project.version.update.v2``: Sent when new versions are discovered by Anitya. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.project.version.update.v2>`__)
 
 
-bodhi-messages
-==============
+bodhi
+=====
 
 You can view the history of `all bodhi messages <https://apps.fedoraproject.org/datagrepper/raw?category=bodhi>`__ in datagrepper.
-
 
 * ``bodhi.buildroot_override.tag``: Sent when a buildroot override is added and tagged into the build root. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.buildroot_override.tag>`__)
 * ``bodhi.buildroot_override.untag``: Sent when a buildroot override is untagged from the build root. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.buildroot_override.untag>`__)
@@ -67,11 +65,10 @@ You can view the history of `all bodhi messages <https://apps.fedoraproject.org/
 * ``bodhi.update.status.testing.koji-build-group.build.complete``: Sent when an update is ready to be tested. Newer version. Has 'update' property, like other update messages. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.update.status.testing.koji-build-group.build.complete>`__)
 
 
-copr-messaging
-==============
+copr
+====
 
 You can view the history of `all copr messages <https://apps.fedoraproject.org/datagrepper/raw?category=copr>`__ in datagrepper.
-
 
 * ``copr.build.end``: schema for the old fedmsg-era 'copr.build.end' message (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.copr.build.end>`__)
 * ``copr.build.start``: schema for the old fedmsg-era 'copr.build.start' message (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.copr.build.start>`__)
@@ -81,11 +78,10 @@ You can view the history of `all copr messages <https://apps.fedoraproject.org/d
 * ``chroot.start`` (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.chroot.start>`__)
 
 
-fedocal-messages
-================
+fedocal
+=======
 
 You can view the history of `all fedocal messages <https://apps.fedoraproject.org/datagrepper/raw?category=fedocal>`__ in datagrepper.
-
 
 * ``fedocal.calendar.clear``: A sub-class of a Fedora message that defines a message schema for messages published by fedocal when a calendar is cleared. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedocal.calendar.clear>`__)
 * ``fedocal.calendar.delete``: A sub-class of a Fedora message that defines a message schema for messages published by fedocal when a calendar is deleted. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedocal.calendar.delete>`__)
@@ -98,11 +94,10 @@ You can view the history of `all fedocal messages <https://apps.fedoraproject.or
 * ``fedocal.meeting.update``: A sub-class of a Fedora message that defines a message schema for messages published by fedocal when a meeting is updated. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedocal.meeting.update>`__)
 
 
-fedora-elections-messages
-=========================
+elections
+=========
 
-You can view the history of `all fedora_elections messages <https://apps.fedoraproject.org/datagrepper/raw?category=fedora_elections>`__ in datagrepper.
-
+You can view the history of `all elections messages <https://apps.fedoraproject.org/datagrepper/raw?category=fedora_elections>`__ in datagrepper.
 
 * ``fedora_elections.candidate.delete``: A sub-class of a Fedora message that defines a message schema for messages published by Elections when a candidate is deleted. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedora_elections.candidate.delete>`__)
 * ``fedora_elections.candidate.edit``: A sub-class of a Fedora message that defines a message schema for messages published by Elections when a candidate is edited. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedora_elections.candidate.edit>`__)
@@ -111,70 +106,63 @@ You can view the history of `all fedora_elections messages <https://apps.fedorap
 * ``fedora_elections.election.new``: A sub-class of a Fedora message that defines a message schema for messages published by Elections when a new election is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedora_elections.election.new>`__)
 
 
-fedora-messaging-the-new-hotness-schema
-=======================================
+hotness
+=======
 
 You can view the history of `all hotness messages <https://apps.fedoraproject.org/datagrepper/raw?category=hotness>`__ in datagrepper.
-
 
 * ``org.fedoraproject.prod.hotness.update.bug.file``: Message sent by the-new-hotness to "hotness.update.bug.file" topic when bugzilla issue is filled. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.hotness.update.bug.file>`__)
 * ``org.fedoraproject.prod.hotness.update.drop``: Message sent by the-new-hotness to "hotness.update.drop" topic when update is dropped. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.hotness.update.drop>`__)
 
 
-fedora-planet-messages
-======================
+planet
+======
 
 You can view the history of `all planet messages <https://apps.fedoraproject.org/datagrepper/raw?category=planet>`__ in datagrepper.
-
 
 * ``org.fedoraproject.prod.planet.post.new``: The message sent when a new post is published in planet. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.planet.post.new>`__)
 
 
-fedorainfra-ansible-messages
-============================
+ansible
+=======
 
 You can view the history of `all ansible messages <https://apps.fedoraproject.org/datagrepper/raw?category=ansible>`__ in datagrepper.
-
 
 * ``ansible.playbook.complete``: Defines the message that is sent when an Ansible Playbook completes (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.ansible.playbook.complete>`__)
 * ``ansible.playbook.start``: Defines the message that is sent when an Ansible Playbook starts (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.ansible.playbook.start>`__)
 * ``git.receive``: Defines the message that is sent when an Ansible Playbook starts (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.git.receive>`__)
 
 
-mdapi-messages
-==============
+mdapi
+=====
 
 You can view the history of `all mdapi messages <https://apps.fedoraproject.org/datagrepper/raw?category=mdapi>`__ in datagrepper.
-
 
 * ``mdapi.repo.update``: A sub-class of a Fedora message that defines a message schema for messages published by mdapi when a repo's info is updated. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.mdapi.repo.update>`__)
 
 
-noggin-messages
-===============
+fas
+===
 
 You can view the history of `all fas messages <https://apps.fedoraproject.org/datagrepper/raw?category=fas>`__ in datagrepper.
-
 
 * ``fas.group.member.sponsor``: The message sent when a user is added to a group by a sponsor (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fas.group.member.sponsor>`__)
 * ``fas.user.create``: The message sent when a user is created (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fas.user.create>`__)
 * ``fas.user.update``: The message sent when a user is updated (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fas.user.update>`__)
 
 
-nuancier-messages
-=================
+nuancier
+========
 
 You can view the history of `all nuancier messages <https://apps.fedoraproject.org/datagrepper/raw?category=nuancier>`__ in datagrepper.
-
 
 * ``nuancier.new``: A sub-class of a Fedora message that defines a message schema for messages published by nuancier when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.nuancier.new>`__)
 
 
-pagure-messages
-===============
+pagure
+======
 
 You can view the history of `all pagure messages <https://apps.fedoraproject.org/datagrepper/raw?category=pagure>`__ in datagrepper.
-
 
 * ``pagure.Test.notification``: A sub-class of a Fedora message that defines a message schema for messages published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.Test.notification>`__)
 * ``pagure.commit.flag.added``: A sub-class of a Fedora message that defines a message schema for messages published by pagure when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.commit.flag.added>`__)
