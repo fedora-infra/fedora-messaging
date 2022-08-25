@@ -108,6 +108,11 @@ class MessageV1Tests(unittest.TestCase):
         message = self.msg_class(body=self.full_message)
         self.assertEqual("http://example.com/12345", message.url)
 
+    def test_agent_name(self):
+        """Assert the message provides a "agent_name" attribute."""
+        message = self.msg_class(body=self.full_message)
+        self.assertEqual("me", message.agent_name)
+
     def test_agent_avatar(self):
         """Assert the message provides a "agent_avatar" attribute."""
         message = self.msg_class(body=self.full_message)
@@ -170,6 +175,11 @@ class MessageV2Tests(MessageV1Tests):
         """Assert the message provides a "url" attribute."""
         message = self.msg_class(body=self.full_message)
         self.assertEqual("http://example.com/12345", message.url)
+
+    def test_agent_name(self):
+        """Assert the message provides a "agent_name" attribute."""
+        message = self.msg_class(body=self.full_message)
+        self.assertEqual("me", message.agent_name)
 
     def test_agent_avatar(self):
         """Assert the message provides a "agent_avatar" attribute."""
