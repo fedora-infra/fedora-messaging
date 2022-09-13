@@ -4,6 +4,19 @@ Release Notes
 
 .. towncrier release notes start
 
+3.1.0 (2022-09-13)
+==================
+
+Features
+--------
+
+* Add the ``app_name`` and ``agent_name`` properties to message schemas
+  (`PR#272 <https://github.com/fedora-infra/fedora-messaging/pull/272>`_)
+* Added "groups" property to message schemas. This property can be used if an
+  event affects a list of groups.
+  (`#252 <https://github.com/fedora-infra/fedora-messaging/issues/252>`_)
+
+
 3.0.2 (2022-05-19)
 ==================
 

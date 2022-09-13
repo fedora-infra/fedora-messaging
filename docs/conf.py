@@ -185,6 +185,6 @@ intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "pika": ("https://pika.readthedocs.io/en/latest/", None),
     "jsonschema": ("https://python-jsonschema.readthedocs.io/en/latest/", None),
-    "blinker": ("https://pythonhosted.org/blinker/", None),
+    "blinker": ("https://blinker.readthedocs.io/en/stable/", None),
     "Twisted": ("https://docs.twisted.org/en/stable/api/", None),
 }
