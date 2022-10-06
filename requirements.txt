@@ -2,7 +2,7 @@ blinker
 click
 crochet
 jsonschema
-toml
+tomli;python_version<"3.11"
 Twisted
 pytz
 PyOpenSSL

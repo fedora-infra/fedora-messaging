@@ -22,7 +22,7 @@ from fedora_messaging import config as msg_config
 from fedora_messaging.exceptions import ConfigurationException
 
 
-full_config = """
+full_config = b"""
 amqp_url = "amqp://guest:guest@rabbit-server1:5672/%2F"
 
 publish_exchange = "special_exchange"
@@ -85,9 +85,9 @@ handlers = ["console"]
 level = "DEBUG"
 handlers = ["console"]
 """
-empty_config = '# publish_exchange = "special_exchange"'
-partial_config = 'publish_exchange = "special_exchange"'
-malformed_config = 'publish_exchange = "special_exchange'  # missing close quote
+empty_config = b'# publish_exchange = "special_exchange"'
+partial_config = b'publish_exchange = "special_exchange"'
+malformed_config = b'publish_exchange = "special_exchange'  # missing close quote
 
 
 class TestObj:
@@ -211,7 +211,7 @@ class LoadTests(TestCase):
         )
 
     @mock.patch(
-        "fedora_messaging.config.open", mock.mock_open(read_data='bad_key = "val"')
+        "fedora_messaging.config.open", mock.mock_open(read_data=b'bad_key = "val"')
     )
     @mock.patch("fedora_messaging.config.os.path.exists", return_value=True)
     def test_override_client_props(self, mock_exists):
@@ -220,13 +220,13 @@ class LoadTests(TestCase):
         for key in ("version", "information", "product"):
             with mock.patch(
                 "fedora_messaging.config.open",
-                mock.mock_open(read_data=conf.format(key)),
+                mock.mock_open(read_data=conf.format(key).encode("utf-8")),
             ):
                 config = msg_config.LazyConfig()
                 self.assertRaises(ConfigurationException, config.load_config)
 
     @mock.patch(
-        "fedora_messaging.config.open", mock.mock_open(read_data='bad_key = "val"')
+        "fedora_messaging.config.open", mock.mock_open(read_data=b'bad_key = "val"')
     )
     @mock.patch("fedora_messaging.config.os.path.exists", return_value=True)
     def test_invalid_key(self, mock_exists):
@@ -234,17 +234,19 @@ class LoadTests(TestCase):
         config = msg_config.LazyConfig()
         self.assertRaises(ConfigurationException, config.load_config)
 
-    @mock.patch("fedora_messaging.config.open", mock.mock_open(read_data="Ni!"))
+    @mock.patch("fedora_messaging.config.open", mock.mock_open(read_data=b"Ni!"))
     @mock.patch("fedora_messaging.config.os.path.exists", return_value=True)
     def test_bad_config_file(self, mock_exists):
         """Assert an invalid TOML file raises a ConfigurationException."""
         with self.assertRaises(ConfigurationException) as cm:
             msg_config.LazyConfig().load_config()
         error = (
-            "Failed to parse /etc/fedora-messaging/config.toml: error at line 1, column 3: "
-            "Found invalid character in key name: '!'. Try quoting the key name."
+            "Failed to parse /etc/fedora-messaging/config.toml: "
+            "Expected '=' after a key in a key/value pair (at line 1, column 3)"
         )
-        self.assertEqual(error, cm.exception.message)
+        # older tomli version used in Python 3.6 uses double-quotes
+        error_old = error.replace("'", '"')
+        self.assertIn(cm.exception.message, (error, error_old))
 
     @mock.patch(
         "fedora_messaging.config.open", mock.mock_open(read_data=partial_config)
