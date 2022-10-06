@@ -285,7 +285,12 @@ import logging.config
 import os
 
 import pkg_resources
-import toml
+
+
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
 
 from . import exceptions
 
@@ -521,15 +526,13 @@ class LazyConfig(dict):
 
         if os.path.exists(config_path):
             _log.info(f"Loading configuration from {config_path}")
-            with open(config_path) as fd:
+            with open(config_path, "rb") as fd:
                 try:
-                    file_config = toml.load(fd)
+                    file_config = tomllib.load(fd)
                     for key in file_config:
                         config[key.lower()] = file_config[key]
-                except toml.TomlDecodeError as e:
-                    msg = "Failed to parse {}: error at line {}, column {}: {}".format(
-                        config_path, e.lineno, e.colno, e.msg
-                    )
+                except tomllib.TOMLDecodeError as e:
+                    msg = f"Failed to parse {config_path}: {e}"
                     raise exceptions.ConfigurationException(msg)
         else:
             _log.info(f"The configuration file, {config_path}, does not exist.")

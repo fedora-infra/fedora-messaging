@@ -97,7 +97,7 @@ class ConsumeCliTests(TestCase):
         """Assert a bad configuration file is reported."""
         expected_err = (
             "Error: Invalid value: Configuration error: Failed to parse"
-            " {}: error at line 1, column 1".format(BAD_CONF)
+            " {}: Invalid value (at line 1, column 20)".format(BAD_CONF)
         )
         result = self.runner.invoke(cli.cli, ["--conf=" + BAD_CONF, "consume"])
         self.assertEqual(2, result.exit_code)
