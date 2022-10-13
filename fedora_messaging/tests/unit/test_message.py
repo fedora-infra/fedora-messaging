@@ -99,6 +99,7 @@ class MessageDumpsTests(TestCase):
             delivery_mode=2,
             headers=test_headers,
             message_id=test_id,
+            priority=2,
         )
         test_msg = message.Message(
             body=test_body, topic=test_topic, properties=test_properties
@@ -107,8 +108,8 @@ class MessageDumpsTests(TestCase):
         test_msg.queue = test_queue
         expected_json = (
             '{"body": {"test_key": "test_value"}, "headers": {"fedora_messaging_schema": '
-            '"base.message", "fedora_messaging_severity": 30}, "id": "test id", "queue": '
-            '"test queue", "topic": "test topic"}\n'
+            '"base.message", "fedora_messaging_severity": 30}, "id": "test id", '
+            '"priority": 2, "queue": "test queue", "topic": "test topic"}\n'
         )
         self.assertEqual(expected_json, message.dumps(test_msg))
 
@@ -139,11 +140,11 @@ class MessageDumpsTests(TestCase):
         test_msg2.queue = test_queue
         expected_json = (
             '{"body": {"test_key": "test_value"}, "headers": {"fedora_messaging_schema": '
-            '"base.message", "fedora_messaging_severity": 30}, "id": "test id", "queue": '
-            '"test queue", "topic": "test topic"}\n'
+            '"base.message", "fedora_messaging_severity": 30}, "id": "test id", '
+            '"priority": 0, "queue": "test queue", "topic": "test topic"}\n'
             '{"body": {"test_key": "test_value"}, "headers": {"fedora_messaging_schema": '
-            '"base.message", "fedora_messaging_severity": 30}, "id": "test id", "queue": '
-            '"test queue", "topic": "test topic"}\n'
+            '"base.message", "fedora_messaging_severity": 30}, "id": "test id", '
+            '"priority": 0, "queue": "test queue", "topic": "test topic"}\n'
         )
 
         self.assertEqual(expected_json, message.dumps([test_msg, test_msg2]))
@@ -162,7 +163,7 @@ class MessageLoadsTests(TestCase):
         message_json = (
             '{"topic": "test topic", "headers": {"fedora_messaging_schema": "base.message", '
             '"fedora_messaging_severity": 30}, "id": "test id", "body": '
-            '{"test_key": "test_value"}, "queue": "test queue"}\n'
+            '{"test_key": "test_value"}, "priority": 2, "queue": "test queue"}\n'
         )
         messages = message.loads(message_json)
         test_message = messages[0]
@@ -172,6 +173,7 @@ class MessageLoadsTests(TestCase):
         self.assertEqual("test id", test_message.id)
         self.assertEqual({"test_key": "test_value"}, test_message.body)
         self.assertEqual("test queue", test_message.queue)
+        self.assertEqual(2, test_message.priority)
         self.assertEqual(
             message.WARNING, test_message._headers["fedora_messaging_severity"]
         )
@@ -246,6 +248,17 @@ class MessageLoadsTests(TestCase):
             '"queue": "test queue"}]'
         )
         self.assertRaises(exceptions.ValidationError, message.loads, message_json)
+
+    def test_missing_priority(self):
+        """Assert message without priority is accepted and the priority is set to zero."""
+        message_json = (
+            '{"topic": "test topic", "headers": {"fedora_messaging_schema": '
+            '"base.message", "fedora_messaging_severity": 30}, "id": "test id", '
+            '"body": {"test_key": "test_value"}, "queue": "test queue"}'
+        )
+        messages = message.loads(message_json)
+        test_message = messages[0]
+        self.assertEqual(test_message.priority, 0)
 
     def test_validation_failure(self):
         """Assert proper exception is raised when message validation failed."""
@@ -358,6 +371,15 @@ class MessageTests(TestCase):
             msg = message.Message()
 
         self.assertEqual("1970-01-01T00:00:00+00:00", msg._headers["sent-at"])
+
+    def test_priority(self):
+        """Assert is set correctly."""
+        msg = message.Message()
+        self.assertEqual(0, msg.priority)
+        msg.priority = 42
+        self.assertEqual(42, msg.priority)
+        msg.priority = None
+        self.assertEqual(0, msg.priority)
 
     def test_properties(self):
         properties = object()
