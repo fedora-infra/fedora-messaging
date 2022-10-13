@@ -294,6 +294,17 @@ class Message:
             recent version. Emits a warning when a message of this class is received,
             to let consumers know that they should plan to upgrade. Defaults to
             ``False``.
+        priority (int): The priority for the message, if the destination queue
+            supports it. Defaults to zero (lowest priority).
+
+            This value is taken into account in queues that have the ``x-max-priority``
+            argument set. Most queues in Fedora don't support priorities, in which case
+            the value will be ignored.
+
+            Larger numbers indicate higher priority, you can read more about it in
+            `RabbitMQ's documentation on priority`_.
+
+            .. _RabbitMQ's documentation on priority:  https://www.rabbitmq.com/priority.html
     """
 
     severity = INFO
@@ -348,6 +359,7 @@ class Message:
             delivery_mode=2,
             headers=headers,
             message_id=message_id,
+            priority=config.conf["publish_priority"],
         )
 
     def _filter_headers(self):
@@ -393,6 +405,14 @@ class Message:
     @id.setter
     def id(self, value):
         self._properties.message_id = value
+
+    @property
+    def priority(self):
+        return self._properties.priority or 0
+
+    @priority.setter
+    def priority(self, value):
+        self._properties.priority = value
 
     @property
     def _encoded_routing_key(self):
@@ -673,6 +693,10 @@ SERIALIZED_MESSAGE_SCHEMA = {
             "type": ["string", "null"],
             "description": "The queue the message arrived on, if any.",
         },
+        "priority": {
+            "type": ["integer", "null"],
+            "description": "The priority that the message has been sent with.",
+        },
     },
     "required": ["topic", "headers", "id", "body"],
 }
@@ -710,6 +734,7 @@ def dumps(messages):
             "id": message.id,
             "body": message.body,
             "queue": message.queue,
+            "priority": message.priority,
         }
         serialized_messages.append(json.dumps(m, ensure_ascii=False, sort_keys=True))
 
@@ -751,6 +776,7 @@ def loads(serialized_messages):
         )
         message.queue = message_dict["queue"] if "queue" in message_dict else None
         message.id = message_dict["id"]
+        message.priority = message_dict.get("priority")
         messages.append(message)
 
     return messages

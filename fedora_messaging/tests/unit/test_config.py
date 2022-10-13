@@ -29,6 +29,8 @@ publish_exchange = "special_exchange"
 
 topic_prefix = ""
 
+publish_priority = 42
+
 callback = "fedora_messaging.examples:print_msg"
 
 bindings = [
@@ -275,6 +277,7 @@ class LoadTests(TestCase):
             },
             topic_prefix="",
             publish_exchange="special_exchange",
+            publish_priority=42,
             passive_declares=False,
             exchanges={
                 "custom_exchange": {

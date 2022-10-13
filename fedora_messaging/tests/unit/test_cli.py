@@ -736,7 +736,7 @@ class RecorderClassTests(TestCase):
             '{"body": {"test_key1": "test_value1"}, "headers"'
             ': {"fedora_messaging_schema": "base.message", "fedora_messaging_severity": 20, '
             '"sent-at": "2018-11-18T10:11:41+00:00"}, "id": "273ed91d-b8b5-487a-9576-95b9fbdf3eec"'
-            ', "queue": null, "topic": "test_topic1"}\n'
+            ', "priority": 0, "queue": null, "topic": "test_topic1"}\n'
         )
 
         with self.assertRaises(exceptions.HaltConsumer) as cm:
@@ -748,7 +748,8 @@ class RecorderClassTests(TestCase):
             '{"body": {"test_key2": "test_value2"}, "headers": '
             '{"fedora_messaging_schema": "base.message", "fedora_messaging_severity": '
             '20, "sent-at": "2018-11-18T10:11:41+00:00"}, "id": '
-            '"273ed91d-b8b5-487a-9576-95b9fbdf3eec", "queue": null, "topic": "test_topic2"}\n'
+            '"273ed91d-b8b5-487a-9576-95b9fbdf3eec", "priority": 0, "queue": null, '
+            '"topic": "test_topic2"}\n'
         )
 
     def test_recorded_messages_dumps_failed(self):

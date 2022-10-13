@@ -171,6 +171,17 @@ A string that will be prepended to topics on sent messages.
 This is useful to migrate from fedmsg, but should not be used otherwise.
 The default is an empty string.
 
+.. _conf-publish-priority:
+
+publish_priority
+----------------
+A number that will be set as the priority for the messages. The range of
+possible priorities depends on the ``x-max-priority`` argument of the
+destination queue, as described in `RabbitMQ's priority documentation`_.
+The default is ``None``, which RabbitMQ will interpret as zero.
+
+.. _RabbitMQ's priority documentation: https://www.rabbitmq.com/priority.html
+
 .. _sub-config:
 
 Consumer Options
@@ -316,6 +327,7 @@ DEFAULTS = dict(
     },
     publish_exchange="amq.topic",
     topic_prefix="",
+    publish_priority=None,
     passive_declares=False,
     exchanges={
         "amq.topic": {
