@@ -213,6 +213,16 @@ def get_message(routing_key, properties, body):
     except jsonschema.exceptions.ValidationError as e:
         _log.error("Message validation of %r failed: %r", message, e)
         raise ValidationError(e)
+
+    if MessageClass.deprecated:
+        _log.warning(
+            "A message with a deprecated schema (%s.%s) has been received on topic %r. "
+            "You should check the emitting application's documentation to upgrade to "
+            "the newer schema version.",
+            MessageClass.__module__,
+            MessageClass.__name__,
+            message.topic,
+        )
     return message
 
 
@@ -280,6 +290,10 @@ class Message:
         queue (str): The name of the queue this message arrived through. This
             attribute is set automatically by the library and users should never
             set it themselves.
+        deprecated (bool): Whether this message schema has been deprecated by a more
+            recent version. Emits a warning when a message of this class is received,
+            to let consumers know that they should plan to upgrade. Defaults to
+            ``False``.
     """
 
     severity = INFO
@@ -302,6 +316,7 @@ class Message:
         "description": "Schema for message body",
         "type": "object",
     }
+    deprecated = False
 
     def __init__(
         self, body=None, headers=None, topic=None, properties=None, severity=None

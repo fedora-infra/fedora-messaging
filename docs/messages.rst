@@ -118,3 +118,32 @@ structure for you.
 .. _the fedora-messaging repository: https://github.com/fedora-infra/fedora-messaging/tree/master/docs/sample_schema_package/
 .. _CookieCutter: https://cookiecutter.readthedocs.io
 .. _template repository: https://github.com/fedora-infra/cookiecutter-message-schemas
+
+
+
+Upgrade and deprecation
+=======================
+
+Message schema classes should not be modified in a backwards-incompatible fashion. To facilitate the
+evolution of schemas, we recommend including the schema version in the topic itself, such as
+``myservice.myevent.v1``.
+
+When a backwards-incompatible change is required, create a new class with the topic ending in
+``.v2``, set the :py:attr:`Message.deprecated` attribute to ``True`` on the old class, and send both
+versions for a reasonable period of time. Note that you need to add the new class to the schema
+package's entry points as well.
+
+We leave the duration to the developer's appreciation, since it depends on how many different
+consumers they expect to have, whether they are only inside the Fedora infrastructure or outside
+too, etc. This duration can range from weeks to months, possibly a year. At the time of this
+writing, Fedora's message bus is very far from being overwhelmed by messages, so you don't need to
+worry about that.
+
+Proceeding this way ensures that consumers subscribing to ``.v1`` will not break when ``.v2``
+arrives, and can choose to subscribe to the ``.v2`` topic when they are ready to handle the new
+format. They will get a warning in their logs when they receive deprecated messages, prompting them
+to upgrade.
+
+When you add the new version, please upgrade the major version number of your schema
+package, and communicate clearly that the old version is deprecated, including for how long you have
+decided to send both versions.

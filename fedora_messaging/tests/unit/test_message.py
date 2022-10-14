@@ -21,11 +21,16 @@ from unittest import mock, TestCase
 
 import jsonschema
 import pika
+import pytest
 
 from fedora_messaging import exceptions, message
 
 
-class GetMessageTests(TestCase):
+class DeprecatedMessage(message.Message):
+    deprecated = True
+
+
+class TestGetMessage:
     """Tests for the :func:`fedora_messaging.message.get_message` function."""
 
     def test_missing_severity(self):
@@ -34,16 +39,15 @@ class GetMessageTests(TestCase):
         del msg._headers["fedora_messaging_severity"]
 
         recv_msg = message.get_message("", msg._properties, b"{}")
-        self.assertEqual(recv_msg.severity, message.INFO)
+        assert recv_msg.severity == message.INFO
 
     def test_invalid_severity(self):
         """Assert the invalid severity fails validation."""
         msg = message.Message()
         msg._headers["fedora_messaging_severity"] = 42
 
-        self.assertRaises(
-            exceptions.ValidationError, message.get_message, "", msg._properties, b"{}"
-        )
+        with pytest.raises(exceptions.ValidationError):
+            message.get_message("", msg._properties, b"{}")
 
     def test_missing_headers(self):
         """Assert missing headers results in a default message."""
@@ -53,7 +57,27 @@ class GetMessageTests(TestCase):
         received_msg = message.get_message(
             msg._encoded_routing_key, msg._properties, msg._encoded_body
         )
-        self.assertIsInstance(received_msg, message.Message)
+        assert isinstance(received_msg, message.Message)
+
+    @mock.patch.dict(
+        message._class_to_schema_name, {DeprecatedMessage: "deprecated_message_id"}
+    )
+    @mock.patch.dict(
+        message._schema_name_to_class, {"deprecated_message_id": DeprecatedMessage}
+    )
+    def test_deprecated(self, caplog):
+        """Assert a deprecation warning is produced when indicated."""
+        msg = DeprecatedMessage(topic="dummy.topic")
+        received_msg = message.get_message(
+            msg.topic, msg._properties, msg._encoded_body
+        )
+        assert isinstance(received_msg, DeprecatedMessage)
+        assert len(caplog.messages) == 1
+        assert caplog.messages[0] == (
+            "A message with a deprecated schema (fedora_messaging.tests.unit.test_message."
+            "DeprecatedMessage) has been received on topic 'dummy.topic'. You should check "
+            "the emitting application's documentation to upgrade to the newer schema version."
+        )
 
 
 class MessageDumpsTests(TestCase):

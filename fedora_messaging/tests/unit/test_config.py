@@ -418,6 +418,7 @@ class LoadTests(TestCase):
             "Loading configuration from /etc/fedora-messaging/config.toml"
         )
 
+    @mock.patch("fedora_messaging.config.logging.config.dictConfig", mock.Mock())
     @mock.patch("fedora_messaging.config.open", mock.mock_open(read_data=empty_config))
     @mock.patch("fedora_messaging.config._log", autospec=True)
     @mock.patch("fedora_messaging.config.os.path.exists", return_value=True)

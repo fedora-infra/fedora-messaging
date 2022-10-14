@@ -46,6 +46,7 @@ def echo(message):
     print(str(message))
 
 
+@mock.patch("fedora_messaging.config.conf.setup_logging", mock.Mock())
 class BaseCliTests(TestCase):
     """Unit tests for the base command of the CLI."""
 
@@ -57,6 +58,7 @@ class BaseCliTests(TestCase):
 
 
 @mock.patch("fedora_messaging.cli.reactor", mock.Mock())
+@mock.patch("fedora_messaging.config.conf.setup_logging", mock.Mock())
 class ConsumeCliTests(TestCase):
     """Unit tests for the 'consume' command of the CLI."""
 
@@ -524,6 +526,7 @@ class CallbackFromFilesytem(TestCase):
         )
 
 
+@mock.patch("fedora_messaging.config.conf.setup_logging", mock.Mock())
 class PublishCliTests(TestCase):
     """Unit tests for the 'publish' command of the CLI."""
 
@@ -668,6 +671,7 @@ class PublishCliTests(TestCase):
         self.assertEqual(1, result.exit_code)
 
 
+@mock.patch("fedora_messaging.config.conf.setup_logging", mock.Mock())
 class RecordCliTests(TestCase):
     """Unit tests for the 'record' command of the CLI."""
 
