@@ -4,6 +4,39 @@ Release Notes
 
 .. towncrier release notes start
 
+3.2.0 (2022-10-17)
+==================
+
+Features
+--------
+
+* Add a priority property to messages, and a default priority in the
+  configuration
+  (`PR#275 <https://github.com/fedora-infra/fedora-messaging/pull/275>`_)
+* Add a message schema attribute and some documentation to help deprecate and
+  upgrade message schemas
+  (`#227 <https://github.com/fedora-infra/fedora-messaging/issues/227>`_)
+
+Other Changes
+-------------
+
+* Use tomllib from the standard library on Python 3.11 and above,
+  fallback to tomli otherwise.
+  (`PR#274 <https://github.com/fedora-infra/fedora-messaging/pull/274>`_)
+
+Contributors
+------------
+
+Many thanks to the contributors of bug reports, pull requests, and pull request
+reviews for this release:
+
+* Akashdeep Dhar
+* Aurélien Bompard
+* Erol Keskin
+* Miro Hrončok
+* Stephen Coady
+
+
 3.1.0 (2022-09-13)
 ==================
 
