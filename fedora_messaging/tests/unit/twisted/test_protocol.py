@@ -30,7 +30,7 @@ from fedora_messaging.exceptions import (
     PublishForbidden,
     PublishReturned,
 )
-from fedora_messaging.message import Message
+from fedora_messaging.message import INFO, Message
 from fedora_messaging.twisted.protocol import Consumer, FedoraMessagingProtocolV2
 
 from .utils import MockProtocol
@@ -182,7 +182,10 @@ class ProtocolTests(TestCase):
             self.assertEqual(args["routing_key"], b"testing.topic")
             self.assertEqual(args["body"], json.dumps(body).encode("utf-8"))
             props = args["properties"]
-            self.assertEqual(props.headers, headers)
+            self.assertEqual(props.headers["fedora_messaging_schema"], "base.message")
+            self.assertEqual(props.headers["fedora_messaging_severity"], INFO)
+            self.assertEqual(props.headers["headerkey"], "headervalue")
+            self.assertIn("sent-at", props.headers)
             self.assertEqual(props.content_encoding, "utf-8")
             self.assertEqual(props.content_type, "application/json")
             self.assertEqual(props.delivery_mode, 2)

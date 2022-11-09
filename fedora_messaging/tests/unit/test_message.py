@@ -166,8 +166,8 @@ class MessageLoadsTests(TestCase):
             '{"test_key": "test_value"}, "priority": 2, "queue": "test queue"}\n'
         )
         messages = message.loads(message_json)
-        test_message = messages[0]
         self.assertEqual(len(messages), 1)
+        test_message = messages[0]
         self.assertIsInstance(test_message, message.Message)
         self.assertEqual("test topic", test_message.topic)
         self.assertEqual("test id", test_message.id)
@@ -187,87 +187,135 @@ class MessageLoadsTests(TestCase):
         self.assertRaises(exceptions.ValidationError, message.loads, message_json)
 
     def test_missing_headers(self):
-        """Assert proper exception is raised when headers are missing."""
-        message_json = (
-            '[{"topic": "test topic", "id": "test id",'
-            '"body": {"test_key": "test_value"}, "queue": "test queue"}]'
+        """Assert no exception is raised when headers are missing."""
+        message_dict = {
+            "topic": "test topic",
+            "id": "test id",
+            "body": {"test_key": "test_value"},
+            "queue": "test queue",
+        }
+        test_message = message.load_message(message_dict)
+        self.assertEqual(
+            test_message._headers["fedora_messaging_schema"], "base.message"
         )
-        self.assertRaises(exceptions.ValidationError, message.loads, message_json)
+        self.assertEqual(
+            test_message._headers["fedora_messaging_severity"], message.INFO
+        )
+        self.assertIn("sent-at", test_message._headers)
 
     def test_missing_messaging_schema(self):
-        """Assert proper exception is raised when messaging schema missing."""
-        message_json = (
-            '[{"topic": "test topic", "headers": {"fedora_messaging_severity": 30}, '
-            '"id": "test id", "body": {"test_key": "test_value"}, "queue": "test queue"}]'
-        )
-        self.assertRaises(exceptions.ValidationError, message.loads, message_json)
+        """Assert the default schema is used when messaging schema is missing."""
+        message_dict = {
+            "id": "test id",
+            "topic": "test topic",
+            "headers": {"fedora_messaging_severity": 30},
+            "body": {"test_key": "test_value"},
+            "queue": "test queue",
+        }
+        test_message = message.load_message(message_dict)
+        self.assertIsInstance(test_message, message.Message)
 
     def test_missing_body(self):
         """Assert proper exception is raised when body is missing."""
-        message_json = (
-            '[{"topic": "test topic", "headers": {"fedora_messaging_schema": '
-            '"base.message", "fedora_messaging_severity": 30}, "id": "test id", '
-            '"queue": "test queue"}]'
+        message_dict = {
+            "id": "test id",
+            "topic": "test topic",
+            "headers": {
+                "fedora_messaging_schema": "base.message",
+                "fedora_messaging_severity": 30,
+            },
+            "queue": "test queue",
+        }
+        self.assertRaises(
+            exceptions.ValidationError, message.load_message, message_dict
         )
-        self.assertRaises(exceptions.ValidationError, message.loads, message_json)
 
     def test_missing_id(self):
         """Assert proper exception is raised when id is missing."""
-        message_json = (
-            '[{"topic": "test topic", "headers": {"fedora_messaging_schema": '
-            '"base.message", "fedora_messaging_severity": 30}, '
-            '"body": {"test_key": "test_value"}, "queue": "test queue"}]'
+        message_dict = {
+            "topic": "test topic",
+            "headers": {
+                "fedora_messaging_schema": "base.message",
+                "fedora_messaging_severity": 30,
+            },
+            "body": {"test_key": "test_value"},
+            "queue": "test queue",
+        }
+        self.assertRaises(
+            exceptions.ValidationError, message.load_message, message_dict
         )
-        self.assertRaises(exceptions.ValidationError, message.loads, message_json)
 
     def test_missing_queue(self):
         """Assert message without queue is accepted and the queue is set to None."""
-        message_json = (
-            '{"topic": "test topic", "headers": {"fedora_messaging_schema": '
-            '"base.message", "fedora_messaging_severity": 30}, "id": "test id", '
-            '"body": {"test_key": "test_value"}}'
-        )
-        messages = message.loads(message_json)
-        test_message = messages[0]
+        message_dict = {
+            "id": "test id",
+            "topic": "test topic",
+            "headers": {
+                "fedora_messaging_schema": "base.message",
+                "fedora_messaging_severity": 30,
+            },
+            "body": {"test_key": "test_value"},
+        }
+        test_message = message.load_message(message_dict)
         self.assertIsNone(test_message.queue)
 
     def test_missing_topic(self):
         """Assert proper exception is raised when topic is missing."""
-        message_json = (
-            '[{"headers": {"fedora_messaging_schema": "base.message", '
-            '"fedora_messaging_severity": 30}, "id": "test id", '
-            '"body": {"test_key": "test_value"}, "queue": "test queue"}]'
+        message_dict = {
+            "id": "test id",
+            "headers": {
+                "fedora_messaging_schema": "base.message",
+                "fedora_messaging_severity": 30,
+            },
+            "body": {"test_key": "test_value"},
+            "queue": "test queue",
+        }
+        self.assertRaises(
+            exceptions.ValidationError, message.load_message, message_dict
         )
-        self.assertRaises(exceptions.ValidationError, message.loads, message_json)
 
     def test_missing_severity(self):
-        """Assert proper exception is raised when topic severity missing."""
-        message_json = (
-            '[{"topic": "test topic", "headers": {"fedora_messaging_schema": '
-            '"base.message"}, "id": "test id", "body": {"test_key": "test_value"},'
-            '"queue": "test queue"}]'
-        )
-        self.assertRaises(exceptions.ValidationError, message.loads, message_json)
+        """Assert no exception is raised when severity is missing."""
+        message_dict = {
+            "topic": "test topic",
+            "headers": {"fedora_messaging_schema": "base.message"},
+            "id": "test id",
+            "body": {"test_key": "test_value"},
+            "queue": "test queue",
+        }
+        test_message = message.load_message(message_dict)
+        self.assertEqual(test_message.severity, message.INFO)
 
     def test_missing_priority(self):
         """Assert message without priority is accepted and the priority is set to zero."""
-        message_json = (
-            '{"topic": "test topic", "headers": {"fedora_messaging_schema": '
-            '"base.message", "fedora_messaging_severity": 30}, "id": "test id", '
-            '"body": {"test_key": "test_value"}, "queue": "test queue"}'
-        )
-        messages = message.loads(message_json)
-        test_message = messages[0]
+        message_dict = {
+            "id": "test id",
+            "topic": "test topic",
+            "headers": {
+                "fedora_messaging_schema": "base.message",
+                "fedora_messaging_severity": 30,
+            },
+            "body": {"test_key": "test_value"},
+            "queue": "test queue",
+        }
+        test_message = message.load_message(message_dict)
         self.assertEqual(test_message.priority, 0)
 
     def test_validation_failure(self):
         """Assert proper exception is raised when message validation failed."""
-        message_json = (
-            '[{"topic": "test topic", "headers": {"fedora_messaging_schema": "base.message", '
-            '"fedora_messaging_severity": 41}, "id": "test id", '
-            '"body": {"test_key": "test_value"}, "queue": "test queue"}]'
+        message_dict = {
+            "id": "test id",
+            "topic": "test topic",
+            "headers": {
+                "fedora_messaging_schema": "base.message",
+                "fedora_messaging_severity": 41,
+            },
+            "body": {"test_key": "test_value"},
+            "queue": "test queue",
+        }
+        self.assertRaises(
+            exceptions.ValidationError, message.load_message, message_dict
         )
-        self.assertRaises(exceptions.ValidationError, message.loads, message_json)
 
 
 class MessageTests(TestCase):
