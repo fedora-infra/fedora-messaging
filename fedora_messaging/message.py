@@ -347,6 +347,7 @@ class Message:
     def _build_properties(self, headers):
         # Consumers use this to determine what schema to use and if they're out
         # of date.
+        headers = headers.copy()
         headers["fedora_messaging_schema"] = get_name(self.__class__)
         now = datetime.datetime.utcnow().replace(microsecond=0, tzinfo=pytz.utc)
         headers["sent-at"] = now.isoformat()
@@ -698,8 +699,47 @@ SERIALIZED_MESSAGE_SCHEMA = {
             "description": "The priority that the message has been sent with.",
         },
     },
-    "required": ["topic", "headers", "id", "body"],
+    "required": ["topic", "id", "body"],
 }
+
+
+def load_message(message_dict):
+    """Load a message from a dictionary serialization.
+
+    The dictionary must conform to the :data:`SERIALIZED_MESSAGE_SCHEMA` format.
+
+    Args:
+        message_dict (dict): The dictionary representing the message.
+
+    Raises:
+        ValidationError: If the dictionary does not pass the serialization schema.
+
+    Returns:
+        Message: The deserialized message object, as an instance of :class:`Message`
+            or one of its subclasses.
+    """
+    try:
+        jsonschema.validate(message_dict, SERIALIZED_MESSAGE_SCHEMA)
+    except jsonschema.exceptions.ValidationError as e:
+        raise ValidationError(e)
+    MessageClass = get_class(
+        message_dict.get("headers", {}).get("fedora_messaging_schema", "base.message")
+    )
+    message = MessageClass(
+        body=message_dict["body"],
+        topic=message_dict["topic"],
+        headers=message_dict.get("headers"),
+        severity=message_dict.get("headers", {}).get("fedora_messaging_severity"),
+    )
+    # Restore the sent-at header
+    try:
+        message._headers["sent-at"] = message_dict["headers"]["sent-at"]
+    except KeyError:
+        pass
+    message.queue = message_dict.get("queue")
+    message.id = message_dict["id"]
+    message.priority = message_dict.get("priority")
+    return message
 
 
 def dumps(messages):
@@ -763,20 +803,7 @@ def loads(serialized_messages):
             message_dict = json.loads(serialized_message)
         except ValueError as e:
             raise ValidationError(e)
-        try:
-            jsonschema.validate(message_dict, SERIALIZED_MESSAGE_SCHEMA)
-        except jsonschema.exceptions.ValidationError as e:
-            raise ValidationError(e)
-        MessageClass = get_class(message_dict["headers"]["fedora_messaging_schema"])
-        message = MessageClass(
-            body=message_dict["body"],
-            topic=message_dict["topic"],
-            headers=message_dict["headers"],
-            severity=message_dict["headers"]["fedora_messaging_severity"],
-        )
-        message.queue = message_dict["queue"] if "queue" in message_dict else None
-        message.id = message_dict["id"]
-        message.priority = message_dict.get("priority")
+        message = load_message(message_dict)
         messages.append(message)
 
     return messages
