@@ -12,58 +12,52 @@ This library is designed to be a replacement for the `PyZMQ`_-backed `fedmsg`_
 library.
 
 
-User Guide
-==========
+.. toctree::
+   :maxdepth: 2
+   :caption: User Guide
+
+   user-guide/installation
+   user-guide/quick-start
+   user-guide/configuration
+   user-guide/publishing
+   user-guide/messages
+   user-guide/consuming
+   user-guide/schemas
+   user-guide/testing
+   user-guide/cli
+
 
 .. toctree::
    :maxdepth: 2
+   :caption: Tutorial
 
-   installation
-   quick-start
-   configuration
-   publishing
-   consuming
-   messages
-   testing
-   schemas
-   changelog
+   tutorial/installation
+   tutorial/usage
+   tutorial/schemas
+   tutorial/exceptions
+   tutorial/conversion
 
-
-Command Line Interface Manuals
-------------------------------
 
 .. toctree::
    :maxdepth: 2
+   :caption: API Documentation
 
-   fedora-messaging
+   api/api
+   api/wire-format
 
-
-Tutorial
-========
 
 .. toctree::
    :maxdepth: 2
-
-   tutorial/index
-
-
-API Documentation
-=================
-
-.. toctree::
-   :maxdepth: 2
-
-   api
-   wire-format
-
-
-Contributor Guide
-=================
-
-.. toctree::
-   :maxdepth: 2
+   :caption: Contributing
 
    contributing
+
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Release Notes
+
+   changelog
 
 
 .. _fedmsg: https://github.com/fedora-infra/fedmsg/

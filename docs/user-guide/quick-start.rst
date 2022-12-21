@@ -93,7 +93,7 @@ If fedora-messaging was installed via RPM, they should be in
 `key`_, `certificate`_, and the `CA certificate`_ from the upstream git
 repository and start with the following configuration file:
 
-.. literalinclude:: ../configs/fedora.toml
+.. literalinclude:: ../../configs/fedora.toml
 
 Assuming the ``/etc/fedora-messaging/fedora.toml``,
 ``/etc/fedora-messaging/cacert.pem``, ``/etc/fedora-messaging/fedora-key.pem``,

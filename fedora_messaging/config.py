@@ -27,7 +27,7 @@ Each configuration option has a default value.
 
 A complete example TOML configuration:
 
-.. literalinclude:: ../config.toml.example
+.. literalinclude:: ../../config.toml.example
 
 
 Generic Options

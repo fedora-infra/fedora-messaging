@@ -89,9 +89,12 @@ html_theme = "alabaster"
 html_theme_options = {
     "github_user": "fedora-infra",
     "github_repo": "fedora-messaging",
+    "github_button": True,
+    "description": "A set of tools for using Fedora's messaging infrastructure",
     "page_width": "1040px",
     "show_related": True,
     "sidebar_collapse": True,
+    "caption_font_size": "150%",
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
@@ -154,7 +157,13 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ("fedora-messaging", "fedora-messaging", "Fedora Messaging CLI", [author], 1)
+    (
+        "user-guide/cli/fedora-messaging",
+        "fedora-messaging",
+        "Fedora Messaging CLI",
+        [author],
+        1,
+    )
 ]
 
 

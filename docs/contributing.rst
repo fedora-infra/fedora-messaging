@@ -1,10 +1,11 @@
-============
-Contributing
-============
+=================
+Contributor guide
+=================
 
 Thanks for considering contributing to fedora-messaging, we really appreciate it!
 
-Quickstart:
+Quickstart
+==========
 
 1. Look for an `existing issue
    <https://github.com/fedora-infra/fedora-messaging/issues>`_ about the bug or
@@ -28,17 +29,15 @@ below.
 .. note:: If you do not wish to use GitHub, please send patches to
           infrastructure@lists.fedoraproject.org.
 
-Guidelines
-==========
 
 Python Support
---------------
+==============
 fedora-messaging supports Python 3.6 or greater. This is automatically enforced
 by the continuous integration (CI) suite.
 
 
 Code Style
-----------
+==========
 We follow the `PEP8 <https://www.python.org/dev/peps/pep-0008/>`_ style guide
 for Python. This is automatically enforced by the CI suite.
 
@@ -51,7 +50,7 @@ To setup to hook for your repo clone, install pre-commit and run ``pre-commit in
 
 
 Tests
------
+=====
 The test suites can be run using `tox <http://tox.readthedocs.io/>`_ by simply
 running ``tox`` from the repository root. All code must have test coverage or
 be explicitly marked as not covered using the ``# no-qa`` comment. This should
@@ -62,8 +61,7 @@ you're not certain how to write tests, we will be happy to help you.
 
 
 Release notes
--------------
-
+=============
 To add entries to the release notes, run ``towncrier create <source.type>`` to
 create a news fragment file in the ``news`` directory, where ``type`` is one of:
 
@@ -99,8 +97,7 @@ A preview of the release notes can be generated with ``towncrier --draft``.
 
 
 Licensing
----------
-
+=========
 Your commit messages must include a Signed-off-by tag with your name and e-mail
 address, indicating that you agree to the `Developer Certificate of Origin
 <https://developercertificate.org/>`_ version 1.1::
@@ -147,8 +144,7 @@ Use ``git commit -s`` to add the Signed-off-by tag.
 
 
 Releasing
----------
-
+=========
 When cutting a new release, follow these steps:
 
 * update the version in ``fedora_messaging/__init__.py``

@@ -1,8 +1,8 @@
 .. _messages:
 
-========
-Messages
-========
+===============
+Message Schemas
+===============
 
 Before you release your application, you should create a subclass of
 :class:`fedora_messaging.message.Message`, define a schema, define a default
@@ -23,7 +23,8 @@ develop!
 
 Secondly, it allows you to change your message format in a controlled fashion
 by versioning your schema. You can then choose to implement methods one way or
-another based on the version of the schema used by a message.
+another based on the version of the schema used by a message. For details on how
+to deprecate and upgrade message schemas, see :ref:`schema-upgrade`.
 
 Message schema are defined using `JSON Schema`_. The complete API can be found
 in the :ref:`message-api` API documentation.
@@ -52,7 +53,7 @@ object.
 Example Schema
 --------------
 
-.. include:: sample_schema_package/mailman_messages/messages.py
+.. include:: ../sample_schema_package/mailman_messages/messages.py
    :literal:
 
 Note that message schema can be composed of other message schema, and
@@ -77,6 +78,52 @@ The JSON schema ensures the message sent "on the wire" conforms to a particular
 format. Messages should provide Python properties to access the deserialized
 JSON object. This Python API should maintain backwards compatibility between
 schema. This shields consumers from changes in schema.
+
+Useful Accessors
+~~~~~~~~~~~~~~~~
+
+All available accessors are described in the :ref:`message-api` API documentation ;
+here is a list of those we recommend implementing to allow users to get
+notifications for your messages:
+
+* :py:meth:`~fedora_messaging.message.Message.__str__`:
+  A human-readable representation of this message. This can be a multi-line string
+  that forms the body of an email notification.
+* :py:attr:`~fedora_messaging.message.Message.summary`:
+  A short, single-line, human-readable summary of the message, much like the subject
+  line of an email.
+* :py:attr:`~fedora_messaging.message.Message.agent_name`:
+  The username of the user who caused the action.
+* :py:attr:`~fedora_messaging.message.Message.app_name`:
+  The name of the application that generated the message. This can be implemented as
+  a class attribute or as a property.
+* :py:attr:`~fedora_messaging.message.Message.app_icon`:
+  A URL to the icon of the application that generated the message. This can be
+  implemented as a class attribute or as a property.
+* :py:attr:`~fedora_messaging.message.Message.packages`:
+  A list of RPM packages affected by the action that generated this message, if any.
+* :py:attr:`~fedora_messaging.message.Message.flatpaks`:
+  A list of flatpaks affected by the action that generated this message, if any.
+* :py:attr:`~fedora_messaging.message.Message.modules`:
+  A list of modules affected by the action that generated this message, if any.
+* :py:attr:`~fedora_messaging.message.Message.containers`:
+  A list of containers affected by the action that generated this message, if any.
+* :py:attr:`~fedora_messaging.message.Message.usernames`:
+  A list of usernames affected by the action that generated this message.
+  This may contain the ``agent_name``.
+* :py:attr:`~fedora_messaging.message.Message.groups`:
+  A list of group names affected by the action that generated this message.
+* :py:attr:`~fedora_messaging.message.Message.url`:
+  A URL to the action that caused this message to be emitted, if any.
+* :py:attr:`~fedora_messaging.message.Message.severity`:
+  An integer that indicates the severity of the message. This is used to determine
+  what messages to notify end users about and should be
+  :py:data:`~fedora_messaging.message.DEBUG`,
+  :py:data:`~fedora_messaging.message.INFO`,
+  :py:data:`~fedora_messaging.message.WARNING`,
+  or :py:data:`~fedora_messaging.message.ERROR`.
+  The default is :py:data:`~fedora_messaging.message.INFO`, and can be set
+  as a class attribute or on an instance-by-instance basis.
 
 
 Packaging
@@ -120,6 +167,8 @@ structure for you.
 .. _template repository: https://github.com/fedora-infra/cookiecutter-message-schemas
 
 
+
+.. _schema-upgrade:
 
 Upgrade and deprecation
 =======================
