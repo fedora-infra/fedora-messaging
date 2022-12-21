@@ -60,7 +60,7 @@ jobs:
         with:
           RABBITMQ_TAG: "3-management-alpine"
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
       - name: Install Tox
@@ -71,7 +71,6 @@ jobs:
     strategy:
       matrix:
         python:
-          - '3.6'
           - '3.7'
           - '3.8'
           - '3.9'
