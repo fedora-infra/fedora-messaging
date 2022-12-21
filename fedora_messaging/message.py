@@ -588,8 +588,8 @@ class Message:
     def agent_avatar(self):
         """An URL to the avatar of the user who caused the action.
 
-        .. note:: Sub-classes should override this method if the message was
-            triggered by a particular user.
+        .. note:: Sub-classes should override this method if the default
+            Libravatar and OpenID-based URL generator is not appropriate.
 
         Returns:
             str or None: The URL to the user's avatar.
