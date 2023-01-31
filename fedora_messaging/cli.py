@@ -30,11 +30,23 @@ import sys
 
 import click
 import pkg_resources
-from twisted.internet import error, reactor
-from twisted.python import log as legacy_twisted_log
+from twisted.internet import asyncioreactor, error
 
-from . import api, config, exceptions
-from .message import dumps, loads
+
+try:
+    asyncioreactor.install()
+except error.ReactorAlreadyInstalledError:
+    # The tests install a reactor before importing this module
+    from twisted.internet import reactor
+
+    if not isinstance(reactor, asyncioreactor.AsyncioSelectorReactor):
+        raise
+
+from twisted.internet import reactor  # noqa: E402
+from twisted.python import log as legacy_twisted_log  # noqa: E402
+
+from . import api, config, exceptions  # noqa: E402
+from .message import dumps, loads  # noqa: E402
 
 
 _log = logging.getLogger(__name__)

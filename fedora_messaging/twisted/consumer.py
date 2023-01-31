@@ -16,6 +16,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 
+import asyncio
 import logging
 import uuid
 
@@ -65,6 +66,16 @@ def _add_timeout(deferred, timeout):
             return result
 
         deferred.addBoth(cancel_cancel_call)
+
+
+def is_coro(func_or_obj):
+    """Tests if a function is a coroutine function or a callable coroutine object."""
+    # Until Python 3.10, inspect.iscoroutinefunction() will fail to identify AsyncMocks
+    # as coroutines: https://github.com/python/cpython/issues/84753
+    # Use asyncio.iscoroutinefunction() instead.
+    return asyncio.iscoroutinefunction(func_or_obj) or (
+        callable(func_or_obj) and asyncio.iscoroutinefunction(func_or_obj.__call__)
+    )
 
 
 class Consumer:
@@ -204,7 +215,13 @@ class Consumer:
                 message.topic,
                 properties.message_id,
             )
-            yield threads.deferToThread(self.callback, message)
+            if is_coro(self.callback):
+                d = defer.Deferred.fromFuture(
+                    asyncio.ensure_future(self.callback(message))
+                )
+            else:
+                d = threads.deferToThread(self.callback, message)
+            yield d
         except Nack:
             _std_log.warning(
                 "Returning message id %s to the queue", properties.message_id

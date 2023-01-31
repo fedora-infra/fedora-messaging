@@ -80,7 +80,7 @@ class BaseMessage(message.Message):
 
         By convention, in Fedora all schemas should provide this property.
         """
-        return "mailman"
+        return "Mailman"
 
     @property
     def app_icon(self):
