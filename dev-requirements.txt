@@ -5,5 +5,7 @@ twisted
 treq
 pytest
 pytest-twisted
+pytest-mock
+mock;python_version<"3.8"
 pyOpenSSL
 towncrier

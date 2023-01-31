@@ -183,6 +183,11 @@ wish to make use of a Twisted API, you must use the
 :func:`twisted.internet.threads.blockingCallFromThread` or
 :class:`twisted.internet.interfaces.IReactorFromThreads` APIs.
 
+You may also use asyncio-based asynchronous callbacks, either via an ``async``
+function or via an object that has an async ``__call__()`` method. In this
+case, the callback will not be run in a separate thread, it will instead be
+scheduled as a regular asyncio task.
+
 
 Consumer Configuration
 ----------------------
