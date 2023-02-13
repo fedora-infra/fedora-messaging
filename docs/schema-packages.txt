@@ -10,6 +10,7 @@ fedorainfra-ansible-messages
 fedora-elections-messages
 fedora-messaging-the-new-hotness-schema
 fedora-planet-messages
+koji-fedoramessaging-messages
 mdapi-messages
 noggin-messages
 nuancier-messages

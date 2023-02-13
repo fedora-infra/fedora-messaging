@@ -14,10 +14,10 @@ In the Fedora Infrastructure, some of those topics will be prefixed by
 ``org.fedoraproject.stg.`` in staging and ``org.fedoraproject.prod.`` in production.
 
 
-Anitya
+anitya
 ======
 
-You can view the history of `all Anitya messages <https://apps.fedoraproject.org/datagrepper/raw?category=anitya>`__ in datagrepper.
+You can view the history of `all anitya messages <https://apps.fedoraproject.org/datagrepper/raw?category=anitya>`__ in datagrepper.
 
 * ``org.release-monitoring.prod.anitya.distro.add``: Message sent by Anitya to the "anitya.distro.add" topic when a new distribution is added. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.distro.add>`__)
 * ``org.release-monitoring.prod.anitya.distro.edit``: Message sent by Anitya when a distribution is edited. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.distro.edit>`__)
@@ -31,6 +31,7 @@ You can view the history of `all Anitya messages <https://apps.fedoraproject.org
 * ``org.release-monitoring.prod.anitya.project.map.update``: Sent when distribution mapping is edited in Anitya. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.project.map.update>`__)
 * ``org.release-monitoring.prod.anitya.project.remove``: The message sent when a project is deleted in Anitya. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.project.remove>`__)
 * ``org.release-monitoring.prod.anitya.project.version.remove``: Sent when version is deleted in Anitya. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.project.version.remove>`__)
+* ``org.release-monitoring.prod.anitya.project.version.remove.v2``: Sent when version is deleted in Anitya. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.project.version.remove.v2>`__)
 * ``org.release-monitoring.prod.anitya.project.version.update``: Sent when new version is discovered by Anitya. This message will be deprecated in future. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.project.version.update>`__)
 * ``org.release-monitoring.prod.anitya.project.version.update.v2``: Sent when new versions are discovered by Anitya. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.project.version.update.v2>`__)
 
@@ -131,6 +132,21 @@ You can view the history of `all ansible messages <https://apps.fedoraproject.or
 * ``ansible.playbook.complete``: Defines the message that is sent when an Ansible Playbook completes (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.ansible.playbook.complete>`__)
 * ``ansible.playbook.start``: Defines the message that is sent when an Ansible Playbook starts (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.ansible.playbook.start>`__)
 * ``git.receive``: Defines the message that is sent when an Ansible Playbook starts (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.git.receive>`__)
+
+
+Koji
+====
+
+You can view the history of `all Koji messages <https://apps.fedoraproject.org/datagrepper/raw?category=buildsys>`__ in datagrepper.
+
+* ``buildsys.build.state.change``: This message is sent when a build state changes. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.buildsys.build.state.change>`__)
+* ``buildsys.package.list.change``: This message is sent when a package list changes. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.buildsys.package.list.change>`__)
+* ``buildsys.repo.done``: This message is sent when a package repo is done. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.buildsys.repo.done>`__)
+* ``buildsys.repo.init``: This message is sent when a package repo is initialized. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.buildsys.repo.init>`__)
+* ``buildsys.rpm.sign``: This message is sent when a rpm is signed. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.buildsys.rpm.sign>`__)
+* ``buildsys.tag``: This message is sent when a package is tagged. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.buildsys.tag>`__)
+* ``buildsys.untag``: This message is sent when a package is untagged. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.buildsys.untag>`__)
+* ``buildsys.task.state.change``: This message is sent when a task state changes. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.buildsys.task.state.change>`__)
 
 
 mdapi
