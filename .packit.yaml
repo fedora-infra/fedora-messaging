@@ -95,5 +95,5 @@ jobs:
     trigger: commit
     metadata:
       dist_git_branches:
-        - fedora-latest-stable
-        - fedora-development 
+        # Don't create an update on Rawhide.
+        - fedora-branched
