@@ -4,6 +4,35 @@ Release Notes
 
 .. towncrier release notes start
 
+3.3.0 (2023-03-31)
+==================
+
+Features
+--------
+
+* Add support for asyncio-based callbacks in the consumer. As a consequence,
+  the Twisted reactor used by the CLI is now ``asyncio``.
+  (`PR#282 <https://github.com/fedora-infra/fedora-messaging/pull/282>`_)
+
+Documentation Improvements
+--------------------------
+
+* Improve documentation layout, and add some documentation on the message
+  schemas.
+  (`1fa8998
+  <https://github.com/fedora-infra/fedora-messaging/commit/1fa8998>`_)
+* Add koji-fedoramessaging-messages to the list of known schemas.
+  (`ef12fa2
+  <https://github.com/fedora-infra/fedora-messaging/commit/ef12fa2>`_)
+
+Development Changes
+-------------------
+
+* Update pre-commit linters.
+  (`0efdde1
+  <https://github.com/fedora-infra/fedora-messaging/commit/0efdde1>`_)
+
+
 3.2.0 (2022-10-17)
 ==================
 
