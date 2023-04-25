@@ -23,7 +23,6 @@ pull_request_rules:
       queue:
         name: default
         method: rebase
-        rebase_fallback: none
     conditions:
       - label!=no-mergify
       - -draft
@@ -49,7 +48,6 @@ pull_request_rules:
       queue:
         name: default
         method: rebase
-        rebase_fallback: none
     conditions:
       - label!=no-mergify
       - -draft
