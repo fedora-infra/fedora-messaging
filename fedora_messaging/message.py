@@ -352,6 +352,8 @@ class Message:
         now = datetime.datetime.utcnow().replace(microsecond=0, tzinfo=pytz.utc)
         headers["sent-at"] = now.isoformat()
         headers["fedora_messaging_severity"] = self.severity
+        # Mirror the priority in the headers for debugging purposes
+        headers["priority"] = config.conf["publish_priority"] or 0
         headers.update(self._filter_headers())
         message_id = str(uuid.uuid4())
         return pika.BasicProperties(
@@ -414,6 +416,8 @@ class Message:
     @priority.setter
     def priority(self, value):
         self._properties.priority = value
+        # Mirror the priority in the headers for debugging purposes
+        self._headers["priority"] = value or 0
 
     @property
     def _encoded_routing_key(self):

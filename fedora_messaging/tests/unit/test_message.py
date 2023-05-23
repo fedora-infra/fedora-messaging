@@ -424,10 +424,13 @@ class MessageTests(TestCase):
         """Assert is set correctly."""
         msg = message.Message()
         self.assertEqual(0, msg.priority)
+        self.assertEqual(0, msg._headers["priority"])
         msg.priority = 42
         self.assertEqual(42, msg.priority)
+        self.assertEqual(42, msg._headers["priority"])
         msg.priority = None
         self.assertEqual(0, msg.priority)
+        self.assertEqual(0, msg._headers["priority"])
 
     def test_properties(self):
         properties = object()
