@@ -118,6 +118,7 @@ def test_twisted_consume_halt_consumer(queue_and_binding):
     expected_headers = {
         "fedora_messaging_severity": 20,
         "fedora_messaging_schema": "base.message",
+        "priority": 0,
         "niceness": "very",
     }
     messages_received = []
