@@ -34,6 +34,8 @@ jobs:
         uses: fedora-python/tox-github-action@main
         with:
           tox_env: ${{ matrix.tox_env }}
+          # Needed for cryptography on python 3.6
+          dnf_install: rust
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:
