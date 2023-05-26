@@ -35,7 +35,7 @@ jobs:
         with:
           tox_env: ${{ matrix.tox_env }}
           # Needed for cryptography on python 3.6
-          dnf_install: rust
+          dnf_install: rust cargo
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:
