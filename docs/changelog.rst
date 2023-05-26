@@ -4,6 +4,16 @@ Release Notes
 
 .. towncrier release notes start
 
+3.4.0 (2023-05-26)
+==================
+
+Features
+--------
+
+* Mirror the message priority in the headers
+  (`eba336b <https://github.com/fedora-infra/fedora-messaging/commit/eba336b>`_)
+
+
 3.3.0 (2023-03-31)
 ==================
 
