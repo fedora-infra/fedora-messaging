@@ -1,1 +1,0 @@
-Don't modify the header dictionary passed as an argument to the ``Message`` constructor.
