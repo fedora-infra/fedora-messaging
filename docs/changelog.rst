@@ -4,6 +4,16 @@ Release Notes
 
 .. towncrier release notes start
 
+3.4.1 (2023-05-26)
+==================
+
+Bug Fixes
+---------
+
+* Fix CI
+  (`0f2e39c <https://github.com/fedora-infra/fedora-messaging/commit/0f2e39c>`_)
+
+
 3.4.0 (2023-05-26)
 ==================
 
