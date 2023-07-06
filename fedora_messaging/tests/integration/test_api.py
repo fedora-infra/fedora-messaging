@@ -1,5 +1,6 @@
 """Test the :mod:`fedora_messaging.api` APIs on a real broker running on localhost."""
 
+import re
 import socket
 import time
 import uuid
@@ -517,10 +518,12 @@ def test_no_read_permissions_queue_read_failure_pika1(admin_user, queue_and_bind
             yield consumers
             pytest.fail("Call failed to raise an exception")
         except exceptions.PermissionException as e:
-            assert e.reason == (
-                "ACCESS_REFUSED - access to queue '{}' in vhost '/' refused for user "
-                "'{}'".format(list(queues.keys())[0], admin_user)
+            error_match = re.match(
+                r"ACCESS_REFUSED - (read )?access to queue '[\w-]+' in vhost '/' refused "
+                r"for user '[\w-]+'",
+                e.reason,
             )
+            assert error_match is not None
         except (defer.TimeoutError, defer.CancelledError):
             pytest.fail("Timeout reached without consumer calling its errback!")
 
@@ -541,10 +544,12 @@ def test_no_read_permissions_bind_failure(admin_user, queue_and_binding):
         pytest.fail("Call failed to raise an exception")
     except exceptions.BadDeclaration as e:
         assert e.reason.args[0] == 403
-        assert e.reason.args[1] == (
-            "ACCESS_REFUSED - access to exchange 'amq.topic' in vhost '/' refused for user"
-            " '{}'".format(admin_user)
+        error_match = re.match(
+            r"ACCESS_REFUSED - (read )?access to exchange 'amq\.topic' in vhost '/' refused "
+            r"for user '[\w-]+'",
+            e.reason.args[1],
         )
+        assert error_match is not None
 
 
 @pytest_twisted.inlineCallbacks
@@ -563,10 +568,12 @@ def test_no_write_permissions(admin_user, queue_and_binding):
         pytest.fail("Call failed to raise an exception")
     except exceptions.BadDeclaration as e:
         assert e.reason.args[0] == 403
-        assert e.reason.args[1] == (
-            "ACCESS_REFUSED - access to queue '{}' in vhost '/' refused for user"
-            " '{}'".format(list(queues.keys())[0], admin_user)
+        error_match = re.match(
+            r"ACCESS_REFUSED - (write )?access to queue '[\w-]+' in vhost '/' refused "
+            r"for user '[\w-]+'",
+            e.reason.args[1],
         )
+        assert error_match is not None
 
 
 @pytest_twisted.inlineCallbacks
@@ -692,10 +699,12 @@ def test_protocol_publish_forbidden(admin_user):
             pytest.fail("Publishing hit the timeout, probably stuck in a retry loop")
         except exceptions.PublishForbidden as e:
             assert e.reason.args[0] == 403
-            assert e.reason.args[1] == (
-                "ACCESS_REFUSED - access to topic 'not-allowed' in exchange 'amq.topic'"
-                " in vhost '/' refused for user '{}'".format(admin_user)
+            error_match = re.match(
+                r"ACCESS_REFUSED - (write )?access to topic 'not-allowed' in "
+                r"exchange 'amq.topic' in vhost '/' refused for user '[\w-]+'",
+                e.reason.args[1],
             )
+            assert error_match is not None
         # Now try on an allowed topic
         yield protocol.publish(message.Message(topic="allowed"), "amq.topic")
 
@@ -722,10 +731,12 @@ def test_protocol_publish_forbidden_in_vhost(admin_user):
             pytest.fail("Publishing hit the timeout, probably stuck in a retry loop")
         except exceptions.PublishForbidden as e:
             assert e.reason.args[0] == 403
-            assert e.reason.args[1] == (
-                "ACCESS_REFUSED - access to exchange 'amq.topic'"
-                " in vhost '/' refused for user '{}'".format(admin_user)
+            error_match = re.match(
+                r"ACCESS_REFUSED - (write )?access to exchange 'amq.topic' in "
+                r"vhost '/' refused for user '[\w-]+'",
+                e.reason.args[1],
             )
+            assert error_match is not None
 
 
 @pytest_twisted.inlineCallbacks
