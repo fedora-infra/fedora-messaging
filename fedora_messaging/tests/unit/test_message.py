@@ -430,6 +430,7 @@ class MessageTests(TestCase):
         self.assertEqual(42, msg._headers["priority"])
         msg.priority = None
         self.assertEqual(0, msg.priority)
+        self.assertEqual(0, msg._properties.priority)
         self.assertEqual(0, msg._headers["priority"])
 
     def test_properties(self):

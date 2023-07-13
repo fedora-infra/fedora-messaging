@@ -415,9 +415,10 @@ class Message:
 
     @priority.setter
     def priority(self, value):
+        value = value or 0  # convert None to 0
         self._properties.priority = value
         # Mirror the priority in the headers for debugging purposes
-        self._headers["priority"] = value or 0
+        self._headers["priority"] = value
 
     @property
     def _encoded_routing_key(self):
