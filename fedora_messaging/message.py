@@ -704,7 +704,7 @@ SERIALIZED_MESSAGE_SCHEMA = {
             "description": "The priority that the message has been sent with.",
         },
     },
-    "required": ["topic", "id", "body"],
+    "required": ["topic", "body"],
 }
 
 
@@ -741,8 +741,9 @@ def load_message(message_dict):
         message._headers["sent-at"] = message_dict["headers"]["sent-at"]
     except KeyError:
         pass
+    if "id" in message_dict:
+        message.id = message_dict["id"]
     message.queue = message_dict.get("queue")
-    message.id = message_dict["id"]
     message.priority = message_dict.get("priority")
     return message
 

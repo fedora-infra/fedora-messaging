@@ -37,7 +37,7 @@ BAD_CONF = os.path.join(FIXTURES_DIR, "bad_conf.toml")
 EMPTY_FILE = os.path.join(FIXTURES_DIR, "empty.txt")
 GOOD_MSG_DUMP = os.path.join(FIXTURES_DIR, "good_msg_dump.txt")
 WRONG_JSON_MSG_DUMP = os.path.join(FIXTURES_DIR, "wrong_json_msg_dump.txt")
-MSG_WITHOUT_ID_DUMP = os.path.join(FIXTURES_DIR, "msg_without_id_dump.txt")
+MSG_WITHOUT_TOPIC_DUMP = os.path.join(FIXTURES_DIR, "msg_without_topic_dump.txt")
 INVALID_MSG_DUMP = os.path.join(FIXTURES_DIR, "invalid_msg_dump.txt")
 
 
@@ -576,9 +576,9 @@ class PublishCliTests(TestCase):
         self.assertEqual(2, result.exit_code)
 
     @mock.patch("fedora_messaging.cli.api.publish")
-    def test_file_with_msg_without_id(self, mock_publish):
+    def test_file_with_msg_without_topic(self, mock_publish):
         """Assert providing path to file with incorrect message via the CLI works."""
-        cli_options = {"file": MSG_WITHOUT_ID_DUMP, "exchange": "test_pe"}
+        cli_options = {"file": MSG_WITHOUT_TOPIC_DUMP, "exchange": "test_pe"}
         result = self.runner.invoke(
             cli.cli,
             [
@@ -589,7 +589,7 @@ class PublishCliTests(TestCase):
             ],
         )
         self.assertIn(
-            "Error: Unable to validate message: 'id' is a required property",
+            "Error: Unable to validate message: 'topic' is a required property",
             result.output,
         )
         mock_publish.assert_not_called()

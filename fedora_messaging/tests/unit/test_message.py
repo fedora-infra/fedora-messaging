@@ -230,8 +230,10 @@ class MessageLoadsTests(TestCase):
             exceptions.ValidationError, message.load_message, message_dict
         )
 
-    def test_missing_id(self):
+    @mock.patch("fedora_messaging.message.uuid")
+    def test_missing_id(self, uuid):
         """Assert proper exception is raised when id is missing."""
+        uuid.uuid4.return_value = "dummy-uuid"
         message_dict = {
             "topic": "test topic",
             "headers": {
@@ -241,9 +243,8 @@ class MessageLoadsTests(TestCase):
             "body": {"test_key": "test_value"},
             "queue": "test queue",
         }
-        self.assertRaises(
-            exceptions.ValidationError, message.load_message, message_dict
-        )
+        test_message = message.load_message(message_dict)
+        self.assertEqual(test_message.id, "dummy-uuid")
 
     def test_missing_queue(self):
         """Assert message without queue is accepted and the queue is set to None."""

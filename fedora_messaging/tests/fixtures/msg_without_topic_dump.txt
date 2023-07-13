@@ -1,0 +1,1 @@
+{"body": {"test_key1": "test_value1"}, "headers": {"fedora_messaging_schema": "base.message", "fedora_messaging_severity": 20, "sent-at": "2018-11-18T10:11:41+00:00"}, "queue": "test_queue"}
