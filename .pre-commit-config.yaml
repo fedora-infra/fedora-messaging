@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.7.0
+    rev: v3.10.1
     hooks:
       - id: pyupgrade
         args:
@@ -8,13 +8,13 @@ repos:
           - --keep-mock
 
   - repo: https://github.com/psf/black
-    rev: 23.3.0
+    rev: 23.7.0
     hooks:
       - id: black
         args: ["--check", "--diff", "-t", "py36"]
 
   - repo: https://github.com/pycqa/flake8
-    rev: 6.0.0
+    rev: 6.1.0
     hooks:
       - id: flake8
 
