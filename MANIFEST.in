@@ -1,4 +1,4 @@
-include LICENSE README.rst config.toml.example dev-requirements.txt requirements.txt tox.ini fm-consumer@.service
+include LICENSE README.rst config.toml.example tox.ini fm-consumer@.service
 include configs/*
 graft docs
 prune docs/_build

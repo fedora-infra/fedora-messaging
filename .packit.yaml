@@ -17,15 +17,21 @@ upstream_tag_template: v{version}
 
 # dependencies needed to prepare for and build the source RPM
 srpm_build_deps:
-  - wget
+  - curl
+  - poetry
 
 actions:
+  create-archive:
+    - "poetry build -f sdist"
+    - "sh -c 'echo dist/fedora_messaging-$(poetry version -s).tar.gz'"
+  get-current-version:
+    # fetch the version number of the package
+    - "poetry version -s"
   post-upstream-clone:
     # fetch specfile from src.fp.o
-    - "wget https://src.fedoraproject.org/rpms/fedora-messaging/raw/main/f/fedora-messaging.spec -O fedora-messaging.spec"
-  get-current-version:
-    # fetch the version number of the package from the setup.py file
-    - "python3 setup.py --version"
+    - "curl https://src.fedoraproject.org/rpms/fedora-messaging/raw/main/f/fedora-messaging.spec -o fedora-messaging.spec"
+    - "sh -c 'curl -sSL https://install.python-poetry.org | python3 -'"
+    - "poetry --version"
 
 jobs:
   # upon upstream PRs, perform COPR builds
