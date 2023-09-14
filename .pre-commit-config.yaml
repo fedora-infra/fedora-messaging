@@ -8,7 +8,7 @@ repos:
           - --keep-mock
 
   - repo: https://github.com/psf/black
-    rev: 23.7.0
+    rev: 23.9.1
     hooks:
       - id: black
         args: ["--check", "--diff", "-t", "py36"]
@@ -33,7 +33,7 @@ repos:
         require_serial: true
 
   - repo: https://github.com/myint/rstcheck
-    rev: v6.1.2
+    rev: v6.2.0
     hooks:
       - id: rstcheck
         exclude: "news/_template.rst"
