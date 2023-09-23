@@ -51,7 +51,7 @@ jobs:
         run: tox -e ${{ matrix.tox_env }}
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v2
         with:
           name: ${{ matrix.tox_env }}
           flags: unittests
