@@ -28,10 +28,12 @@
 {% if definitions[category]['showcontent'] %}
 {% for text, values in sections[section][category].items() %}
 * {{ text }}
-  ({% for value in values -%}
-      {{ reference(value) }}
+  {% if values -%}
+  ({% for issue in values -%}
+      {{ reference(issue) }}
       {%- if not loop.last %}, {% endif -%}
    {%- endfor %})
+  {%- endif %}
 {% endfor %}
 {% else %}
 * {{ sections[section][category]['']|sort|join(', ') }}

@@ -62,11 +62,14 @@ def mock_sends(*expected_messages):
     Raises:
         AssertionError: If the messages published don't match the messages asserted.
     """
+
+    sent = []
     with mock.patch("fedora_messaging.api.crochet"):
         with mock.patch("fedora_messaging.api._twisted_publish") as mock_pub:
-            yield
+            yield sent
 
     messages = [call[0][0] for call in mock_pub.call_args_list]
+    sent.extend(messages)
     if len(expected_messages) != len(messages):
         raise AssertionError(
             "Expected {} messages to be sent, but {} were sent".format(

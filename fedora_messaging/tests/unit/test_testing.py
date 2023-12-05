@@ -34,8 +34,10 @@ class MockSendsTests(TestCase):
         def pub():
             api.publish(api.Message())
 
-        with testing.mock_sends(api.Message):
+        with testing.mock_sends(api.Message) as sent:
             pub()
+        self.assertEqual(len(sent), 1)
+        self.assertIsInstance(sent[0], api.Message)
 
     def test_instance(self):
         """Assert all goes well if the message published matches the asserted instance."""
@@ -43,21 +45,25 @@ class MockSendsTests(TestCase):
         def pub():
             api.publish(api.Message())
 
-        with testing.mock_sends(api.Message()):
+        with testing.mock_sends(api.Message()) as sent:
             pub()
+        self.assertEqual(len(sent), 1)
+        self.assertIsInstance(sent[0], api.Message)
 
     def test_expected_none(self):
-        """Assert all goes well if the message published matches the asserted instance."""
+        """Assert failure if a message is unexpectedly sent."""
 
         def pub():
             api.publish(api.Message())
 
         with self.assertRaises(AssertionError) as cm:
-            with testing.mock_sends():
+            with testing.mock_sends() as sent:
                 pub()
         self.assertEqual(
             "Expected 0 messages to be sent, but 1 were sent", cm.exception.args[0]
         )
+        self.assertEqual(len(sent), 1)
+        self.assertIsInstance(sent[0], api.Message)
 
     def test_mix_class_instance(self):
         """Assert a mix of class and instance works."""
@@ -67,8 +73,10 @@ class MockSendsTests(TestCase):
             api.publish(CustomMessage())
 
         with mock.patch.dict(message._class_to_schema_name, {CustomMessage: "custom"}):
-            with testing.mock_sends(api.Message(), CustomMessage):
+            with testing.mock_sends(api.Message(), CustomMessage) as sent:
                 pub()
+        self.assertEqual(len(sent), 2)
+        self.assertIsInstance(sent[1], CustomMessage)
 
     def test_mix_class_instance_order_matters(self):
         """Assert the order of messages matters."""
@@ -95,11 +103,12 @@ class MockSendsTests(TestCase):
             api.publish(api.Message())
 
         with self.assertRaises(AssertionError) as cm:
-            with testing.mock_sends(api.Message):
+            with testing.mock_sends(api.Message) as sent:
                 pub()
         self.assertEqual(
             "Expected 1 messages to be sent, but 2 were sent", cm.exception.args[0]
         )
+        self.assertEqual(len(sent), 2)
 
     def test_wrong_type(self):
         """Assert sending the wrong type of message raises an AssertionError."""
@@ -112,6 +121,9 @@ class MockSendsTests(TestCase):
             api.publish(api.Message())
 
         with self.assertRaises(AssertionError) as cm:
-            with testing.mock_sends(CustomMessage):
+            with testing.mock_sends(CustomMessage) as sent:
                 pub()
         self.assertEqual(expected_err, cm.exception.args[0])
+        self.assertEqual(len(sent), 1)
+        self.assertIsInstance(sent[0], api.Message)
+        self.assertFalse(isinstance(sent[0], CustomMessage))
