@@ -112,6 +112,8 @@ def get_schemas():
             if target != "fedora_messaging.message:Message":
                 print(f"The {target} schema has no declared topic, skipping.")
             continue
+        if msg_cls.deprecated:
+            continue
         package_name = entry_point.dist.project_name
         doc = extract_docstring(msg_cls)
         category = _get_category(msg_cls.topic)
