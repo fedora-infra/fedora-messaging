@@ -157,7 +157,7 @@ directory = "news/"
 title_format = "{version} ({project_date})"
 issue_format = "{issue}"
 template = "news/_template.rst"
-wrap = true
+wrap = false
 all_bullets = true
 
   [[tool.towncrier.type]]

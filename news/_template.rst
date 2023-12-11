@@ -9,11 +9,10 @@
 {%- endmacro -%}
 
 {{ top_line }}
-{{ top_underline * ((top_line)|length)}}
-
-{% for section, _ in sections.items() -%}
+{{ top_underline * ((top_line)|length) }}
+{%- for section, _ in sections.items() -%}
 {%- set underline = underlines[0] -%}
-{% if section -%}
+{%- if section -%}
 {{section}}
 {{ underline * section|length }}
 {%- set underline = underlines[1] -%}
@@ -28,12 +27,12 @@
 {% if definitions[category]['showcontent'] %}
 {% for text, values in sections[section][category].items() %}
 * {{ text }}
-  {% if values -%}
+{% if values %}
   ({% for issue in values -%}
       {{ reference(issue) }}
       {%- if not loop.last %}, {% endif -%}
-   {%- endfor %})
-  {%- endif %}
+   {%- endfor -%})
+{% endif %}
 {% endfor %}
 {% else %}
 * {{ sections[section][category]['']|sort|join(', ') }}
