@@ -18,6 +18,8 @@
 from unittest import TestCase
 from urllib import parse
 
+import pytest
+
 from fedora_messaging import schema_utils
 
 
@@ -61,4 +63,5 @@ class LibravatarURLTests(TestCase):
         assert schema_utils.libravatar_url(email="testuser") == expected
 
     def test_invalid_params(self):
-        self.assertRaises(ValueError, schema_utils.libravatar_url)
+        with pytest.raises(ValueError):
+            schema_utils.libravatar_url()

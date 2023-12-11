@@ -48,16 +48,21 @@ class FactoryV2Tests(TestCase):
     def test_buildProtocol(self):
         """Assert buildProtocol associates the factory"""
         protocol = self.factory.buildProtocol(None)
-        self.assertEqual(protocol.factory, self.factory)
+        assert protocol.factory == self.factory
 
     def test_when_connected(self):
         """Assert when_connected returns the current client once _client_deferred fires"""
         self.factory.buildProtocol(None)
         d = self.factory.when_connected()
-        d.addCallback(lambda client: self.assertEqual(self.factory._client, client))
-        d.addCallback(
-            lambda _: self.assertEqual(self.factory._client_deferred.called, True)
-        )
+
+        def assert_equal(a, b):
+            assert a == b
+
+        def assert_is(a, b):
+            assert a is b
+
+        d.addCallback(lambda client: assert_equal(self.factory._client, client))
+        d.addCallback(lambda _: assert_is(self.factory._client_deferred.called, True))
         self.protocol.ready.callback(None)
         return pytest_twisted.blockon(d)
 
@@ -76,8 +81,8 @@ class FactoryV2Tests(TestCase):
         self.factory.clientConnectionLost(connector, None)
         with mock.patch("fedora_messaging.twisted.factory._std_log") as mock_log:
             protocol = self.factory.buildProtocol(None)
-        self.assertFalse(mock_log.exception.called)
-        self.assertFalse(mock_log.error.called)
+        assert not mock_log.exception.called
+        assert not mock_log.error.called
         d = defer.DeferredList([connected_d, protocol.ready], fireOnOneErrback=True)
         d.addErrback(lambda f: f.value.subFailure)
         return pytest_twisted.blockon(d)
@@ -185,12 +190,12 @@ class FactoryV2Tests(TestCase):
             return self.factory.consume(callback, bindings, {"": queue_config})
 
         def _check(_):
-            self.assertEqual(len(self.factory._consumers), 1)
+            assert len(self.factory._consumers) == 1
             consumer = self.factory._consumers[0].consumer
-            self.assertEqual(consumer.queue, declared_queue)
-            self.assertEqual(consumer.callback, callback)
-            self.assertEqual(queue_config, self.factory._consumers[0].queue)
-            self.assertEqual(expected_bindings, self.factory._consumers[0].bindings)
+            assert consumer.queue == declared_queue
+            assert consumer.callback == callback
+            assert queue_config == self.factory._consumers[0].queue
+            assert expected_bindings == self.factory._consumers[0].bindings
 
             self.protocol.declare_queue.assert_called_once_with(queue_config)
             self.protocol.bind_queues.assert_called_once_with(expected_bindings)
@@ -228,7 +233,7 @@ class FactoryV2Tests(TestCase):
         d = self.factory.when_connected()
 
         def _check(_):
-            self.assertEqual(len(self.factory._consumers), 1)
+            assert len(self.factory._consumers) == 1
             self.protocol.declare_queue.assert_called_once_with(queue_config)
             self.protocol.bind_queues.assert_called_once_with(expected_bindings)
             self.protocol.consume.assert_called_once_with(callback, queue_new, consumer)

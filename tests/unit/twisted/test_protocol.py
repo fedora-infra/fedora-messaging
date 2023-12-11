@@ -104,8 +104,8 @@ class ProtocolTests(TestCase):
             pass
 
         def _check(_):
-            self.assertEqual(1, len(self.protocol._consumers))
-            self.assertEqual(cb2, self.protocol._consumers["my_queue"].callback)
+            assert 1 == len(self.protocol._consumers)
+            assert cb2 == self.protocol._consumers["my_queue"].callback
 
         d = self.protocol.consume(cb1, "my_queue")
         d.addCallback(lambda _: self.protocol.consume(cb2, "my_queue"))
@@ -142,7 +142,7 @@ class ProtocolTests(TestCase):
             pass
 
         def _check(_):
-            self.assertEqual(1, len(self.protocol._consumers))
+            assert 1 == len(self.protocol._consumers)
 
         d = self.protocol.consume(cb, "my_queue")
         d.addCallback(lambda _: self.protocol.consume(cb, "my_queue2"))
@@ -154,7 +154,7 @@ class ProtocolTests(TestCase):
     def test_forget_no_consumer(self):
         """Assert forgetting a non-existent consumer just returns None."""
         result = self.protocol._forget_consumer("my_invalid_queue")
-        self.assertIsNone(result)
+        assert result is None
 
     def test_connection_ready(self):
         # Check the ready Deferred.
@@ -178,17 +178,17 @@ class ProtocolTests(TestCase):
         def _check(_):
             self.protocol._channel.basic_publish.assert_called_once()
             args = self.protocol._channel.basic_publish.call_args_list[0][1]
-            self.assertEqual(args["exchange"], "test-exchange")
-            self.assertEqual(args["routing_key"], b"testing.topic")
-            self.assertEqual(args["body"], json.dumps(body).encode("utf-8"))
+            assert args["exchange"] == "test-exchange"
+            assert args["routing_key"] == b"testing.topic"
+            assert args["body"] == json.dumps(body).encode("utf-8")
             props = args["properties"]
-            self.assertEqual(props.headers["fedora_messaging_schema"], "base.message")
-            self.assertEqual(props.headers["fedora_messaging_severity"], INFO)
-            self.assertEqual(props.headers["headerkey"], "headervalue")
-            self.assertIn("sent-at", props.headers)
-            self.assertEqual(props.content_encoding, "utf-8")
-            self.assertEqual(props.content_type, "application/json")
-            self.assertEqual(props.delivery_mode, 2)
+            assert props.headers["fedora_messaging_schema"] == "base.message"
+            assert props.headers["fedora_messaging_severity"] == INFO
+            assert props.headers["headerkey"] == "headervalue"
+            assert "sent-at" in props.headers
+            assert props.content_encoding == "utf-8"
+            assert props.content_type == "application/json"
+            assert props.delivery_mode == 2
 
         d.addCallback(_check)
         return pytest_twisted.blockon(d)
@@ -284,8 +284,8 @@ class ProtocolTests(TestCase):
         proto._consumers["test_queue"] = consumer
 
         def check(result):
-            self.assertEqual(consumer, result)
-            self.assertEqual(consumer.callback, new_callback)
+            assert consumer == result
+            assert consumer.callback == new_callback
             proto._allocate_channel.assert_not_called()
 
         d = proto.consume(new_callback, "test_queue", consumer)
@@ -307,10 +307,10 @@ class ProtocolTests(TestCase):
         consumer._read = mock.Mock(retrun_value=defer.succeed(None))
 
         def check(result):
-            self.assertEqual(consumer, result)
-            self.assertEqual(consumer.queue, "queue_new")
-            self.assertEqual(consumer._protocol, proto)
-            self.assertEqual(consumer._channel, mock_channel)
+            assert consumer == result
+            assert consumer.queue == "queue_new"
+            assert consumer._protocol == proto
+            assert consumer._channel == mock_channel
 
         d = proto.consume(callback, "queue_new", consumer)
         d.addBoth(check)

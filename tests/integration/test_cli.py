@@ -25,12 +25,13 @@ import requests
 from twisted.internet import threads
 
 from fedora_messaging import api, exceptions, message
-from fedora_messaging.tests import FIXTURES_DIR
 
 from .utils import sleep
 
 
-CLI_CONF = os.path.join(FIXTURES_DIR, "cli_integration.toml")
+@pytest.fixture
+def cli_conf(fixtures_dir):
+    return os.path.join(fixtures_dir, "cli_integration.toml")
 
 
 def halt_exit_0(message):
@@ -64,13 +65,13 @@ def queue(scope="function"):
     ],
 )
 @pytest_twisted.inlineCallbacks
-def test_consume_halt_with_exitcode(callback, exit_code, msg, queue):
+def test_consume_halt_with_exitcode(callback, exit_code, msg, queue, cli_conf):
     """Assert user execution halt with reason and exit_code is reported."""
     args = [
         "fedora-messaging",
-        f"--conf={CLI_CONF}",
+        f"--conf={cli_conf}",
         "consume",
-        f"--callback=fedora_messaging.tests.integration.test_cli:{callback}",
+        f"--callback=tests.integration.test_cli:{callback}",
         f"--queue-name={queue}",
         "--exchange=amq.topic",
         "--routing-key=#",

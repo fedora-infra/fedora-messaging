@@ -47,7 +47,7 @@ class CheckCallbackTests(TestCase):
 
         callback = api._check_callback(class_instance.callback)
 
-        self.assertIs(callback, callback)
+        assert callback == class_instance.callback
 
     def test_func(self):
         """Assert functions are valid."""
@@ -57,7 +57,7 @@ class CheckCallbackTests(TestCase):
 
         cb = api._check_callback(callback)
 
-        self.assertIs(cb, callback)
+        assert cb is callback
 
     def test_class(self):
         """Assert classes are instantiated."""
@@ -68,7 +68,7 @@ class CheckCallbackTests(TestCase):
 
         callback = api._check_callback(Callback)
 
-        self.assertEqual(callback(None), "It worked")
+        assert callback(None) == "It worked"
 
     def test_class_no_call(self):
         """Assert classes are instantiated."""
@@ -76,10 +76,8 @@ class CheckCallbackTests(TestCase):
         class Callback:
             pass
 
-        try:
+        with pytest.raises(ValueError):
             api._check_callback(Callback)
-            self.fail("_check_callback failed to raise an exception")
-        except ValueError:
             pass
 
     def test_class_init_args(self):
@@ -89,19 +87,13 @@ class CheckCallbackTests(TestCase):
             def __init__(self, args):
                 self.args = args
 
-        try:
+        with pytest.raises(TypeError):
             api._check_callback(Callback)
-            self.fail("_check_callback failed to raise a TypeError")
-        except TypeError:
-            pass
 
     def test_not_callable(self):
         """Assert a ValueError is raised for things that can't be called."""
-        try:
+        with pytest.raises(ValueError):
             api._check_callback("")
-            self.fail("_check_callback failed to raise an ValueError")
-        except ValueError:
-            pass
 
 
 @mock.patch("fedora_messaging.api._twisted_service")
@@ -144,9 +136,8 @@ class TwistedConsumeTests(TestCase):
 
     def test_bindings_invalid_type(self, mock_service):
         """Assert bindings are validated and result in a value error if they are invalid."""
-        self.assertRaises(
-            ValueError, api.twisted_consume, self.dummy_callback, "test_bindings"
-        )
+        with pytest.raises(ValueError):
+            api.twisted_consume(self.dummy_callback, "test_bindings")
 
     def test_bindings_list_of_dict(self, mock_service):
         """Assert consume is working(bindings type is dict)"""
@@ -160,13 +151,8 @@ class TwistedConsumeTests(TestCase):
 
     def test_queues_invalid_type(self, mock_service):
         """Assert queues are validated and result in a value error if they are invalid."""
-        self.assertRaises(
-            ValueError,
-            api.twisted_consume,
-            self.dummy_callback,
-            None,
-            "should be a dict",
-        )
+        with pytest.raises(ValueError):
+            api.twisted_consume(self.dummy_callback, None, "should be a dict")
 
     def test_with_queues(self, mock_service):
         """Assert queues is used over the config if provided."""
@@ -264,11 +250,9 @@ class PublishTests(TestCase):
 
         mock_twisted_publish.assert_called_once_with(message, exchange)
         mock_twisted_publish.return_value.wait.assert_called_once_with(timeout=30)
-        self.assertEqual(self.pre_publish_signal_data, expected_pre_publish_signal_data)
-        self.assertEqual(self.publish_signal_data, expected_publish_signal_data)
-        self.assertEqual(
-            self.publish_failed_signal_data, expected_publish_failed_signal_data
-        )
+        assert self.pre_publish_signal_data == expected_pre_publish_signal_data
+        assert self.publish_signal_data == expected_publish_signal_data
+        assert self.publish_failed_signal_data == expected_publish_failed_signal_data
 
     @mock.patch.dict(
         "fedora_messaging.config.conf", {"publish_exchange": "test_public_exchange"}
@@ -295,11 +279,9 @@ class PublishTests(TestCase):
         api.publish(message)
 
         mock_twisted_publish.assert_called_once_with(message, "test_public_exchange")
-        self.assertEqual(self.pre_publish_signal_data, expected_pre_publish_signal_data)
-        self.assertEqual(self.publish_signal_data, expected_publish_signal_data)
-        self.assertEqual(
-            self.publish_failed_signal_data, expected_publish_failed_signal_data
-        )
+        assert self.pre_publish_signal_data == expected_pre_publish_signal_data
+        assert self.publish_signal_data == expected_publish_signal_data
+        assert self.publish_failed_signal_data == expected_publish_failed_signal_data
 
     def test_publish_failed(self, mock_twisted_publish):
         """Assert an exception is raised when message can't be published."""
@@ -319,16 +301,13 @@ class PublishTests(TestCase):
         }
         mock_twisted_publish.return_value.wait.side_effect = expected_exception
 
-        self.assertRaises(
-            type(expected_exception), api.publish, message, exchange=exchange
-        )
+        with pytest.raises(type(expected_exception)):
+            api.publish(message, exchange=exchange)
 
         mock_twisted_publish.assert_called_once_with(message, exchange)
-        self.assertEqual(self.pre_publish_signal_data, expected_pre_publish_signal_data)
-        self.assertEqual(self.publish_signal_data, expected_publish_signal_data)
-        self.assertEqual(
-            self.publish_failed_signal_data, expected_publish_failed_signal_data
-        )
+        assert self.pre_publish_signal_data == expected_pre_publish_signal_data
+        assert self.publish_signal_data == expected_publish_signal_data
+        assert self.publish_failed_signal_data == expected_publish_failed_signal_data
 
 
 @pytest_twisted.inlineCallbacks

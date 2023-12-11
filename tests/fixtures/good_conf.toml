@@ -1,4 +1,4 @@
-callback = "fedora_messaging.tests.unit.test_cli:echo"
+callback = "tests.unit.test_cli:echo"
 
 [[bindings]]
 exchange = "e"

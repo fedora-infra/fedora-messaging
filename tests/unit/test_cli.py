@@ -20,25 +20,26 @@
 import errno
 import os
 import sys
-from unittest import mock, TestCase
+from unittest import mock
 
 import click
+import pytest
 from click.testing import CliRunner
 from twisted.internet import error
 from twisted.python import failure
 
 from fedora_messaging import cli, config, exceptions, message, testing
-from fedora_messaging.tests import FIXTURES_DIR
 from fedora_messaging.twisted import consumer
 
 
-GOOD_CONF = os.path.join(FIXTURES_DIR, "good_conf.toml")
-BAD_CONF = os.path.join(FIXTURES_DIR, "bad_conf.toml")
-EMPTY_FILE = os.path.join(FIXTURES_DIR, "empty.txt")
-GOOD_MSG_DUMP = os.path.join(FIXTURES_DIR, "good_msg_dump.txt")
-WRONG_JSON_MSG_DUMP = os.path.join(FIXTURES_DIR, "wrong_json_msg_dump.txt")
-MSG_WITHOUT_TOPIC_DUMP = os.path.join(FIXTURES_DIR, "msg_without_topic_dump.txt")
-INVALID_MSG_DUMP = os.path.join(FIXTURES_DIR, "invalid_msg_dump.txt")
+@pytest.fixture
+def good_conf(fixtures_dir):
+    return os.path.join(fixtures_dir, "good_conf.toml")
+
+
+@pytest.fixture
+def good_msg_dump(fixtures_dir):
+    return os.path.join(fixtures_dir, "good_msg_dump.txt")
 
 
 def echo(message):
@@ -47,7 +48,7 @@ def echo(message):
 
 
 @mock.patch("fedora_messaging.config.conf.setup_logging", mock.Mock())
-class BaseCliTests(TestCase):
+class BaseCliTests:
     """Unit tests for the base command of the CLI."""
 
     def test_no_conf(self):
@@ -59,7 +60,7 @@ class BaseCliTests(TestCase):
 
 @mock.patch("fedora_messaging.cli.reactor", mock.Mock())
 @mock.patch("fedora_messaging.config.conf.setup_logging", mock.Mock())
-class ConsumeCliTests(TestCase):
+class ConsumeCliTests:
     """Unit tests for the 'consume' command of the CLI."""
 
     def setUp(self):
@@ -71,47 +72,48 @@ class ConsumeCliTests(TestCase):
         config.conf.load_config(config_path="")
 
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
-    def test_good_conf(self, mock_consume):
+    def test_good_conf(self, mock_consume, good_conf):
         """Assert providing a configuration file via the CLI works."""
-        result = self.runner.invoke(cli.cli, ["--conf=" + GOOD_CONF, "consume"])
+        result = self.runner.invoke(cli.cli, ["--conf=" + good_conf, "consume"])
         mock_consume.assert_called_with(
             echo,
             bindings=[{"exchange": "e", "queue": "q", "routing_keys": ["#"]}],
             queues=config.conf["queues"],
         )
-        self.assertEqual(0, result.exit_code)
+        assert 0 == result.exit_code
 
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
-    def test_conf_env_support(self, mock_consume):
+    def test_conf_env_support(self, mock_consume, good_conf):
         """Assert FEDORA_MESSAGING_CONF environment variable is supported."""
         result = self.runner.invoke(
-            cli.cli, ["consume"], env={"FEDORA_MESSAGING_CONF": GOOD_CONF}
+            cli.cli, ["consume"], env={"FEDORA_MESSAGING_CONF": good_conf}
         )
         mock_consume.assert_called_with(
             echo,
             bindings=[{"exchange": "e", "queue": "q", "routing_keys": ["#"]}],
             queues=config.conf["queues"],
         )
-        self.assertEqual(0, result.exit_code)
+        assert 0 == result.exit_code
 
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
-    def test_bad_conf(self, mock_consume):
+    def test_bad_conf(self, mock_consume, fixtures_dir):
         """Assert a bad configuration file is reported."""
+        BAD_CONF = os.path.join(fixtures_dir, "bad_conf.toml")
         expected_err = (
             "Error: Invalid value: Configuration error: Failed to parse"
             " {}: Invalid value (at line 1, column 20)".format(BAD_CONF)
         )
         result = self.runner.invoke(cli.cli, ["--conf=" + BAD_CONF, "consume"])
-        self.assertEqual(2, result.exit_code)
-        self.assertIn(expected_err, result.output)
+        assert 2 == result.exit_code
+        assert expected_err in result.output
 
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
     def test_missing_conf(self, mock_consume):
         """Assert a missing configuration file is reported."""
         result = self.runner.invoke(cli.cli, ["--conf=thispathdoesnotexist", "consume"])
-        self.assertEqual(2, result.exit_code)
-        self.assertIn(
-            "Error: Invalid value: thispathdoesnotexist is not a file", result.output
+        assert 2 == result.exit_code
+        assert (
+            "Error: Invalid value: thispathdoesnotexist is not a file" in result.output
         )
 
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
@@ -141,16 +143,16 @@ class ConsumeCliTests(TestCase):
                 }
             },
         )
-        self.assertEqual(0, result.exit_code)
+        assert 0 == result.exit_code
 
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
-    def test_no_cli_bindings(self, mock_consume):
+    def test_no_cli_bindings(self, mock_consume, good_conf):
         """Assert providing a bindings via configuration works."""
         expected_bindings = [{"exchange": "e", "queue": "q", "routing_keys": ["#"]}]
 
-        result = self.runner.invoke(cli.cli, ["--conf=" + GOOD_CONF, "consume"])
+        result = self.runner.invoke(cli.cli, ["--conf=" + good_conf, "consume"])
 
-        self.assertEqual(0, result.exit_code)
+        assert 0 == result.exit_code
         mock_consume.assert_called_once_with(
             echo, bindings=expected_bindings, queues=config.conf["queues"]
         )
@@ -178,7 +180,7 @@ class ConsumeCliTests(TestCase):
                 }
             },
         )
-        self.assertEqual(0, result.exit_code)
+        assert 0 == result.exit_code
 
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
     def test_good_cli_callable(self, mock_consume):
@@ -190,7 +192,7 @@ class ConsumeCliTests(TestCase):
         mock_consume.assert_called_once_with(
             echo, bindings=config.conf["bindings"], queues=config.conf["queues"]
         )
-        self.assertEqual(0, result.exit_code)
+        assert 0 == result.exit_code
 
     @mock.patch.dict("fedora_messaging.config.conf", {"bindings": "b", "queues": "c"})
     @mock.patch("fedora_messaging.cli.importlib")
@@ -208,14 +210,12 @@ class ConsumeCliTests(TestCase):
                 "--app-name=" + cli_options["app-name"],
             ],
         )
-        self.assertEqual(
-            config.conf["client_properties"]["app"], cli_options["app-name"]
-        )
+        assert config.conf["client_properties"]["app"] == cli_options["app-name"]
         mock_importlib.import_module.called_once_with("mod")
         mock_consume.assert_called_once_with(
             mock_mod_with_callable.callable, bindings="b", queues="c"
         )
-        self.assertEqual(0, result.exit_code)
+        assert 0 == result.exit_code
 
     @mock.patch.dict(
         "fedora_messaging.config.conf", {"bindings": "b", "callback": None}
@@ -229,12 +229,12 @@ class ConsumeCliTests(TestCase):
         result = self.runner.invoke(cli.cli, ["consume"])
         mock_importlib.import_module.not_called()
         mock_consume.assert_not_called()
-        self.assertIn(
+        assert (
             "A Python path to a callable object that accepts the message must be provided"
-            ' with the "--callback" command line option or in the configuration file',
-            result.output,
+            ' with the "--callback" command line option or in the configuration file'
+            in result.output
         )
-        self.assertEqual(1, result.exit_code)
+        assert 1 == result.exit_code
 
     @mock.patch.dict("fedora_messaging.config.conf", {"bindings": "b"})
     @mock.patch("fedora_messaging.cli.importlib")
@@ -249,13 +249,12 @@ class ConsumeCliTests(TestCase):
         )
         mock_importlib.import_module.not_called()
         mock_consume.assert_not_called()
-        self.assertIn(
+        assert (
             "Unable to parse the callback path ({}); the "
             'expected format is "my_package.module:'
-            'callable_object"'.format(cli_options["callback"]),
-            result.output,
+            'callable_object"'.format(cli_options["callback"]) in result.output
         )
-        self.assertEqual(1, result.exit_code)
+        assert 1 == result.exit_code
 
     @mock.patch.dict("fedora_messaging.config.conf", {"bindings": "b"})
     @mock.patch("fedora_messaging.cli.importlib")
@@ -270,13 +269,13 @@ class ConsumeCliTests(TestCase):
         )
         mock_importlib.import_module.called_once_with("mod")
         mock_consume.assert_not_called()
-        self.assertIn(
+        assert (
             "Failed to import the callback module ({}) provided in the --callback argument".format(
                 error_message
-            ),
-            result.output,
+            )
+            in result.output
         )
-        self.assertEqual(1, result.exit_code)
+        assert 1 == result.exit_code
 
     def test_cli_callable_import_failure_conf(self):
         """Assert module with callable import failure is reported."""
@@ -284,13 +283,12 @@ class ConsumeCliTests(TestCase):
 
         result = self.runner.invoke(cli.cli, ["consume"])
 
-        self.assertEqual(
-            result.output,
-            "Error: Failed to import the callback module "
+        assert (
+            result.output == "Error: Failed to import the callback module "
             "(No module named 'donotmakethismoduleorthetestbreaks') "
-            "provided in the configuration file\n",
+            "provided in the configuration file\n"
         )
-        self.assertEqual(1, result.exit_code)
+        assert 1 == result.exit_code
 
     @mock.patch("fedora_messaging.cli.getattr")
     @mock.patch.dict("fedora_messaging.config.conf", {"bindings": "b"})
@@ -308,14 +306,14 @@ class ConsumeCliTests(TestCase):
         )
         mock_importlib.import_module.called_once_with("mod")
         mock_consume.assert_not_called()
-        self.assertIn(
+        assert (
             "Unable to import {} ({}); is the package installed? The python path should "
             'be in the format "my_package.module:callable_object"'.format(
                 cli_options["callback"], error_message
-            ),
-            result.output,
+            )
+            in result.output
         )
-        self.assertEqual(1, result.exit_code)
+        assert 1 == result.exit_code
 
     def test_consume_improper_callback_object(self):
         """Assert improper callback object type failure is reported."""
@@ -325,15 +323,15 @@ class ConsumeCliTests(TestCase):
 
         result = self.runner.invoke(
             cli.cli,
-            ["consume", "--callback=fedora_messaging.tests.unit.test_cli:FIXTURES_DIR"],
+            ["consume", "--callback=fedora_messaging.tests.unit.test_cli:dummy"],
         )
 
-        self.assertIn(error_message, result.output)
-        self.assertEqual(2, result.exit_code)
+        assert error_message in result.output
+        assert 2 == result.exit_code
 
 
 @mock.patch("fedora_messaging.cli.reactor")
-class ConsumeCallbackTests(TestCase):
+class ConsumeCallbackTests:
     """Unit tests for the twisted_consume callback."""
 
     def test_callback(self, mock_reactor):
@@ -342,9 +340,9 @@ class ConsumeCallbackTests(TestCase):
         cli._consume_callback(consumers)
 
         consumers[0].result.callback(consumers[0])
-        self.assertEqual(0, mock_reactor.stop.call_count)
+        assert 0 == mock_reactor.stop.call_count
         consumers[1].result.callback(consumers[1])
-        self.assertEqual(1, mock_reactor.stop.call_count)
+        assert 1 == mock_reactor.stop.call_count
 
     def test_callback_reactor_stopped(self, mock_reactor):
         """Assert already-stopped reactor is handled."""
@@ -355,9 +353,9 @@ class ConsumeCallbackTests(TestCase):
         try:
             consumers[0].result.callback(consumers[0])
             consumers[1].result.callback(consumers[1])
-            self.assertEqual(1, mock_reactor.stop.call_count)
+            assert 1 == mock_reactor.stop.call_count
         except error.ReactorNotRunning:
-            self.fail("ReactorNotRunning exception wasn't handled.")
+            pytest.fail("ReactorNotRunning exception wasn't handled.")
 
     def test_errback_halt_consumer(self, mock_reactor):
         """Assert _exit_code is set with the HaltConsumer code."""
@@ -367,8 +365,8 @@ class ConsumeCallbackTests(TestCase):
         cli._consume_callback(consumers)
 
         consumers[0].result.errback(f)
-        self.assertEqual(1, mock_reactor.stop.call_count)
-        self.assertEqual(0, cli._exit_code)
+        assert 1 == mock_reactor.stop.call_count
+        assert 0 == cli._exit_code
 
     @mock.patch("fedora_messaging.cli._log")
     def test_errback_halt_consumer_nonzero(self, mock_log, mock_reactor):
@@ -379,8 +377,8 @@ class ConsumeCallbackTests(TestCase):
         cli._consume_callback(consumers)
 
         consumers[0].result.errback(f)
-        self.assertEqual(1, mock_reactor.stop.call_count)
-        self.assertEqual(42, cli._exit_code)
+        assert 1 == mock_reactor.stop.call_count
+        assert 42 == cli._exit_code
         mock_log.error.assert_called_with(
             "Consumer halted with non-zero exit code (%d): %s", 42, "None"
         )
@@ -393,8 +391,8 @@ class ConsumeCallbackTests(TestCase):
         cli._consume_callback(consumers)
 
         consumers[0].result.errback(f)
-        self.assertEqual(1, mock_reactor.stop.call_count)
-        self.assertEqual(12, cli._exit_code)
+        assert 1 == mock_reactor.stop.call_count
+        assert 12 == cli._exit_code
 
     @mock.patch("fedora_messaging.cli._log")
     def test_errback_general_exception(self, mock_log, mock_reactor):
@@ -405,14 +403,14 @@ class ConsumeCallbackTests(TestCase):
         cli._consume_callback(consumers)
 
         consumers[0].result.errback(f)
-        self.assertEqual(1, mock_reactor.stop.call_count)
-        self.assertEqual(13, cli._exit_code)
+        assert 1 == mock_reactor.stop.call_count
+        assert 13 == cli._exit_code
         mock_log.error.assert_called_once_with(
             "Unexpected error occurred in consumer %r: %r", consumers[0], f
         )
 
 
-class ConsumeErrbackTests(TestCase):
+class ConsumeErrbackTests:
     """Unit tests for the twisted_consume errback."""
 
     def setUp(self):
@@ -428,7 +426,7 @@ class ConsumeErrbackTests(TestCase):
 
         cli._consume_errback(f)
 
-        self.assertEqual(15, cli._exit_code)
+        assert 15 == cli._exit_code
 
     @mock.patch("fedora_messaging.cli.reactor")
     def test_errback_bad_declaration(self, mock_reactor):
@@ -437,7 +435,7 @@ class ConsumeErrbackTests(TestCase):
 
         cli._consume_errback(f)
 
-        self.assertEqual(10, cli._exit_code)
+        assert 10 == cli._exit_code
 
     @mock.patch("fedora_messaging.cli.reactor")
     def test_errback_connection_exception(self, mock_reactor):
@@ -446,7 +444,7 @@ class ConsumeErrbackTests(TestCase):
 
         cli._consume_errback(f)
 
-        self.assertEqual(14, cli._exit_code)
+        assert 14 == cli._exit_code
 
     @mock.patch("fedora_messaging.cli.reactor")
     def test_errback_general_exception(self, mock_reactor):
@@ -455,37 +453,36 @@ class ConsumeErrbackTests(TestCase):
 
         cli._consume_errback(f)
 
-        self.assertEqual(11, cli._exit_code)
+        assert 11 == cli._exit_code
 
 
-class CallbackFromFilesytem(TestCase):
+class CallbackFromFilesytem:
     """Unit tests for :func:`fedora_messaging.cli._callback_from_filesystem`."""
 
-    def test_good_callback(self):
+    def test_good_callback(self, fixtures_dir):
         """Assert loading a callback from a file works."""
         cb = cli._callback_from_filesystem(
-            os.path.join(FIXTURES_DIR, "callback.py") + ":rand"
+            os.path.join(fixtures_dir, "callback.py") + ":rand"
         )
-        self.assertEqual(4, cb(None))
+        assert 4 == cb(None)
 
     def test_bad_format(self):
         """Assert an exception is raised if the format is bad."""
-        with self.assertRaises(click.ClickException) as cm:
+        with pytest.raises(click.ClickException) as cm:
             cli._callback_from_filesystem("file/with/no/function.py")
 
-        self.assertEqual(
+        assert (
             "Unable to parse the '--callback-file' option; the "
             'expected format is "path/to/file.py:callable_object" where '
             '"callable_object" is the name of the function or class in the '
-            "Python file",
-            cm.exception.message,
+            "Python file" == cm.value.message
         )
 
-    def test_invalid_file(self):
+    def test_invalid_file(self, fixtures_dir):
         """Assert an exception is raised if the Python file can't be executed."""
-        with self.assertRaises(click.ClickException) as cm:
+        with pytest.raises(click.ClickException) as cm:
             cli._callback_from_filesystem(
-                os.path.join(FIXTURES_DIR, "bad_cb") + ":missing"
+                os.path.join(fixtures_dir, "bad_cb") + ":missing"
             )
 
         if sys.version_info >= (3, 10) and sys.version_info < (3, 10, 4):
@@ -493,41 +490,40 @@ class CallbackFromFilesytem(TestCase):
             exc_msg = "invalid syntax. Perhaps you forgot a comma?"
         else:
             exc_msg = "invalid syntax"
-        self.assertEqual(
+        assert (
             "The {} file raised the following exception during execution: "
             "{} (bad_cb, line 1)".format(
-                os.path.join(FIXTURES_DIR, "bad_cb"),
+                os.path.join(fixtures_dir, "bad_cb"),
                 exc_msg,
-            ),
-            cm.exception.message,
+            )
+            == cm.value.message
         )
 
-    def test_callable_does_not_exist(self):
+    def test_callable_does_not_exist(self, fixtures_dir):
         """Assert an exception is raised if the callable is missing."""
-        with self.assertRaises(click.ClickException) as cm:
+        with pytest.raises(click.ClickException) as cm:
             cli._callback_from_filesystem(
-                os.path.join(FIXTURES_DIR, "callback.py") + ":missing"
+                os.path.join(fixtures_dir, "callback.py") + ":missing"
             )
 
-        self.assertEqual(
+        assert (
             "The 'missing' object was not found in the '{}' file."
-            "".format(os.path.join(FIXTURES_DIR, "callback.py")),
-            cm.exception.message,
+            "".format(os.path.join(fixtures_dir, "callback.py")) == cm.value.message
         )
 
     def test_file_does_not_exist(self):
         """Assert an exception is raised if the file doesn't exist."""
-        with self.assertRaises(click.ClickException) as cm:
+        with pytest.raises(click.ClickException) as cm:
             cli._callback_from_filesystem("file/that/is/missing.py:callable")
 
-        self.assertEqual(
-            "An IO error occurred: [Errno 2] No such file or directory: 'file/that/is/missing.py'",
-            cm.exception.message,
+        assert (
+            "An IO error occurred: [Errno 2] No such file or directory: 'file/that/is/missing.py'"
+            == cm.value.message
         )
 
 
 @mock.patch("fedora_messaging.config.conf.setup_logging", mock.Mock())
-class PublishCliTests(TestCase):
+class PublishCliTests:
     """Unit tests for the 'publish' command of the CLI."""
 
     def setUp(self):
@@ -538,9 +534,9 @@ class PublishCliTests(TestCase):
         config.conf = config.LazyConfig()
         config.conf.load_config()
 
-    def test_correct_msg_in_file(self):
+    def test_correct_msg_in_file(self, good_conf, good_msg_dump):
         """Assert providing path to file with correct message via the CLI works."""
-        cli_options = {"file": GOOD_MSG_DUMP, "exchange": "test_pe"}
+        cli_options = {"file": good_msg_dump, "exchange": "test_pe"}
         expected_msg = message.Message(
             body={"test_key1": "test_value1"}, topic="test_topic", severity=message.INFO
         )
@@ -549,130 +545,137 @@ class PublishCliTests(TestCase):
             result = self.runner.invoke(
                 cli.cli,
                 [
-                    "--conf=" + GOOD_CONF,
+                    "--conf=" + good_conf,
                     "publish",
                     "--exchange=" + cli_options["exchange"],
                     cli_options["file"],
                 ],
             )
-        self.assertIn("Publishing message with topic test_topic", result.output)
-        self.assertEqual(0, result.exit_code)
+        assert "Publishing message with topic test_topic" in result.output
+        assert 0 == result.exit_code
 
     @mock.patch("fedora_messaging.cli.api.publish")
-    def test_file_with_corrupted_json(self, mock_publish):
+    def test_file_with_corrupted_json(self, mock_publish, fixtures_dir, good_conf):
         """Assert providing path to file with corrupted message json via the CLI works."""
-        cli_options = {"file": WRONG_JSON_MSG_DUMP, "exchange": "test_pe"}
+        wrong_json_msg_dump = os.path.join(fixtures_dir, "wrong_json_msg_dump.txt")
+        cli_options = {"file": wrong_json_msg_dump, "exchange": "test_pe"}
         result = self.runner.invoke(
             cli.cli,
             [
-                "--conf=" + GOOD_CONF,
+                "--conf=" + good_conf,
                 "publish",
                 "--exchange=" + cli_options["exchange"],
                 cli_options["file"],
             ],
         )
-        self.assertIn("Error: Unable to validate message:", result.output)
+        assert "Error: Unable to validate message:" in result.output
         mock_publish.assert_not_called()
-        self.assertEqual(2, result.exit_code)
+        assert 2 == result.exit_code
 
     @mock.patch("fedora_messaging.cli.api.publish")
-    def test_file_with_msg_without_topic(self, mock_publish):
+    def test_file_with_msg_without_topic(self, mock_publish, fixtures_dir, good_conf):
         """Assert providing path to file with incorrect message via the CLI works."""
-        cli_options = {"file": MSG_WITHOUT_TOPIC_DUMP, "exchange": "test_pe"}
+        msg_without_topic_dump = os.path.join(
+            fixtures_dir, "msg_without_topic_dump.txt"
+        )
+        cli_options = {"file": msg_without_topic_dump, "exchange": "test_pe"}
         result = self.runner.invoke(
             cli.cli,
             [
-                "--conf=" + GOOD_CONF,
+                "--conf=" + good_conf,
                 "publish",
                 "--exchange=" + cli_options["exchange"],
                 cli_options["file"],
             ],
         )
-        self.assertIn(
-            "Error: Unable to validate message: 'topic' is a required property",
-            result.output,
+        assert (
+            "Error: Unable to validate message: 'topic' is a required property"
+            in result.output
         )
         mock_publish.assert_not_called()
-        self.assertEqual(2, result.exit_code)
+        assert 2 == result.exit_code
 
     @mock.patch("fedora_messaging.cli.api.publish")
-    def test_file_with_invalid_msg(self, mock_publish):
+    def test_file_with_invalid_msg(self, mock_publish, fixtures_dir, good_conf):
         """Assert providing path to file with incorrect message via the CLI works."""
-        cli_options = {"file": INVALID_MSG_DUMP, "exchange": "test_pe"}
+        invalid_msg_dump = os.path.join(fixtures_dir, "invalid_msg_dump.txt")
+        cli_options = {"file": invalid_msg_dump, "exchange": "test_pe"}
         result = self.runner.invoke(
             cli.cli,
             [
-                "--conf=" + GOOD_CONF,
+                "--conf=" + good_conf,
                 "publish",
                 "--exchange=" + cli_options["exchange"],
                 cli_options["file"],
             ],
         )
-        self.assertIn(
-            "Error: Unable to validate message: [] is not of type 'object'",
-            result.output,
+        assert (
+            "Error: Unable to validate message: [] is not of type 'object'"
+            in result.output
         )
         mock_publish.assert_not_called()
-        self.assertEqual(2, result.exit_code)
+        assert 2 == result.exit_code
 
     @mock.patch("fedora_messaging.cli.api.publish")
-    def test_publish_rejected_message(self, mock_publish):
+    def test_publish_rejected_message(self, mock_publish, good_conf, good_msg_dump):
         """Assert a rejected message is reported."""
-        cli_options = {"file": GOOD_MSG_DUMP, "exchange": "test_pe"}
+        cli_options = {"file": good_msg_dump, "exchange": "test_pe"}
         error_message = "Message rejected"
         mock_publish.side_effect = exceptions.PublishReturned(error_message)
         result = self.runner.invoke(
             cli.cli,
             [
-                "--conf=" + GOOD_CONF,
+                "--conf=" + good_conf,
                 "publish",
                 "--exchange=" + cli_options["exchange"],
                 cli_options["file"],
             ],
         )
-        self.assertIn("Unable to publish message: " + error_message, result.output)
+        assert ("Unable to publish message: " + error_message) in result.output
         mock_publish.assert_called_once()
-        self.assertEqual(errno.EREMOTEIO, result.exit_code)
+        assert errno.EREMOTEIO == result.exit_code
 
     @mock.patch("fedora_messaging.cli.api.publish")
-    def test_publish_connection_failed(self, mock_publish):
+    def test_publish_connection_failed(self, mock_publish, good_conf, good_msg_dump):
         """Assert a connection problem is reported."""
-        cli_options = {"file": GOOD_MSG_DUMP, "exchange": "test_pe"}
+        cli_options = {"file": good_msg_dump, "exchange": "test_pe"}
         mock_publish.side_effect = exceptions.PublishTimeout(reason="timeout")
         result = self.runner.invoke(
             cli.cli,
             [
-                "--conf=" + GOOD_CONF,
+                "--conf=" + good_conf,
                 "publish",
                 "--exchange=" + cli_options["exchange"],
                 cli_options["file"],
             ],
         )
-        self.assertIn("Unable to connect to the message broker: timeout", result.output)
+        assert "Unable to connect to the message broker: timeout" in result.output
         mock_publish.assert_called_once()
-        self.assertEqual(errno.ECONNREFUSED, result.exit_code)
+        assert errno.ECONNREFUSED == result.exit_code
 
     @mock.patch("fedora_messaging.cli.api.publish")
-    def test_publish_general_publish_error(self, mock_publish):
+    def test_publish_general_publish_error(
+        self, mock_publish, good_conf, good_msg_dump
+    ):
         """Assert a connection problem is reported."""
-        cli_options = {"file": GOOD_MSG_DUMP, "exchange": "test_pe"}
+        cli_options = {"file": good_msg_dump, "exchange": "test_pe"}
         mock_publish.side_effect = exceptions.PublishException(reason="eh")
         result = self.runner.invoke(
             cli.cli,
             [
-                "--conf=" + GOOD_CONF,
+                "--conf=" + good_conf,
                 "publish",
                 "--exchange=" + cli_options["exchange"],
                 cli_options["file"],
             ],
         )
-        self.assertIn("A general publish exception occurred: eh", result.output)
+        assert "A general publish exception occurred: eh" in result.output
         mock_publish.assert_called_once()
-        self.assertEqual(1, result.exit_code)
+        assert 1 == result.exit_code
 
 
 @mock.patch("fedora_messaging.config.conf.setup_logging", mock.Mock())
-class RecordCliTests(TestCase):
+class RecordCliTests:
     """Unit tests for the 'record' command of the CLI."""
 
     def setUp(self):
@@ -708,7 +711,7 @@ class RecordCliTests(TestCase):
         )
 
 
-class RecorderClassTests(TestCase):
+class RecorderClassTests:
     """Unit tests for the 'Recorder' class."""
 
     def test_save_recorded_messages_when_limit_is_reached(self):
@@ -740,11 +743,11 @@ class RecorderClassTests(TestCase):
             '"priority": 0, "queue": null, "topic": "test_topic1"}\n'
         )
 
-        with self.assertRaises(exceptions.HaltConsumer) as cm:
+        with pytest.raises(exceptions.HaltConsumer) as cm:
             test_recorder.collect_message(msg2)
-        the_exception = cm.exception
-        self.assertEqual(the_exception.exit_code, 0)
-        self.assertEqual(test_recorder.counter, 2)
+        the_exception = cm.value
+        assert the_exception.exit_code == 0
+        assert test_recorder.counter == 2
         mock_file.write.assert_called_with(
             '{"body": {"test_key2": "test_value2"}, "headers": '
             '{"fedora_messaging_schema": "base.message", "fedora_messaging_severity": '
@@ -757,9 +760,9 @@ class RecorderClassTests(TestCase):
         """Assert that attempt to save improper recorded message is reported."""
         mock_file = mock.MagicMock()
         test_recorder = cli.Recorder(1, mock_file)
-        with self.assertRaises(exceptions.HaltConsumer) as cm:
+        with pytest.raises(exceptions.HaltConsumer) as cm:
             test_recorder.collect_message("msg1")
-        the_exception = cm.exception
-        self.assertEqual(the_exception.exit_code, 1)
-        self.assertEqual(test_recorder.counter, 0)
+        the_exception = cm.value
+        assert the_exception.exit_code == 1
+        assert test_recorder.counter == 0
         mock_file.write.assert_not_called()

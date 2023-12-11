@@ -16,7 +16,9 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """Tests for the testing utilities."""
 
-from unittest import mock, TestCase
+from unittest import mock
+
+import pytest
 
 from fedora_messaging import api, message, testing
 
@@ -25,7 +27,7 @@ class CustomMessage(api.Message):
     pass
 
 
-class MockSendsTests(TestCase):
+class MockSendsTests:
     """Tests for the :func:`fedora_messaging.testing.mock_sends` function."""
 
     def test_class(self):
@@ -36,8 +38,8 @@ class MockSendsTests(TestCase):
 
         with testing.mock_sends(api.Message) as sent:
             pub()
-        self.assertEqual(len(sent), 1)
-        self.assertIsInstance(sent[0], api.Message)
+        assert len(sent) == 1
+        assert isinstance(sent[0], api.Message)
 
     def test_instance(self):
         """Assert all goes well if the message published matches the asserted instance."""
@@ -47,8 +49,8 @@ class MockSendsTests(TestCase):
 
         with testing.mock_sends(api.Message()) as sent:
             pub()
-        self.assertEqual(len(sent), 1)
-        self.assertIsInstance(sent[0], api.Message)
+        assert len(sent) == 1
+        assert isinstance(sent[0], api.Message)
 
     def test_expected_none(self):
         """Assert failure if a message is unexpectedly sent."""
@@ -56,14 +58,12 @@ class MockSendsTests(TestCase):
         def pub():
             api.publish(api.Message())
 
-        with self.assertRaises(AssertionError) as cm:
+        with pytest.raises(AssertionError) as cm:
             with testing.mock_sends() as sent:
                 pub()
-        self.assertEqual(
-            "Expected 0 messages to be sent, but 1 were sent", cm.exception.args[0]
-        )
-        self.assertEqual(len(sent), 1)
-        self.assertIsInstance(sent[0], api.Message)
+        assert "Expected 0 messages to be sent, but 1 were sent" == cm.value.args[0]
+        assert len(sent) == 1
+        assert isinstance(sent[0], api.Message)
 
     def test_mix_class_instance(self):
         """Assert a mix of class and instance works."""
@@ -75,8 +75,8 @@ class MockSendsTests(TestCase):
         with mock.patch.dict(message._class_to_schema_name, {CustomMessage: "custom"}):
             with testing.mock_sends(api.Message(), CustomMessage) as sent:
                 pub()
-        self.assertEqual(len(sent), 2)
-        self.assertIsInstance(sent[1], CustomMessage)
+        assert len(sent) == 2
+        assert isinstance(sent[1], CustomMessage)
 
     def test_mix_class_instance_order_matters(self):
         """Assert the order of messages matters."""
@@ -90,10 +90,10 @@ class MockSendsTests(TestCase):
             api.publish(CustomMessage())
 
         with mock.patch.dict(message._class_to_schema_name, {CustomMessage: "custom"}):
-            with self.assertRaises(AssertionError) as cm:
+            with pytest.raises(AssertionError) as cm:
                 with testing.mock_sends(CustomMessage, api.Message()):
                     pub()
-        self.assertEqual(expected_err, cm.exception.args[0])
+        assert expected_err == cm.value.args[0]
 
     def test_too_many(self):
         """Assert publishing more messages than expected fails with an AssertionError."""
@@ -102,13 +102,11 @@ class MockSendsTests(TestCase):
             api.publish(api.Message())
             api.publish(api.Message())
 
-        with self.assertRaises(AssertionError) as cm:
+        with pytest.raises(AssertionError) as cm:
             with testing.mock_sends(api.Message) as sent:
                 pub()
-        self.assertEqual(
-            "Expected 1 messages to be sent, but 2 were sent", cm.exception.args[0]
-        )
-        self.assertEqual(len(sent), 2)
+        assert "Expected 1 messages to be sent, but 2 were sent" == cm.value.args[0]
+        assert len(sent) == 2
 
     def test_wrong_type(self):
         """Assert sending the wrong type of message raises an AssertionError."""
@@ -120,10 +118,10 @@ class MockSendsTests(TestCase):
         def pub():
             api.publish(api.Message())
 
-        with self.assertRaises(AssertionError) as cm:
+        with pytest.raises(AssertionError) as cm:
             with testing.mock_sends(CustomMessage) as sent:
                 pub()
-        self.assertEqual(expected_err, cm.exception.args[0])
-        self.assertEqual(len(sent), 1)
-        self.assertIsInstance(sent[0], api.Message)
-        self.assertFalse(isinstance(sent[0], CustomMessage))
+        assert expected_err == cm.value.args[0]
+        assert len(sent) == 1
+        assert isinstance(sent[0], api.Message)
+        assert not isinstance(sent[0], CustomMessage)

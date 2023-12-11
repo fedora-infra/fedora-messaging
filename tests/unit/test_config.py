@@ -16,7 +16,9 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """Unit tests for :module:`fedora_messaging.config`."""
 
-from unittest import mock, TestCase
+from unittest import mock
+
+import pytest
 
 from fedora_messaging import config as msg_config
 from fedora_messaging.exceptions import ConfigurationException
@@ -94,7 +96,7 @@ class TestObj:
     pass
 
 
-class ValidateBindingsTests(TestCase):
+class ValidateBindingsTests:
     """Unit tests for :func:`fedora_messaging.config.validate_bindings`."""
 
     def test_valid(self):
@@ -108,39 +110,37 @@ class ValidateBindingsTests(TestCase):
 
     def test_wrong_type(self):
         """Assert a useful message is provided if bindings isn't a list or tuple"""
-        with self.assertRaises(ConfigurationException) as cm:
+        with pytest.raises(ConfigurationException) as cm:
             msg_config.validate_bindings(TestObj())
-        self.assertEqual(
+        assert (
             "Configuration error: bindings must be a list or tuple of dictionaries, "
-            "but was a <class 'fedora_messaging.tests.unit.test_config.TestObj'>",
-            str(cm.exception),
+            "but was a <class 'fedora_messaging.tests.unit.test_config.TestObj'>"
+            == str(cm.value)
         )
 
     def test_missing_keys(self):
         """Assert a useful message is provided if "queue" is missing from the config."""
         bindings = [{}]
-        with self.assertRaises(ConfigurationException) as cm:
+        with pytest.raises(ConfigurationException) as cm:
             msg_config.validate_bindings(bindings)
-        self.assertIn(
-            "Configuration error: a binding is missing the following keys",
-            str(cm.exception),
+        assert "Configuration error: a binding is missing the following keys" in str(
+            cm.value
         )
-        self.assertIn("exchange", str(cm.exception))
-        self.assertIn("routing_keys", str(cm.exception))
+        assert "exchange" in str(cm.value)
+        assert "routing_keys" in str(cm.value)
 
     def test_routing_key_str(self):
         """Assert a useful message is provided if "routing_keys" is not a list or tuple."""
         bindings = [{"exchange": "e1", "queue": "q1", "routing_keys": TestObj()}]
-        with self.assertRaises(ConfigurationException) as cm:
+        with pytest.raises(ConfigurationException) as cm:
             msg_config.validate_bindings(bindings)
-        self.assertEqual(
+        assert (
             "Configuration error: routing_keys must be a list or tuple, but was a "
-            "<class 'fedora_messaging.tests.unit.test_config.TestObj'>",
-            str(cm.exception),
+            "<class 'fedora_messaging.tests.unit.test_config.TestObj'>" == str(cm.value)
         )
 
 
-class ValidateQueuesTests(TestCase):
+class ValidateQueuesTests:
     """Unit tests for :func:`fedora_messaging.config.validate_queues`."""
 
     def test_valid(self):
@@ -157,38 +157,37 @@ class ValidateQueuesTests(TestCase):
         msg_config.validate_queues(queues)
 
     def test_invalid_type(self):
-        with self.assertRaises(ConfigurationException) as cm:
+        with pytest.raises(ConfigurationException) as cm:
             msg_config.validate_queues([])
-        self.assertEqual(
-            "Configuration error: 'queues' must be a dictionary mapping queue names to settings.",
-            str(cm.exception),
+        assert (
+            "Configuration error: 'queues' must be a dictionary mapping queue names to settings."
+            == str(cm.value)
         )
 
     def test_settings_invalid_type(self):
-        with self.assertRaises(ConfigurationException) as cm:
+        with pytest.raises(ConfigurationException) as cm:
             msg_config.validate_queues({"q1": TestObj()})
-        self.assertEqual(
+        assert (
             "Configuration error: the q1 queue in the 'queues' setting has a value of type "
             "<class 'fedora_messaging.tests.unit.test_config.TestObj'>, but it should be a "
-            "dictionary of settings.",
-            str(cm.exception),
+            "dictionary of settings." == str(cm.value)
         )
-        self.assertIn("it should be a dictionary of settings.", str(cm.exception))
+        assert "it should be a dictionary of settings." in str(cm.value)
 
     def test_missing_keys(self):
-        with self.assertRaises(ConfigurationException) as cm:
+        with pytest.raises(ConfigurationException) as cm:
             msg_config.validate_queues({"q1": {}})
-        self.assertIn(
-            "Configuration error: the q1 queue is missing the following keys from its settings",
-            str(cm.exception),
+        assert (
+            "Configuration error: the q1 queue is missing the following keys from its settings"
+            in str(cm.value)
         )
-        self.assertIn("durable", str(cm.exception))
-        self.assertIn("auto_delete", str(cm.exception))
-        self.assertIn("exclusive", str(cm.exception))
-        self.assertIn("arguments", str(cm.exception))
+        assert "durable" in str(cm.value)
+        assert "auto_delete" in str(cm.value)
+        assert "exclusive" in str(cm.value)
+        assert "arguments" in str(cm.value)
 
 
-class LoadTests(TestCase):
+class LoadTests:
     """Unit tests for :func:`fedora_messaging.config.load`."""
 
     def test_deep_copy(self):
@@ -197,14 +196,14 @@ class LoadTests(TestCase):
 
         config["queues"]["somequeue"] = {}
 
-        self.assertNotIn("somequeue", msg_config.DEFAULTS["queues"])
+        assert "somequeue" not in msg_config.DEFAULTS["queues"]
 
     @mock.patch("fedora_messaging.config._log", autospec=True)
     @mock.patch("fedora_messaging.config.os.path.exists", return_value=False)
     def test_missing_config_file(self, mock_exists, mock_log):
         """Assert loading the config with a missing file works."""
         config = msg_config.LazyConfig().load_config()
-        self.assertEqual(msg_config.DEFAULTS, config)
+        assert msg_config.DEFAULTS == config
         mock_exists.assert_called_once_with("/etc/fedora-messaging/config.toml")
         mock_log.info.assert_called_once_with(
             "The configuration file, /etc/fedora-messaging/config.toml, does not exist."
@@ -223,7 +222,8 @@ class LoadTests(TestCase):
                 mock.mock_open(read_data=conf.format(key).encode("utf-8")),
             ):
                 config = msg_config.LazyConfig()
-                self.assertRaises(ConfigurationException, config.load_config)
+                with pytest.raises(ConfigurationException):
+                    config.load_config()
 
     @mock.patch(
         "fedora_messaging.config.open", mock.mock_open(read_data=b'bad_key = "val"')
@@ -232,13 +232,14 @@ class LoadTests(TestCase):
     def test_invalid_key(self, mock_exists):
         """Assert an unknown config key raises an exception."""
         config = msg_config.LazyConfig()
-        self.assertRaises(ConfigurationException, config.load_config)
+        with pytest.raises(ConfigurationException):
+            config.load_config()
 
     @mock.patch("fedora_messaging.config.open", mock.mock_open(read_data=b"Ni!"))
     @mock.patch("fedora_messaging.config.os.path.exists", return_value=True)
     def test_bad_config_file(self, mock_exists):
         """Assert an invalid TOML file raises a ConfigurationException."""
-        with self.assertRaises(ConfigurationException) as cm:
+        with pytest.raises(ConfigurationException) as cm:
             msg_config.LazyConfig().load_config()
         error = (
             "Failed to parse /etc/fedora-messaging/config.toml: "
@@ -246,7 +247,7 @@ class LoadTests(TestCase):
         )
         # older tomli version used in Python 3.6 uses double-quotes
         error_old = error.replace("'", '"')
-        self.assertIn(cm.exception.message, (error, error_old))
+        assert cm.value.message in (error, error_old)
 
     @mock.patch(
         "fedora_messaging.config.open", mock.mock_open(read_data=partial_config)
@@ -256,13 +257,13 @@ class LoadTests(TestCase):
     def test_partial_config_file(self, mock_exists, mock_log):
         """Assert a config file that uses a subset of keys works as expected"""
         config = msg_config.LazyConfig().load_config()
-        self.assertNotEqual("special_exchange", msg_config.DEFAULTS["publish_exchange"])
-        self.assertEqual("special_exchange", config["publish_exchange"])
+        assert "special_exchange" != msg_config.DEFAULTS["publish_exchange"]
+        assert "special_exchange" == config["publish_exchange"]
         mock_exists.assert_called_once_with("/etc/fedora-messaging/config.toml")
         mock_log.info.assert_called_once_with(
             "Loading configuration from /etc/fedora-messaging/config.toml"
         )
-        self.assertEqual(0, mock_log.warning.call_count)
+        assert 0 == mock_log.warning.call_count
 
     @mock.patch("fedora_messaging.config.open", mock.mock_open(read_data=full_config))
     @mock.patch("fedora_messaging.config._log", autospec=True)
@@ -332,14 +333,14 @@ class LoadTests(TestCase):
             },
         )
         config = msg_config.LazyConfig().load_config()
-        self.assertEqual(sorted(expected_config.keys()), sorted(config.keys()))
+        assert sorted(expected_config.keys()) == sorted(config.keys())
         for key in expected_config:
-            self.assertEqual(expected_config[key], config[key])
+            assert expected_config[key] == config[key]
         mock_exists.assert_called_once_with("/etc/fedora-messaging/config.toml")
         mock_log.info.assert_called_once_with(
             "Loading configuration from /etc/fedora-messaging/config.toml"
         )
-        self.assertEqual(0, mock_log.warning.call_count)
+        assert 0 == mock_log.warning.call_count
 
     @mock.patch(
         "fedora_messaging.config.open", mock.mock_open(read_data=partial_config)
@@ -352,11 +353,11 @@ class LoadTests(TestCase):
     def test_custom_config_file(self, mock_exists, mock_log):
         """Assert using the environment variable to set the config path works."""
         config = msg_config.LazyConfig().load_config()
-        self.assertNotEqual("special_exchange", msg_config.DEFAULTS["publish_exchange"])
-        self.assertEqual("special_exchange", config["publish_exchange"])
+        assert "special_exchange" != msg_config.DEFAULTS["publish_exchange"]
+        assert "special_exchange" == config["publish_exchange"]
         mock_exists.assert_called_once_with("/my/config")
         mock_log.info.assert_called_once_with("Loading configuration from /my/config")
-        self.assertEqual(0, mock_log.warning.call_count)
+        assert 0 == mock_log.warning.call_count
 
     @mock.patch("fedora_messaging.config.open", mock.mock_open(read_data=empty_config))
     @mock.patch("fedora_messaging.config._log", autospec=True)
@@ -364,7 +365,7 @@ class LoadTests(TestCase):
     def test_empty_config_file(self, mock_exists, mock_log):
         """Assert loading the config with an empty file that exists works."""
         config = msg_config.LazyConfig().load_config()
-        self.assertEqual(msg_config.DEFAULTS, config)
+        assert msg_config.DEFAULTS == config
         mock_exists.assert_called_once_with("/etc/fedora-messaging/config.toml")
         mock_log.info.assert_called_once_with(
             "Loading configuration from /etc/fedora-messaging/config.toml"
@@ -386,7 +387,7 @@ class LoadTests(TestCase):
         """Assert the config is loaded when copy is called."""
         config = msg_config.LazyConfig()
         copy = config.copy()
-        self.assertEqual(msg_config.DEFAULTS, copy)
+        assert msg_config.DEFAULTS == copy
         mock_exists.assert_called_once_with("/etc/fedora-messaging/config.toml")
         mock_log.info.assert_called_once_with(
             "Loading configuration from /etc/fedora-messaging/config.toml"
@@ -398,8 +399,8 @@ class LoadTests(TestCase):
     def test_load_on_get(self, mock_exists, mock_log):
         """Assert the config is loaded when get is called."""
         config = msg_config.LazyConfig()
-        self.assertEqual(msg_config.DEFAULTS["callback"], config.get("callback"))
-        self.assertEqual(msg_config.DEFAULTS["amqp_url"], config.get("amqp_url"))
+        assert msg_config.DEFAULTS["callback"] == config.get("callback")
+        assert msg_config.DEFAULTS["amqp_url"] == config.get("amqp_url")
         mock_exists.assert_called_once_with("/etc/fedora-messaging/config.toml")
         mock_log.info.assert_called_once_with(
             "Loading configuration from /etc/fedora-messaging/config.toml"
@@ -408,7 +409,8 @@ class LoadTests(TestCase):
     def test_explode_on_pop(self):
         """Assert calling pop raises an exception."""
         config = msg_config.LazyConfig()
-        self.assertRaises(ConfigurationException, config.pop)
+        with pytest.raises(ConfigurationException):
+            config.pop()
 
     @mock.patch("fedora_messaging.config.open", mock.mock_open(read_data=empty_config))
     @mock.patch("fedora_messaging.config._log", autospec=True)
@@ -417,7 +419,7 @@ class LoadTests(TestCase):
         """Assert the config is loaded when update is called."""
         config = msg_config.LazyConfig()
         config.update({})
-        self.assertEqual(msg_config.DEFAULTS, config)
+        assert msg_config.DEFAULTS == config
         mock_exists.assert_called_once_with("/etc/fedora-messaging/config.toml")
         mock_log.info.assert_called_once_with(
             "Loading configuration from /etc/fedora-messaging/config.toml"
@@ -431,7 +433,7 @@ class LoadTests(TestCase):
         """Assert the config is loaded when setup_logging is called."""
         config = msg_config.LazyConfig()
         config.setup_logging()
-        self.assertEqual(msg_config.DEFAULTS, config)
+        assert msg_config.DEFAULTS == config
         mock_exists.assert_called_once_with("/etc/fedora-messaging/config.toml")
         mock_log.info.assert_called_once_with(
             "Loading configuration from /etc/fedora-messaging/config.toml"

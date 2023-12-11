@@ -44,4 +44,4 @@ class PrinterTests(TestCase):
         with mock.patch("sys.stdout", new_callable=StringIO) as mock_stdout:
             example.printer(message)
 
-        self.assertEqual(expected_stdout, mock_stdout.getvalue())
+        assert expected_stdout == mock_stdout.getvalue()
