@@ -21,4 +21,3 @@ Fedora
 The library is available in Fedora 29 and greater as ``fedora-messaging``::
 
    $ sudo dnf install fedora-messaging
-

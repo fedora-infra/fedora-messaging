@@ -67,4 +67,3 @@ Comment out the ``callback`` and ``bindings`` options, and all the
 
 In the ``[client_properties]`` section, change the ``app`` value to ``Fedora
 Messaging tutorial``.
-

@@ -125,4 +125,3 @@ When multiple programs are simulaneously consuming from the same queue, they
 get the messages in a round-robin fashion. Try running another instance of the
 ``consume.py`` script, and run the ``publish.py`` script multiple times. You'll
 see that ``consume.py`` instances get a message one after the other.
-
