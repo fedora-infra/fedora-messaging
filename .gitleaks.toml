@@ -1,7 +1,6 @@
 [allowlist]
 paths = [
-
     "configs/fedora-key.pem",
     "configs/fedora.stg-key.pem",
-    "fedora_messaging/tests/fixtures/key.pem",
+    "tests/fixtures/key.pem",
 ]

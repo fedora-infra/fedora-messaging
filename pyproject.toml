@@ -26,9 +26,10 @@ packages = [
 ]
 include = [
     { path = "docs", format = "sdist" },
-		{ path = "configs", format = "sdist"},
-		{ path = "*.service", format = "sdist"},
-		{ path = "config.toml.example", format = "sdist"},
+    { path = "configs", format = "sdist"},
+    { path = "*.service", format = "sdist"},
+    { path = "config.toml.example", format = "sdist"},
+    { path = "tests/*", format = "sdist" },
 ]
 
 [tool.poetry.dependencies]

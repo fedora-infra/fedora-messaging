@@ -1,5 +1,0 @@
-include LICENSE README.rst config.toml.example tox.ini fm-consumer@.service
-include configs/*
-graft docs
-prune docs/_build
-graft fedora_messaging/tests/fixtures
