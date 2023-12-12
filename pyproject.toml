@@ -205,39 +205,6 @@ force_alphabetical_sort_within_sections = true
 report_level = "warning"
 ignore_directives = ["automodule", "autoclass", "autofunction", "autodata"]
 
-[tool.liccheck]
-authorized_licenses = [
-  "bsd",
-  "new bsd",
-  "simplified bsd",
-  "apache",
-  "apache 2.0",
-  "apache software",
-  "Apache License 2.0",
-  "gnu lgpl",
-  "gpl v2",
-  "GNU General Public License v2 or later (GPLv2+)",
-  "GNU Library or Lesser General Public License (LGPL)",
-  "gpl v3",
-  "lgpl with exceptions or zpl",
-  "isc",
-  "isc license (iscl)",
-  "mit",
-  "mit license",
-  "python software foundation",
-  "zpl 2.1",
-  "mpl-2.0",
-  "MPL 2.0",
-  "Mozilla Public License 2.0 (MPL 2.0)",
-  "lgpl",
-  "BSD-like",
-  "Public Domain",
-  "The Unlicense (Unlicense)",
-	"Zope Public",
-]
-
-[tool.liccheck.authorized_packages]
-twisted = "23.8.0"
 
 [build-system]
 requires = ["poetry-core"]
