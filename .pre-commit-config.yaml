@@ -28,7 +28,7 @@ repos:
       - id: flake8
 
   - repo: https://github.com/pycqa/isort
-    rev: 5.13.0
+    rev: 5.13.1
     hooks:
       - id: isort
         args: ["-c", "--df"]
