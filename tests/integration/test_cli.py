@@ -16,7 +16,9 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """Tests for the ``fedora-messaging`` command-line interface."""
 import os
+import shutil
 import subprocess
+import sys
 import uuid
 
 import pytest
@@ -26,7 +28,7 @@ from twisted.internet import threads
 
 from fedora_messaging import api, exceptions, message
 
-from .utils import sleep
+from .utils import RABBITMQ_HOST, sleep
 
 
 @pytest.fixture
@@ -51,7 +53,7 @@ def queue(scope="function"):
     queue = str(uuid.uuid4())
     yield queue
     requests.delete(
-        "http://localhost:15672/api/queues/%2F/" + queue,
+        f"http://{RABBITMQ_HOST}:15672/api/queues/%2F/{queue}",
         auth=("guest", "guest"),
         timeout=3,
     )
@@ -67,8 +69,10 @@ def queue(scope="function"):
 @pytest_twisted.inlineCallbacks
 def test_consume_halt_with_exitcode(callback, exit_code, msg, queue, cli_conf):
     """Assert user execution halt with reason and exit_code is reported."""
+    cmd = shutil.which("fedora-messaging")
     args = [
-        "fedora-messaging",
+        sys.executable,
+        cmd,
         f"--conf={cli_conf}",
         "consume",
         f"--callback=tests.integration.test_cli:{callback}",
