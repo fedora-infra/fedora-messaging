@@ -151,9 +151,7 @@ def twisted_consume(callback, bindings=None, queues=None):
     callback = _check_callback(callback)
 
     _init_twisted_service()
-    return _twisted_service._service.factory.consume(
-        callback, bindings or config.conf["bindings"], queues or config.conf["queues"]
-    )
+    return _twisted_service._service.factory.consume(callback, bindings, queues)
 
 
 @crochet.run_in_reactor

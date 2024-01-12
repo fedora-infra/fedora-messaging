@@ -17,7 +17,6 @@
 
 
 import json
-from unittest import TestCase
 from unittest.mock import Mock, patch
 
 import pika
@@ -472,7 +471,7 @@ class TestConsumerCallback:
         )
 
 
-class AddTimeoutTests(TestCase):
+class TestAddTimeout:
     """Unit tests for the _add_timeout helper function."""
 
     def test_twisted12_timeout(self):
@@ -481,14 +480,14 @@ class AddTimeoutTests(TestCase):
         d.addTimeout = Mock(side_effect=AttributeError())
         _add_timeout(d, 0.1)
 
-        d.addCallback(self.fail, "Expected errback to be called")
+        d.addCallback(pytest.fail, "Expected errback to be called")
 
         def _check_failure(failure):
             assert isinstance(failure.value, defer.CancelledError)
 
         d.addErrback(_check_failure)
 
-        return pytest_twisted.blockon(d)
+        return d
 
     def test_twisted12_cancel_cancel_callback(self):
         """Assert canceling the cancel call for Twisted 12.2 (EL7) works."""

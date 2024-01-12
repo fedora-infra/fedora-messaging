@@ -15,7 +15,6 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-from unittest import TestCase
 from urllib import parse
 
 import pytest
@@ -23,7 +22,7 @@ import pytest
 from fedora_messaging import schema_utils
 
 
-class AvatarURLTests(TestCase):
+class TestAvatarURL:
     def test_base(self):
         expected = (
             "https://seccdn.libravatar.org/avatar/"
@@ -45,7 +44,7 @@ class AvatarURLTests(TestCase):
         assert ("d", "testdefault") in parse.parse_qsl(parse.urlparse(url).query)
 
 
-class LibravatarURLTests(TestCase):
+class TestLibravatarURL:
     def test_openid(self):
         expected = (
             "https://seccdn.libravatar.org/avatar/"

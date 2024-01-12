@@ -17,7 +17,7 @@
 
 
 import json
-from unittest import mock, TestCase
+from unittest import mock
 
 import pika
 import pytest
@@ -37,12 +37,12 @@ from .utils import MockProtocol
 
 
 try:
-    import pytest_twisted
+    import pytest_twisted  # noqa: F401
 except ImportError:
     pytest.skip("pytest-twisted is missing, skipping tests", allow_module_level=True)
 
 
-class ProtocolTests(TestCase):
+class TestProtocol:
     def setup_method(self, method):
         self.protocol = MockProtocol(None)
         self.factory = mock.Mock()
@@ -57,7 +57,7 @@ class ProtocolTests(TestCase):
         d = self.protocol._allocate_channel()
         d.addCallback(pytest.fail, "Expected a NoFreeChannels exception")
         d.addErrback(lambda f: f.trap(NoFreeChannels))
-        pytest_twisted.blockon(d)
+        return d
 
     def test_allocate_channel_connection_exception(self):
         """
@@ -70,7 +70,7 @@ class ProtocolTests(TestCase):
         d = self.protocol._allocate_channel()
         d.addCallback(pytest.fail, "Expected a ConnectionException exception")
         d.addErrback(lambda f: f.trap(ConnectionException))
-        pytest_twisted.blockon(d)
+        return d
 
     @mock.patch(
         "fedora_messaging.twisted.consumer.uuid.uuid4", mock.Mock(return_value="tag1")
@@ -92,7 +92,7 @@ class ProtocolTests(TestCase):
         d = self.protocol.consume(func, "my_queue")
         d.addCallback(_check)
 
-        return pytest_twisted.blockon(d)
+        return d
 
     def test_consume_twice(self):
         """Assert calling consume on the same queue updates the callback."""
@@ -111,7 +111,7 @@ class ProtocolTests(TestCase):
         d.addCallback(lambda _: self.protocol.consume(cb2, "my_queue"))
         d.addCallback(_check)
 
-        return pytest_twisted.blockon(d)
+        return d
 
     @mock.patch(
         "fedora_messaging.twisted.consumer.uuid.uuid4", mock.Mock(return_value="tag1")
@@ -133,7 +133,7 @@ class ProtocolTests(TestCase):
         d = self.protocol.consume(func, "my_queue")
         d.addCallback(_check)
 
-        return pytest_twisted.blockon(d)
+        return d
 
     def test_cancel(self):
         """Assert a consumer is removed from the consumer list and canceled."""
@@ -149,7 +149,7 @@ class ProtocolTests(TestCase):
         d.addCallback(lambda consumer: consumer.cancel())
         d.addCallback(_check)
 
-        return pytest_twisted.blockon(d)
+        return d
 
     def test_forget_no_consumer(self):
         """Assert forgetting a non-existent consumer just returns None."""
@@ -166,7 +166,7 @@ class ProtocolTests(TestCase):
 
         self.protocol._on_connection_ready(None)
 
-        return pytest_twisted.blockon(d)
+        return d
 
     def test_publish(self):
         # Check the publish method.
@@ -191,7 +191,7 @@ class ProtocolTests(TestCase):
             assert props.delivery_mode == 2
 
         d.addCallback(_check)
-        return pytest_twisted.blockon(d)
+        return d
 
     def test_publish_forbidden(self):
         # Check the publish method when publishing is forbidden.
@@ -212,7 +212,7 @@ class ProtocolTests(TestCase):
 
         d.addBoth(_check)
 
-        return pytest_twisted.blockon(d)
+        return d
 
     def test_publish_access_denied(self):
         body = {"bodykey": "bodyvalue"}
@@ -226,7 +226,7 @@ class ProtocolTests(TestCase):
         d.addCallback(pytest.fail, "Expected a PublishForbidden exception")
         d.addErrback(lambda f: f.trap(PublishForbidden))
 
-        return pytest_twisted.blockon(d)
+        return d
 
     def test_publish_returned(self):
         body = {"bodykey": "bodyvalue"}
@@ -238,7 +238,7 @@ class ProtocolTests(TestCase):
         d.addCallback(pytest.fail, "Expected a PublishReturned exception")
         d.addErrback(lambda f: f.trap(PublishReturned))
 
-        return pytest_twisted.blockon(d)
+        return d
 
     def test_publish_connection_closed(self):
         body = {"bodykey": "bodyvalue"}
@@ -252,7 +252,7 @@ class ProtocolTests(TestCase):
         d.addCallback(pytest.fail, "Expected a ConnectionException exception")
         d.addErrback(lambda f: f.trap(ConnectionException))
 
-        return pytest_twisted.blockon(d)
+        return d
 
     def test_consume_connection_exception(self):
         """If consuming fails due to a non-permission error, a ConnectionException happens."""
@@ -269,7 +269,7 @@ class ProtocolTests(TestCase):
 
         d = proto.consume(lambda x: x, "test_queue")
         d.addBoth(check)
-        return pytest_twisted.blockon(d)
+        return d
 
     def test_consume_existing_consumer(self):
         """Consuming should re-use an existing consumer if possible."""
@@ -290,7 +290,7 @@ class ProtocolTests(TestCase):
 
         d = proto.consume(new_callback, "test_queue", consumer)
         d.addBoth(check)
-        return pytest_twisted.blockon(d)
+        return d
 
     def test_consume_provided_consumer(self):
         """The consume() method must handle being passed a consumer."""
@@ -304,7 +304,7 @@ class ProtocolTests(TestCase):
         callback = mock.Mock()
         consumer = Consumer(queue="queue_orig", callback=callback)
         # Don't go into the read loop
-        consumer._read = mock.Mock(retrun_value=defer.succeed(None))
+        consumer._read = mock.Mock(return_value=defer.succeed(None))
 
         def check(result):
             assert consumer == result
@@ -314,4 +314,4 @@ class ProtocolTests(TestCase):
 
         d = proto.consume(callback, "queue_new", consumer)
         d.addBoth(check)
-        return pytest_twisted.blockon(d)
+        return d

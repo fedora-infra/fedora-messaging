@@ -14,14 +14,14 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """Unit tests for the message schema."""
-import unittest
 
+import pytest
 from jsonschema import ValidationError
 
 from .. import messages
 
 
-class MessageV1Tests(unittest.TestCase):
+class TestMessageV1:
     """A set of unit tests to ensure the schema works as expected."""
 
     msg_class = messages.MessageV1
@@ -75,7 +75,8 @@ class MessageV1Tests(unittest.TestCase):
         del self.minimal_message["mlist"]
         message = self.msg_class(body=self.minimal_message)
 
-        self.assertRaises(ValidationError, message.validate)
+        with pytest.raises(ValidationError):
+            message.validate()
 
     def test_str(self):
         """Assert __str__ produces a human-readable message."""
@@ -83,58 +84,57 @@ class MessageV1Tests(unittest.TestCase):
         message = self.msg_class(body=self.full_message)
 
         message.validate()
-        self.assertEqual(expected_str, str(message))
+        assert expected_str == str(message)
 
     def test_summary(self):
         """Assert the summary matches the message subject."""
         message = self.msg_class(body=self.full_message)
 
-        self.assertEqual("A sample email", message.summary)
+        assert "A sample email" == message.summary
 
     def test_subject(self):
         """Assert the message provides a "subject" attribute."""
         message = self.msg_class(body=self.full_message)
 
-        self.assertEqual("A sample email", message.subject)
+        assert "A sample email" == message.subject
 
     def test_body(self):
         """Assert the message provides a "body" attribute."""
         message = self.msg_class(body=self.full_message)
 
-        self.assertEqual("hello world", message.email_body)
+        assert "hello world" == message.email_body
 
     def test_url(self):
         """Assert the message provides a "url" attribute."""
         message = self.msg_class(body=self.full_message)
-        self.assertEqual("http://example.com/12345", message.url)
+        assert "http://example.com/12345" == message.url
 
     def test_agent_name(self):
         """Assert the message provides a "agent_name" attribute."""
         message = self.msg_class(body=self.full_message)
-        self.assertEqual("me", message.agent_name)
+        assert "me" == message.agent_name
 
     def test_agent_avatar(self):
         """Assert the message provides a "agent_avatar" attribute."""
         message = self.msg_class(body=self.full_message)
-        self.assertEqual(
+        assert (
             "https://seccdn.libravatar.org/avatar/"
             "570ebdf0322c3d5c9680578b437c155933403674cfd50fc70aeebb8f462f7756"
-            "?s=64&d=retro",
-            message.agent_avatar,
+            "?s=64&d=retro" == message.agent_avatar
         )
 
     def test_usernames(self):
         """Assert the message provides a "usernames" attribute."""
         message = self.msg_class(body=self.full_message)
-        self.assertEqual([], message.usernames)
+        assert [] == message.usernames
 
     def test_packages(self):
         """Assert the message provides a "packages" attribute."""
         message = self.msg_class(body=self.full_message)
-        self.assertEqual([], message.packages)
+        assert [] == message.packages
 
 
-class MessageV2Tests(MessageV1Tests):
+class TestMessageV2(TestMessageV1):
     """A set of unit tests to ensure the schema works as expected."""
 
     msg_class = messages.MessageV2
@@ -169,24 +169,24 @@ class MessageV2Tests(MessageV1Tests):
         del self.minimal_message["body"]
         message = self.msg_class(body=self.minimal_message)
 
-        self.assertRaises(ValidationError, message.validate)
+        with pytest.raises(ValidationError):
+            message.validate()
 
     def test_url(self):
         """Assert the message provides a "url" attribute."""
         message = self.msg_class(body=self.full_message)
-        self.assertEqual("http://example.com/12345", message.url)
+        assert "http://example.com/12345" == message.url
 
     def test_agent_name(self):
         """Assert the message provides a "agent_name" attribute."""
         message = self.msg_class(body=self.full_message)
-        self.assertEqual("me", message.agent_name)
+        assert "me" == message.agent_name
 
     def test_agent_avatar(self):
         """Assert the message provides a "agent_avatar" attribute."""
         message = self.msg_class(body=self.full_message)
-        self.assertEqual(
+        assert (
             "https://seccdn.libravatar.org/avatar/"
             "570ebdf0322c3d5c9680578b437c155933403674cfd50fc70aeebb8f462f7756"
-            "?s=64&d=retro",
-            message.agent_avatar,
+            "?s=64&d=retro" == message.agent_avatar
         )

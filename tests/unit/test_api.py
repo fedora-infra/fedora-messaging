@@ -17,7 +17,7 @@
 """Tests for the :module:`fedora_messaging.api` module."""
 
 
-from unittest import mock, TestCase
+from unittest import mock
 
 import pytest
 import pytest_twisted
@@ -33,7 +33,7 @@ from fedora_messaging.signals import (
 from fedora_messaging.twisted import consumer
 
 
-class CheckCallbackTests(TestCase):
+class TestCheckCallback:
     """Tests for :func:`api._check_callback`"""
 
     def test_method(self):
@@ -78,7 +78,6 @@ class CheckCallbackTests(TestCase):
 
         with pytest.raises(ValueError):
             api._check_callback(Callback)
-            pass
 
     def test_class_init_args(self):
         """Assert classes are instantiated."""
@@ -97,7 +96,7 @@ class CheckCallbackTests(TestCase):
 
 
 @mock.patch("fedora_messaging.api._twisted_service")
-class TwistedConsumeTests(TestCase):
+class TestTwistedConsume:
     """Tests for :func:`api.twisted_consume`"""
 
     def dummy_callback(self):
@@ -105,23 +104,26 @@ class TwistedConsumeTests(TestCase):
 
     def test_wrap_bindings(self, mock_service):
         """Assert bindings are always passed to the factory as a list."""
+        bindings = {"queue": "q1", "exchange": "e1", "routing_keys": ["#"]}
 
         def callback(msg):
             pass
 
-        api.twisted_consume(callback)
+        api.twisted_consume(callback, bindings, {})
 
-        mock_service._service.factory.consume.called_once_with(callback, [{}], {})
+        mock_service._service.factory.consume.assert_called_once_with(
+            callback, [bindings], {}
+        )
 
     def test_defaults(self, mock_service):
         """Assert that bindings and queues come from the config if not provided."""
 
         api.twisted_consume(self.dummy_callback)
 
-        mock_service._service.factory.consume.called_once_with(
+        mock_service._service.factory.consume.assert_called_once_with(
             self.dummy_callback,
-            bindings=config.conf["bindings"],
-            queues=config.conf["queues"],
+            config.conf["bindings"],
+            config.conf["queues"],
         )
 
     def test_bindings_dict(self, mock_service):
@@ -130,8 +132,8 @@ class TwistedConsumeTests(TestCase):
 
         api.twisted_consume(self.dummy_callback, bindings)
 
-        mock_service._service.factory.consume.called_once_with(
-            self.dummy_callback, bindings=[bindings], queues=config.conf["queues"]
+        mock_service._service.factory.consume.assert_called_once_with(
+            self.dummy_callback, [bindings], config.conf["queues"]
         )
 
     def test_bindings_invalid_type(self, mock_service):
@@ -145,8 +147,8 @@ class TwistedConsumeTests(TestCase):
 
         api.twisted_consume(self.dummy_callback, bindings)
 
-        mock_service._service.factory.consume.called_once_with(
-            self.dummy_callback, bindings=bindings, queues=config.conf["queues"]
+        mock_service._service.factory.consume.assert_called_once_with(
+            self.dummy_callback, bindings, config.conf["queues"]
         )
 
     def test_queues_invalid_type(self, mock_service):
@@ -166,12 +168,12 @@ class TwistedConsumeTests(TestCase):
         }
 
         api.twisted_consume(self.dummy_callback, bindings=[], queues=queues)
-        mock_service._service.factory.consume.called_once_with(
-            self.dummy_callback, bindings=[], queues=queues
+        mock_service._service.factory.consume.assert_called_once_with(
+            self.dummy_callback, [], queues
         )
 
 
-class ConsumeTests(TestCase):
+class TestConsume:
     @mock.patch("fedora_messaging.api.crochet")
     @mock.patch("fedora_messaging.api._twisted_consume_wrapper")
     def test_consume(self, mock_wrapper, mock_crochet):
@@ -183,7 +185,7 @@ class ConsumeTests(TestCase):
 
 
 @mock.patch("fedora_messaging.api._twisted_publish")
-class PublishTests(TestCase):
+class TestPublish:
     def setup_method(self, method):
         self.pre_publish_signal_data = {"called": False, "sender": None, "args": None}
         self.publish_signal_data = {"called": False, "sender": None, "args": None}
@@ -254,11 +256,9 @@ class PublishTests(TestCase):
         assert self.publish_signal_data == expected_publish_signal_data
         assert self.publish_failed_signal_data == expected_publish_failed_signal_data
 
-    @mock.patch.dict(
-        "fedora_messaging.config.conf", {"publish_exchange": "test_public_exchange"}
-    )
-    def test_publish_to_config_exchange(self, mock_twisted_publish):
+    def test_publish_to_config_exchange(self, mock_twisted_publish, monkeypatch):
         """Assert a message can be published to the exchange from config."""
+        monkeypatch.setitem(config.conf, "publish_exchange", "test_public_exchange")
         message = "test_message"
         expected_pre_publish_signal_data = {
             "called": True,

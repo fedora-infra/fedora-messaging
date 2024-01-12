@@ -16,7 +16,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 
-from unittest import mock, TestCase
+from unittest import mock
 
 import pika
 import pytest
@@ -29,12 +29,12 @@ from fedora_messaging.twisted.factory import ConsumerRecord, FedoraMessagingFact
 
 
 try:
-    import pytest_twisted
+    import pytest_twisted  # noqa: F401
 except ImportError:
     pytest.skip("pytest-twisted is missing, skipping tests", allow_module_level=True)
 
 
-class FactoryV2Tests(TestCase):
+class TestFactoryV2:
     def setup_method(self, method):
         self.protocol = mock.Mock()
         self.protocol.ready = defer.Deferred()
@@ -64,7 +64,7 @@ class FactoryV2Tests(TestCase):
         d.addCallback(lambda client: assert_equal(self.factory._client, client))
         d.addCallback(lambda _: assert_is(self.factory._client_deferred.called, True))
         self.protocol.ready.callback(None)
-        return pytest_twisted.blockon(d)
+        return d
 
     def test_buildProtocol_twice(self):
         """Assert buildProtocol works when reconnecting"""
@@ -85,7 +85,7 @@ class FactoryV2Tests(TestCase):
         assert not mock_log.error.called
         d = defer.DeferredList([connected_d, protocol.ready], fireOnOneErrback=True)
         d.addErrback(lambda f: f.value.subFailure)
-        return pytest_twisted.blockon(d)
+        return d
 
     def _test_when_connected_disconnected(self, error_class, error_msg):
         """Assert when_connected errbacks on disconnections."""
@@ -110,7 +110,7 @@ class FactoryV2Tests(TestCase):
             lambda r: ValueError(f"This should fail but I got: {r!r}"), _check
         )
         self.factory.buildProtocol(None)
-        return pytest_twisted.blockon(connected_d)
+        return connected_d
 
     def test_when_connected_connectiondone(self):
         return self._test_when_connected_disconnected(
@@ -159,7 +159,7 @@ class FactoryV2Tests(TestCase):
             "The connection failed with an unexpected exception; please report this bug: %s"
         )
         assert last_log_call_args[1].startswith("Traceback (most recent call last):")
-        return pytest_twisted.blockon(connected_d)
+        return connected_d
 
     def test_consume_anonymous(self):
         """Assert consume handles anonymous queues."""
@@ -203,7 +203,7 @@ class FactoryV2Tests(TestCase):
 
         d.addCallback(_consume)
         d.addCallback(_check)
-        return pytest_twisted.blockon(d)
+        return d
 
     def test_consume_anonymous_reconnect(self):
         """Assert consume handles reconnecting anonymous queues."""
@@ -239,7 +239,7 @@ class FactoryV2Tests(TestCase):
             self.protocol.consume.assert_called_once_with(callback, queue_new, consumer)
 
         d.addCallback(_check)
-        return pytest_twisted.blockon(d)
+        return d
 
 
 @pytest.mark.parametrize(
