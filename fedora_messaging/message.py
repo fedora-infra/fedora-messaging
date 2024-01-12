@@ -373,18 +373,22 @@ class Message:
             dict: Filter-related headers to be combined with the existing headers
         """
         headers = {}
-        for user in self.usernames:
-            headers[f"fedora_messaging_user_{user}"] = True
-        for group in self.groups:
-            headers[f"fedora_messaging_group_{group}"] = True
-        for package in self.packages:
-            headers[f"fedora_messaging_rpm_{package}"] = True
-        for container in self.containers:
-            headers[f"fedora_messaging_container_{container}"] = True
-        for module in self.modules:
-            headers[f"fedora_messaging_module_{module}"] = True
-        for flatpak in self.flatpaks:
-            headers[f"fedora_messaging_flatpak_{flatpak}"] = True
+        properties = [
+            ("user", "usernames"),
+            ("group", "groups"),
+            ("rpm", "packages"),
+            ("container", "containers"),
+            ("module", "modules"),
+            ("flatpak", "flatpaks"),
+        ]
+        for header_name, prop_name in properties:
+            try:
+                items = getattr(self, prop_name)
+            except Exception:
+                # The message is probably invalid, don't add the header
+                continue
+            for item in items:
+                headers[f"fedora_messaging_{header_name}_{item}"] = True
         return headers
 
     @property

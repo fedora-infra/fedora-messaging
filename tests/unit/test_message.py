@@ -588,6 +588,47 @@ class TestCustomMessage:
         assert "fedora_messaging_flatpak_hexchat" in msg._headers
 
 
+class CustomValidatedMessage(message.Message):
+    """Test class where filter properties depend on the validation."""
+
+    body_schema = {
+        "id": "http://fedoraproject.org/message-schema/custom-validated#",
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "type": "object",
+        "properties": {
+            "users": {
+                "type": "array",
+                "items": {
+                    "type": "string",
+                },
+            },
+        },
+        "required": ["user"],
+    }
+
+    @property
+    def usernames(self):
+        return self.body["users"]
+
+
+@mock.patch.dict(
+    message._class_to_schema_name, {CustomValidatedMessage: "custom_validated_id"}
+)
+class TestCustomValidatedMessage:
+    """Tests for CustomValidatedMessage"""
+
+    def test_usernames(self):
+        """Assert the instantiation works even if the message is invalid."""
+        try:
+            msg = CustomValidatedMessage(body={})
+        except KeyError:
+            pytest.fail(
+                "Error in filter properties prevented the message from being instanciated."
+            )
+        with pytest.raises(jsonschema.ValidationError):
+            msg.validate()
+
+
 class TestClassRegistry:
     """Tests for the :func:`fedora_messaging.message.load_message_classes`."""
 
