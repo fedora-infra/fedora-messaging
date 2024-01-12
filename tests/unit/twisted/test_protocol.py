@@ -43,7 +43,7 @@ except ImportError:
 
 
 class ProtocolTests(TestCase):
-    def setUp(self):
+    def setup_method(self, method):
         self.protocol = MockProtocol(None)
         self.factory = mock.Mock()
         self.protocol.factory = self.factory

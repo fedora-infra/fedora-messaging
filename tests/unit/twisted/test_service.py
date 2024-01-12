@@ -35,13 +35,13 @@ from fedora_messaging.twisted.service import (
 )
 
 
-class ServiceTests:
+class TestService:
     def test_init(self):
         service = FedoraMessagingServiceV2("amqp://example.com:4242")
         assert isinstance(service._parameters, pika.URLParameters)
         assert service._parameters.host == "example.com"
         assert service._parameters.port == 4242
-        assert getattr(service._parameters == "ssl", False, False)
+        assert getattr(service._parameters, "ssl", False) is False
         assert service._parameters.client_properties == config.conf["client_properties"]
         assert isinstance(service._service.factory, FedoraMessagingFactoryV2)
         assert len(service.services) == 1
@@ -118,7 +118,7 @@ class ConfigureTlsParameters:
         assert isinstance(params.ssl_options, SSLOptions)
 
 
-class SslContextFactoryTests:
+class TestSslContextFactory:
     @mock.patch("fedora_messaging.twisted.service.twisted_ssl.Certificate.loadPEM")
     @mock.patch("fedora_messaging.twisted.service.twisted_ssl.optionsForClientTLS")
     def test_no_key(self, mock_opts, mock_load_pem, fixtures_dir):

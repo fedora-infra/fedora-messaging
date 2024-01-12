@@ -9,6 +9,7 @@ source =
    .tox/*/site-packages/fedora_messaging
 
 [report]
+fail_under = 85
 exclude_lines =
     pragma: no cover
     if __name__ == .__main__.:

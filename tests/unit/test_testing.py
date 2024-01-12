@@ -27,7 +27,7 @@ class CustomMessage(api.Message):
     pass
 
 
-class MockSendsTests:
+class TestMockSends:
     """Tests for the :func:`fedora_messaging.testing.mock_sends` function."""
 
     def test_class(self):
@@ -81,7 +81,7 @@ class MockSendsTests:
     def test_mix_class_instance_order_matters(self):
         """Assert the order of messages matters."""
         expected_err = (
-            "Expected message of type <class 'fedora_messaging.tests.unit.test_testing"
+            "Expected message of type <class 'tests.unit.test_testing"
             ".CustomMessage'>, but <class 'fedora_messaging.message.Message'> was sent"
         )
 
@@ -111,7 +111,7 @@ class MockSendsTests:
     def test_wrong_type(self):
         """Assert sending the wrong type of message raises an AssertionError."""
         expected_err = (
-            "Expected message of type <class 'fedora_messaging.tests.unit.test_testing"
+            "Expected message of type <class 'tests.unit.test_testing"
             ".CustomMessage'>, but <class 'fedora_messaging.message.Message'> was sent"
         )
 

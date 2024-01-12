@@ -35,7 +35,7 @@ except ImportError:
 
 
 class FactoryV2Tests(TestCase):
-    def setUp(self):
+    def setup_method(self, method):
         self.protocol = mock.Mock()
         self.protocol.ready = defer.Deferred()
         self.protocol.is_closed = False

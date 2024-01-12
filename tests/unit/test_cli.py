@@ -47,8 +47,11 @@ def echo(message):
     print(str(message))
 
 
+plain_object = object()
+
+
 @mock.patch("fedora_messaging.config.conf.setup_logging", mock.Mock())
-class BaseCliTests:
+class TestBaseCli:
     """Unit tests for the base command of the CLI."""
 
     def test_no_conf(self):
@@ -60,13 +63,13 @@ class BaseCliTests:
 
 @mock.patch("fedora_messaging.cli.reactor", mock.Mock())
 @mock.patch("fedora_messaging.config.conf.setup_logging", mock.Mock())
-class ConsumeCliTests:
+class TestConsumeCli:
     """Unit tests for the 'consume' command of the CLI."""
 
-    def setUp(self):
+    def setup_method(self, method):
         self.runner = CliRunner()
 
-    def tearDown(self):
+    def teardown_method(self, method):
         """Make sure each test has a fresh default configuration."""
         config.conf = config.LazyConfig()
         config.conf.load_config(config_path="")
@@ -119,7 +122,7 @@ class ConsumeCliTests:
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
     def test_good_cli_bindings(self, mock_consume):
         """Assert providing a bindings via the CLI works."""
-        config.conf["callback"] = "fedora_messaging.tests.unit.test_cli:echo"
+        config.conf["callback"] = "tests.unit.test_cli:echo"
 
         result = self.runner.invoke(
             cli.cli,
@@ -160,7 +163,7 @@ class ConsumeCliTests:
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
     def test_queue_and_routing_key(self, mock_consume):
         """Asser  providing improper bindings is reported."""
-        config.conf["callback"] = "fedora_messaging.tests.unit.test_cli:echo"
+        config.conf["callback"] = "tests.unit.test_cli:echo"
 
         result = self.runner.invoke(
             cli.cli, ["consume", "--queue-name=qn", "--routing-key=rk"]
@@ -186,7 +189,7 @@ class ConsumeCliTests:
     def test_good_cli_callable(self, mock_consume):
         """Assert providing a callable via the CLI works."""
         result = self.runner.invoke(
-            cli.cli, ["consume", "--callback=fedora_messaging.tests.unit.test_cli:echo"]
+            cli.cli, ["consume", "--callback=tests.unit.test_cli:echo"]
         )
 
         mock_consume.assert_called_once_with(
@@ -194,11 +197,12 @@ class ConsumeCliTests:
         )
         assert 0 == result.exit_code
 
-    @mock.patch.dict("fedora_messaging.config.conf", {"bindings": "b", "queues": "c"})
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
-    def test_app_name(self, mock_consume, mock_importlib, *args, **kwargs):
+    def test_app_name(self, mock_consume, mock_importlib, monkeypatch):
         """Assert provided app name is saved in config."""
+        monkeypatch.setitem(config.conf, "bindings", "b")
+        monkeypatch.setitem(config.conf, "queues", "c")
         cli_options = {"callback": "mod:callable", "app-name": "test_app_name"}
         mock_mod_with_callable = mock.Mock(spec=["callable"])
         mock_importlib.import_module.return_value = mock_mod_with_callable
@@ -217,13 +221,14 @@ class ConsumeCliTests:
         )
         assert 0 == result.exit_code
 
-    @mock.patch.dict(
-        "fedora_messaging.config.conf", {"bindings": "b", "callback": None}
-    )
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
-    def test_missing_cli_and_conf_callable(self, mock_consume, mock_importlib):
+    def test_missing_cli_and_conf_callable(
+        self, mock_consume, mock_importlib, monkeypatch
+    ):
         """Assert missing callable via cli and in conf is reported."""
+        monkeypatch.setitem(config.conf, "bindings", "b")
+        monkeypatch.setitem(config.conf, "callback", None)
         mock_mod_with_callable = mock.Mock(spec=["callable"])
         mock_importlib.import_module.return_value = mock_mod_with_callable
         result = self.runner.invoke(cli.cli, ["consume"])
@@ -236,10 +241,9 @@ class ConsumeCliTests:
         )
         assert 1 == result.exit_code
 
-    @mock.patch.dict("fedora_messaging.config.conf", {"bindings": "b"})
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
-    def test_cli_callable_wrong_format(self, mock_consume, mock_importlib):
+    def test_cli_callable_wrong_format(self, mock_consume, mock_importlib, monkeypatch):
         """Assert a wrong callable format is reported."""
         cli_options = {"callback": "modcallable"}
         mock_mod_with_callable = mock.Mock(spec=["callable"])
@@ -256,11 +260,13 @@ class ConsumeCliTests:
         )
         assert 1 == result.exit_code
 
-    @mock.patch.dict("fedora_messaging.config.conf", {"bindings": "b"})
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
-    def test_cli_callable_import_failure_cli_opt(self, mock_consume, mock_importlib):
+    def test_cli_callable_import_failure_cli_opt(
+        self, mock_consume, mock_importlib, monkeypatch
+    ):
         """Assert module with callable import failure is reported."""
+        monkeypatch.setitem(config.conf, "bindings", "b")
         cli_options = {"callback": "mod:callable"}
         error_message = "No module named 'mod'"
         mock_importlib.import_module.side_effect = ImportError(error_message)
@@ -291,11 +297,13 @@ class ConsumeCliTests:
         assert 1 == result.exit_code
 
     @mock.patch("fedora_messaging.cli.getattr")
-    @mock.patch.dict("fedora_messaging.config.conf", {"bindings": "b"})
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
-    def test_callable_getattr_failure(self, mock_consume, mock_importlib, mock_getattr):
+    def test_callable_getattr_failure(
+        self, mock_consume, mock_importlib, mock_getattr, monkeypatch
+    ):
         """Assert finding callable in module failure is reported."""
+        monkeypatch.setitem(config.conf, "bindings", "b")
         cli_options = {"callback": "mod:callable"}
         error_message = "module 'mod' has no attribute 'callable'"
         mock_mod_with_callable = mock.Mock(spec=["callable"])
@@ -323,7 +331,7 @@ class ConsumeCliTests:
 
         result = self.runner.invoke(
             cli.cli,
-            ["consume", "--callback=fedora_messaging.tests.unit.test_cli:dummy"],
+            ["consume", "--callback=tests.unit.test_cli:plain_object"],
         )
 
         assert error_message in result.output
@@ -331,7 +339,7 @@ class ConsumeCliTests:
 
 
 @mock.patch("fedora_messaging.cli.reactor")
-class ConsumeCallbackTests:
+class TestConsumeCallback:
     """Unit tests for the twisted_consume callback."""
 
     def test_callback(self, mock_reactor):
@@ -410,13 +418,13 @@ class ConsumeCallbackTests:
         )
 
 
-class ConsumeErrbackTests:
+class TestConsumeErrback:
     """Unit tests for the twisted_consume errback."""
 
-    def setUp(self):
+    def setup_method(self, method):
         cli._exit_code = 0
 
-    def tearDown(self):
+    def teardown_method(self, method):
         cli._exit_code = 0
 
     @mock.patch("fedora_messaging.cli.reactor")
@@ -523,13 +531,13 @@ class CallbackFromFilesytem:
 
 
 @mock.patch("fedora_messaging.config.conf.setup_logging", mock.Mock())
-class PublishCliTests:
+class TestPublishCli:
     """Unit tests for the 'publish' command of the CLI."""
 
-    def setUp(self):
+    def setup_method(self, method):
         self.runner = CliRunner()
 
-    def tearDown(self):
+    def teardown_method(self, method):
         """Make sure each test has a fresh default configuration."""
         config.conf = config.LazyConfig()
         config.conf.load_config()
@@ -675,13 +683,13 @@ class PublishCliTests:
 
 
 @mock.patch("fedora_messaging.config.conf.setup_logging", mock.Mock())
-class RecordCliTests:
+class TestRecordCli:
     """Unit tests for the 'record' command of the CLI."""
 
-    def setUp(self):
+    def setup_method(self, method):
         self.runner = CliRunner()
 
-    def tearDown(self):
+    def teardown_method(self, method):
         """Make sure each test has a fresh default configuration."""
         config.conf = config.LazyConfig()
         config.conf.load_config(config_path="")
@@ -711,7 +719,7 @@ class RecordCliTests:
         )
 
 
-class RecorderClassTests:
+class TestRecorderClass:
     """Unit tests for the 'Recorder' class."""
 
     def test_save_recorded_messages_when_limit_is_reached(self):

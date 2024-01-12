@@ -96,7 +96,7 @@ class TestObj:
     pass
 
 
-class ValidateBindingsTests:
+class TestValidateBindings:
     """Unit tests for :func:`fedora_messaging.config.validate_bindings`."""
 
     def test_valid(self):
@@ -114,8 +114,7 @@ class ValidateBindingsTests:
             msg_config.validate_bindings(TestObj())
         assert (
             "Configuration error: bindings must be a list or tuple of dictionaries, "
-            "but was a <class 'fedora_messaging.tests.unit.test_config.TestObj'>"
-            == str(cm.value)
+            "but was a <class 'tests.unit.test_config.TestObj'>" == str(cm.value)
         )
 
     def test_missing_keys(self):
@@ -136,11 +135,11 @@ class ValidateBindingsTests:
             msg_config.validate_bindings(bindings)
         assert (
             "Configuration error: routing_keys must be a list or tuple, but was a "
-            "<class 'fedora_messaging.tests.unit.test_config.TestObj'>" == str(cm.value)
+            "<class 'tests.unit.test_config.TestObj'>" == str(cm.value)
         )
 
 
-class ValidateQueuesTests:
+class TestValidateQueues:
     """Unit tests for :func:`fedora_messaging.config.validate_queues`."""
 
     def test_valid(self):
@@ -169,7 +168,7 @@ class ValidateQueuesTests:
             msg_config.validate_queues({"q1": TestObj()})
         assert (
             "Configuration error: the q1 queue in the 'queues' setting has a value of type "
-            "<class 'fedora_messaging.tests.unit.test_config.TestObj'>, but it should be a "
+            "<class 'tests.unit.test_config.TestObj'>, but it should be a "
             "dictionary of settings." == str(cm.value)
         )
         assert "it should be a dictionary of settings." in str(cm.value)
@@ -187,7 +186,7 @@ class ValidateQueuesTests:
         assert "arguments" in str(cm.value)
 
 
-class LoadTests:
+class TestLoad:
     """Unit tests for :func:`fedora_messaging.config.load`."""
 
     def test_deep_copy(self):

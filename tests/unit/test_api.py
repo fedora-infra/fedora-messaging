@@ -184,7 +184,7 @@ class ConsumeTests(TestCase):
 
 @mock.patch("fedora_messaging.api._twisted_publish")
 class PublishTests(TestCase):
-    def setUp(self):
+    def setup_method(self, method):
         self.pre_publish_signal_data = {"called": False, "sender": None, "args": None}
         self.publish_signal_data = {"called": False, "sender": None, "args": None}
         self.publish_failed_signal_data = {
@@ -221,7 +221,7 @@ class PublishTests(TestCase):
         self.publish_signal_handler = publish_signal_handler
         self.publish_failed_signal_handler = publish_failed_signal_handler
 
-    def tearDown(self):
+    def teardown_method(self, method):
         pre_publish_signal.disconnect(self.pre_publish_signal_handler)
         publish_signal.disconnect(self.publish_signal_handler)
         publish_failed_signal.disconnect(self.publish_failed_signal_handler)

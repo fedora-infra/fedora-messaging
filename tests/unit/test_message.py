@@ -80,7 +80,7 @@ class TestGetMessage:
         )
 
 
-class MessageDumpsTests:
+class TestMessageDumps:
     """Tests for the :func:`fedora_messaging.message.dumps` function."""
 
     def test_proper_message(self):
@@ -156,7 +156,7 @@ class MessageDumpsTests:
             message.dumps(messages)
 
 
-class MessageLoadsTests:
+class TestMessageLoads:
     """Tests for the :func:`fedora_messaging.message.loads` function."""
 
     def test_proper_json(self):
@@ -310,7 +310,7 @@ class MessageLoadsTests:
             message.load_message(message_dict)
 
 
-class MessageTests:
+class TestMessage:
     """Tests for the :class:`fedora_messaging.message.Message` class."""
 
     def test_summary(self):
@@ -435,7 +435,7 @@ class MessageTests:
         """Assert encoded body is correct."""
         body = {"foo": "barr\u00e9"}
         msg = message.Message(body=body)
-        assert msg._encoded_body == json.dumps(body.encode("utf-8"))
+        assert msg._encoded_body == json.dumps(body).encode("utf-8")
 
     def test_url(self):
         # The url property must exist and defaults to None
@@ -536,7 +536,7 @@ class CustomMessage(message.Message):
 
 
 @mock.patch.dict(message._class_to_schema_name, {CustomMessage: "custom_id"})
-class CustomMessageTests:
+class TestCustomMessage:
     """Tests for a Message subclass that provides filter headers"""
 
     def test_usernames(self):
@@ -588,7 +588,7 @@ class CustomMessageTests:
         assert "fedora_messaging_flatpak_hexchat" in msg._headers
 
 
-class ClassRegistryTests:
+class TestClassRegistry:
     """Tests for the :func:`fedora_messaging.message.load_message_classes`."""
 
     def test_load_message_name_to_class(self):

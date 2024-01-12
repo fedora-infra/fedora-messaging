@@ -26,7 +26,7 @@ class MessageV1Tests(unittest.TestCase):
 
     msg_class = messages.MessageV1
 
-    def setUp(self):
+    def setup_method(self, method):
         self.minimal_message = {
             "mlist": {"list_name": "infrastructure"},
             "msg": {
@@ -139,7 +139,7 @@ class MessageV2Tests(MessageV1Tests):
 
     msg_class = messages.MessageV2
 
-    def setUp(self):
+    def setup_method(self, method):
         self.minimal_message = {
             "mailing_list": "infrastructure",
             "from": "JD <jd@example.com>",
