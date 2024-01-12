@@ -1,4 +1,4 @@
-"""Test the :mod:`fedora_messaging.api` APIs on a real broker running on localhost."""
+"""Test the :mod:`fedora_messaging.api` APIs on a real broker."""
 
 import re
 import socket
@@ -16,8 +16,10 @@ from twisted.internet import defer, reactor, task, threads
 from fedora_messaging import api, config, exceptions, message
 from fedora_messaging.twisted.consumer import _add_timeout
 
+from .utils import RABBITMQ_HOST
 
-HTTP_API = "http://localhost:15672/api/"
+
+HTTP_API = f"http://{RABBITMQ_HOST}:15672/api/"
 HTTP_AUTH = ("guest", "guest")
 
 
@@ -25,6 +27,7 @@ def setup_function(function):
     """Ensure each test starts with a fresh Service and configuration."""
     config.conf = config.LazyConfig()
     config.conf["client_properties"]["app"] = function.__name__
+    config.conf["amqp_url"] = f"amqp://{RABBITMQ_HOST}"
     if api._twisted_service:
         pytest_twisted.blockon(api._twisted_service.stopService())
     api._twisted_service = None
@@ -483,7 +486,7 @@ def test_no_vhost_permissions(admin_user, queue_and_binding):
 
     queues, _ = queue_and_binding
 
-    amqp_url = f"amqp://{admin_user}:guest@localhost:5672/%2F"
+    amqp_url = f"amqp://{admin_user}:guest@{RABBITMQ_HOST}:5672/%2F"
     with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
         try:
             yield api.twisted_consume(lambda x: x, [], queues)
@@ -510,7 +513,7 @@ def test_no_read_permissions_queue_read_failure_pika1(admin_user, queue_and_bind
     resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
     assert resp.code == 204
 
-    amqp_url = f"amqp://{admin_user}:guest@localhost:5672/%2F"
+    amqp_url = f"amqp://{admin_user}:guest@{RABBITMQ_HOST}:5672/%2F"
     with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
         try:
             consumers = api.twisted_consume(lambda x: x, [], queues)
@@ -537,7 +540,7 @@ def test_no_read_permissions_bind_failure(admin_user, queue_and_binding):
     resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
     assert resp.code == 204
 
-    amqp_url = f"amqp://{admin_user}:guest@localhost:5672/%2F"
+    amqp_url = f"amqp://{admin_user}:guest@{RABBITMQ_HOST}:5672/%2F"
     try:
         with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
             yield api.twisted_consume(lambda x: x, bindings, queues)
@@ -561,7 +564,7 @@ def test_no_write_permissions(admin_user, queue_and_binding):
     resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
     assert resp.code == 204
 
-    amqp_url = f"amqp://{admin_user}:guest@localhost:5672/%2F"
+    amqp_url = f"amqp://{admin_user}:guest@{RABBITMQ_HOST}:5672/%2F"
     try:
         with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
             yield api.twisted_consume(lambda x: x, bindings, queues)
@@ -686,7 +689,7 @@ def test_protocol_publish_forbidden(admin_user):
     resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
     assert resp.code == 201
 
-    amqp_url = f"amqp://{admin_user}:guest@localhost:5672/%2F"
+    amqp_url = f"amqp://{admin_user}:guest@{RABBITMQ_HOST}:5672/%2F"
     with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
         try:
             api._init_twisted_service()
@@ -718,7 +721,7 @@ def test_protocol_publish_forbidden_in_vhost(admin_user):
     resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
     assert resp.code == 204
 
-    amqp_url = f"amqp://{admin_user}:guest@localhost:5672/%2F"
+    amqp_url = f"amqp://{admin_user}:guest@{RABBITMQ_HOST}:5672/%2F"
     with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
         try:
             api._init_twisted_service()
@@ -790,8 +793,8 @@ def bad_amqp_url():
     amqp_url_backup = config.conf["amqp_url"]
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind(("", 0))
-    config.conf["amqp_url"] = "amqp://localhost:{port}/".format(
-        port=sock.getsockname()[1]
+    config.conf["amqp_url"] = "amqp://{host}:{port}/".format(
+        host=RABBITMQ_HOST, port=sock.getsockname()[1]
     )
     yield
     config.conf["amqp_url"] = amqp_url_backup
