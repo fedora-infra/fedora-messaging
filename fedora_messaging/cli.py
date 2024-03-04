@@ -20,11 +20,12 @@ The ``fedora-messaging`` `Click`_ CLI.
 .. _Click: http://click.pocoo.org/
 """
 
-
+import requests
 import errno
 import importlib
 import logging
 import logging.config
+from .message import Message
 import os
 import sys
 
@@ -452,3 +453,35 @@ def record(exchange, queue_name, routing_key, app_name, limit, file):
     _consume(
         exchange, queue_name, routing_key, messages_recorder.collect_message, app_name
     )
+
+URL_TEMPLATE = "https://apps.fedoraproject.org/datagrepper/id?id={}&is_raw=true"
+
+@cli.command()
+@click.argument("message_id")
+def replay(message_id):
+    """Replay a message from Datagrepper by its message ID"""
+    message_data = _get_message(message_id)
+    if message_data:
+        try:
+            _publish_message(message_data)
+            click.echo(f"Message with ID {message_id} has been successfully replayed.")
+        except Exception as e:
+            click.echo(f"Failed to replay message: {e}")
+    else:
+        click.echo(f"Could not find message with ID {message_id}")
+
+
+def _get_message(message_id):
+    """Fetch a message by ID from Datagreeper"""
+    url = URL_TEMPLATE.format(message_id)
+    response = requests.get(url)
+    if response.ok:
+        return response.json()
+    else:
+        click.echo(f"Failed to retrieve message from Datagrepper: HTTP {response.status_code}")
+        return None
+
+def _publish_message(message_data):
+    """Publish the message fetched from Datagrepper"""
+    message = Message.load_message(message_data)
+    api.publish(message)
