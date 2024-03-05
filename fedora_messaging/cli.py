@@ -20,18 +20,19 @@ The ``fedora-messaging`` `Click`_ CLI.
 .. _Click: http://click.pocoo.org/
 """
 
-import requests
 import errno
 import importlib
 import logging
 import logging.config
-from .message import Message
 import os
 import sys
 
 import click
 import pkg_resources
+import requests
 from twisted.internet import asyncioreactor, error
+
+from .message import Message
 
 
 try:
@@ -454,7 +455,9 @@ def record(exchange, queue_name, routing_key, app_name, limit, file):
         exchange, queue_name, routing_key, messages_recorder.collect_message, app_name
     )
 
+
 URL_TEMPLATE = "https://apps.fedoraproject.org/datagrepper/id?id={}&is_raw=true"
+
 
 @cli.command()
 @click.argument("message_id")
@@ -474,12 +477,15 @@ def replay(message_id):
 def _get_message(message_id):
     """Fetch a message by ID from Datagreeper"""
     url = URL_TEMPLATE.format(message_id)
-    response = requests.get(url)
+    response = requests.get(url, timeout=5)
     if response.ok:
         return response.json()
     else:
-        click.echo(f"Failed to retrieve message from Datagrepper: HTTP {response.status_code}")
+        click.echo(
+            f"Failed to retrieve message from Datagrepper: HTTP {response.status_code}"
+        )
         return None
+
 
 def _publish_message(message_data):
     """Publish the message fetched from Datagrepper"""
