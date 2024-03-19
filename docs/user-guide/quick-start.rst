@@ -144,4 +144,4 @@ Fedora's Restricted Broker
 Connecting the Fedora's private virtual host requires working with the Fedora
 infrastructure team. The current process and configuration for this is
 documented in the `infrastructure team's development guide
-<https://fedora-infra-docs.readthedocs.io/en/latest/dev-guide/messaging.html>`_.
+<https://docs.fedoraproject.org/en-US/infra/developer_guide/messaging/>`_.
