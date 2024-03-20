@@ -460,12 +460,17 @@ def record(exchange, queue_name, routing_key, app_name, limit, file):
     )
 
 
-URL_TEMPLATE = "https://apps.fedoraproject.org/datagrepper/id?id={}&is_raw=true"
+DEFAULT_DATAGREPPER_URL = "https://apps.fedoraproject.org/datagrepper"
 
 
 @cli.command()
 @click.argument("message_id")
-@click.option("--datagrepper-url", help=_datagrepper_help, default=URL_TEMPLATE)
+@click.option(
+    "--datagrepper-url",
+    help=_datagrepper_help,
+    default=DEFAULT_DATAGREPPER_URL,
+    show_default=True,
+)
 def replay(message_id, datagrepper_url):
     """Replay a message from Datagrepper by its message ID"""
     try:
@@ -480,7 +485,7 @@ def replay(message_id, datagrepper_url):
 
 def _get_message(message_id, datagrepper_url):
     """Fetch a message by ID from Datagreeper"""
-    url = datagrepper_url.format(message_id)
+    url = f"{datagrepper_url}/id?id={message_id}&is_raw=true"
     response = requests.get(url, timeout=5)
     response.raise_for_status()
     return response.json()
