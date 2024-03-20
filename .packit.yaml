@@ -24,13 +24,13 @@ actions:
     # fetch specfile from src.fp.o
     - "curl https://src.fedoraproject.org/rpms/fedora-messaging/raw/main/f/fedora-messaging.spec -o fedora-messaging.spec"
     - "sh -c 'curl -sSL https://install.python-poetry.org | python3 -'"
-    - "sh -c 'poetry --version'"
+    - "sh -c '$HOME/.local/bin/poetry --version'"
   create-archive:
-    - "sh -c 'poetry build -f sdist'"
-    - "sh -c 'echo dist/fedora_messaging-$(poetry version -s).tar.gz'"
+    - "sh -c '$HOME/.local/bin/poetry build -f sdist'"
+    - "sh -c 'echo dist/fedora_messaging-$($HOME/.local/bin/poetry version -s).tar.gz'"
   get-current-version:
     # fetch the version number of the package
-    - "sh -c 'poetry version -s'"
+    - "sh -c '$HOME/.local/bin/poetry version -s'"
 
 jobs:
   # upon upstream PRs, perform COPR builds
