@@ -43,21 +43,17 @@ jobs:
         run: |
           dnf install -y rust cargo openssl-devel
           python3 -m pip install poetry>=1.3.0
-      - name: Install dependencies on Python 3.6
-        if: ${{ matrix.tox_env == 'py36-unittest' }}
-        run: |
-          python3 -m pip install "cryptography<41.0.0" "virtualenv<20.18"
       - name: Run tests
         run: tox -e ${{ matrix.tox_env }}
 
     strategy:
       matrix:
         tox_env:
-          - py36-unittest
-          - py37-unittest
           - py38-unittest
           - py39-unittest
           - py310-unittest
+          - py311-unittest
+          - py312-unittest
     runs-on: ubuntu-latest
 
   integration_test:
@@ -89,7 +85,8 @@ jobs:
     strategy:
       matrix:
         tox_env:
-          - py37-integration
           - py38-integration
           - py39-integration
           - py310-integration
+          - py311-integration
+          - py312-integration

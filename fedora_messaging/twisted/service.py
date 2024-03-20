@@ -27,7 +27,6 @@ See https://twistedmatrix.com/documents/current/core/howto/application.html
 
 import logging
 import ssl
-import sys
 
 import pika
 from pika import SSLOptions
@@ -132,13 +131,7 @@ def _configure_tls_parameters(parameters):
             raise exceptions.ConfigurationException(
                 f'The "ca_cert" setting in the "tls" section is invalid ({e})'
             )
-    if sys.version_info >= (3, 7):
-        ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
-    else:
-        ssl_context.options |= ssl.OP_NO_SSLv2
-        ssl_context.options |= ssl.OP_NO_SSLv3
-        ssl_context.options |= ssl.OP_NO_TLSv1
-        ssl_context.options |= ssl.OP_NO_TLSv1_1
+    ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
     ssl_context.check_hostname = True
     if cert and key:
         try:

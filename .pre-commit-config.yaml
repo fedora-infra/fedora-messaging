@@ -13,14 +13,14 @@ repos:
     hooks:
       - id: pyupgrade
         args:
-          - --py36-plus
+          - --py38-plus
           - --keep-mock
 
   - repo: https://github.com/psf/black
     rev: 23.12.1
     hooks:
       - id: black
-        args: ["--check", "--diff", "-t", "py36"]
+        args: ["--check", "--diff", "-t", "py38"]
 
   - repo: https://github.com/pycqa/flake8
     rev: 7.0.0

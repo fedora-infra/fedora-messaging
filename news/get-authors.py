@@ -24,9 +24,7 @@ from subprocess import check_output
 
 EXCLUDE = ["Weblate (bot)"]
 
-last_tag = check_output(
-    "git tag | sort -n | tail -n 1", shell=True, universal_newlines=True
-).strip()
+last_tag = check_output("git tag | sort -n | tail -n 1", shell=True, text=True).strip()
 
 args_parser = ArgumentParser()
 args_parser.add_argument(
@@ -45,9 +43,7 @@ args = args_parser.parse_args()
 
 authors = {}
 log_range = args.since + ".." + args.until
-output = check_output(
-    ["git", "log", log_range, "--format=%ae\t%an"], universal_newlines=True
-)
+output = check_output(["git", "log", log_range, "--format=%ae\t%an"], text=True)
 for line in output.splitlines():
     email, fullname = line.split("\t")
     email = email.split("@")[0].replace(".", "")
