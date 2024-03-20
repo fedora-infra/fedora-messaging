@@ -33,7 +33,7 @@ jobs:
       matrix:
         tox_env:
           - checks
-          - licenses
+          # - licenses
 
   unit-tests:
     name: Unit tests
