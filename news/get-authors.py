@@ -19,12 +19,17 @@ Authors:
 
 import os
 from argparse import ArgumentParser
+from collections import defaultdict
 from subprocess import check_output
 
 
 EXCLUDE = ["Weblate (bot)"]
 
-last_tag = check_output("git tag | sort -n | tail -n 1", shell=True, text=True).strip()
+last_tag = (
+    check_output(["git", "tag", "--sort=creatordate"], text=True)
+    .strip()
+    .split("\n")[-1]
+)
 
 args_parser = ArgumentParser()
 args_parser.add_argument(
@@ -42,11 +47,15 @@ args_parser.add_argument(
 args = args_parser.parse_args()
 
 authors = {}
+commit_counts = defaultdict(int)
+
 log_range = args.since + ".." + args.until
+print(f"Scanning commits in range {log_range}")
 output = check_output(["git", "log", log_range, "--format=%ae\t%an"], text=True)
 for line in output.splitlines():
     email, fullname = line.split("\t")
     email = email.split("@")[0].replace(".", "")
+    commit_counts[email] += 1
     if email in authors:
         continue
     authors[email] = fullname
@@ -57,7 +66,10 @@ for nick, fullname in authors.items():
     filename = f"{nick}.author"
     if os.path.exists(filename):
         continue
-    print(f"Adding author {fullname} ({nick})")
+    commit_count = commit_counts[nick]
+    print(
+        f"Adding author {fullname} ({nick}, {commit_count} commit{'' if commit_count < 2 else 's'})"
+    )
     with open(filename, "w") as f:
         f.write(fullname)
         f.write("\n")

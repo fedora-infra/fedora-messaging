@@ -151,7 +151,7 @@ When cutting a new release, follow these steps:
 * add missing authors to the release notes fragments by changing to the ``news``
   directory and running the ``get-authors.py`` script, but check for duplicates
   and errors
-* generate the changelog by running ``towncrier``
+* generate the changelog by running ``poetry run towncrier build``
 * adjust the release notes in ``docs/changelog.rst``
 * generate the docs with ``tox -e docs`` and check them in ``docs/_build/html``
 * change the ``Development Status`` classifier in ``setup.py`` if necessary
