@@ -216,7 +216,7 @@ class TestConsumeCli:
             ],
         )
         assert config.conf["client_properties"]["app"] == cli_options["app-name"]
-        mock_importlib.import_module.called_once_with("mod")
+        mock_importlib.import_module.assert_called_once_with("mod")
         mock_consume.assert_called_once_with(
             mock_mod_with_callable.callable, bindings="b", queues="c"
         )
@@ -233,7 +233,7 @@ class TestConsumeCli:
         mock_mod_with_callable = mock.Mock(spec=["callable"])
         mock_importlib.import_module.return_value = mock_mod_with_callable
         result = self.runner.invoke(cli.cli, ["consume"])
-        mock_importlib.import_module.not_called()
+        mock_importlib.import_module.assert_not_called()
         mock_consume.assert_not_called()
         assert (
             "A Python path to a callable object that accepts the message must be provided"
@@ -252,7 +252,7 @@ class TestConsumeCli:
         result = self.runner.invoke(
             cli.cli, ["consume", "--callback=" + cli_options["callback"]]
         )
-        mock_importlib.import_module.not_called()
+        mock_importlib.import_module.assert_not_called()
         mock_consume.assert_not_called()
         assert (
             "Unable to parse the callback path ({}); the "
@@ -274,7 +274,7 @@ class TestConsumeCli:
         result = self.runner.invoke(
             cli.cli, ["consume", "--callback=" + cli_options["callback"]]
         )
-        mock_importlib.import_module.called_once_with("mod")
+        mock_importlib.import_module.assert_called_once_with("mod")
         mock_consume.assert_not_called()
         assert (
             "Failed to import the callback module ({}) provided in the --callback argument".format(
@@ -313,7 +313,7 @@ class TestConsumeCli:
         result = self.runner.invoke(
             cli.cli, ["consume", "--callback=" + cli_options["callback"]]
         )
-        mock_importlib.import_module.called_once_with("mod")
+        mock_importlib.import_module.assert_called_once_with("mod")
         mock_consume.assert_not_called()
         assert (
             "Unable to import {} ({}); is the package installed? The python path should "
