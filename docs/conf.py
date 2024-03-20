@@ -12,13 +12,14 @@
 #
 import os
 import re
-import sys
 
+
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
 
 topdir = os.path.abspath("../")
-sys.path.insert(0, topdir)
-
-import fedora_messaging  # noqa: E402
 
 
 # -- Project information -----------------------------------------------------
@@ -27,11 +28,14 @@ project = "Fedora Messaging"
 copyright = "2018, Red Hat, Inc"
 author = "Fedora Infrastructure"
 
-# The short X.Y version
-version = ".".join(fedora_messaging.__version__.split(".")[:2])
+with open(os.path.join(topdir, "pyproject.toml"), "rb") as f:
+    pyproject = tomllib.load(f)
 
 # The full version, including alpha/beta/rc tags
-release = fedora_messaging.__version__
+release = pyproject["tool"]["poetry"]["version"]
+
+# The short X.Y version
+version = ".".join(release.split(".")[:2])
 
 
 # -- General configuration ---------------------------------------------------
