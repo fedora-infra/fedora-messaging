@@ -24,6 +24,7 @@ from unittest import mock
 
 import click
 import pytest
+import requests
 from click.testing import CliRunner
 from twisted.internet import error
 from twisted.python import failure
@@ -774,3 +775,57 @@ class TestRecorderClass:
         assert the_exception.exit_code == 1
         assert test_recorder.counter == 0
         mock_file.write.assert_not_called()
+
+
+@mock.patch("fedora_messaging.config.conf.setup_logging", mock.Mock())
+class TestReplayCli:
+    """Unit tests for the 'replay' command of the CLI."""
+
+    def setup_method(self, method):
+        """Setup test method environment."""
+        self.runner = CliRunner()
+
+    def teardown_method(self, method):
+        """Reset configuration after each test."""
+        config.conf = config.LazyConfig()
+        config.conf.load_config()
+
+    @mock.patch("fedora_messaging.cli._get_message")
+    @mock.patch("fedora_messaging.api.publish")
+    def test_successful_message_replay(self, mock_publish, mock_get_message):
+        """Test successful replay of a message."""
+        message_id = "123"
+        datagrepper_url = "http://example.com"
+
+        message_data = {
+            "topic": "test.topic",
+            "body": {"data_key": "data_value"},
+        }
+        mock_get_message.return_value = message_data
+
+        result = self.runner.invoke(
+            cli.replay, [message_id, f"--datagrepper-url={datagrepper_url}"]
+        )
+
+        assert (
+            result.exit_code == 0
+        ), f"Command did not exit as expected. Output: {result.output}"
+        assert "has been successfully replayed" in result.output
+
+    @mock.patch("fedora_messaging.cli.requests.get", side_effect=requests.HTTPError)
+    def test_datagrepper_http_error(self, mock_get):
+        """Test handling of HTTP errors when fetching message data."""
+        message_id = "123"
+        result = self.runner.invoke(cli.replay, [message_id])
+        assert "Failed to retrieve message from Datagrepper" in result.output
+        assert result.exit_code != 0
+
+    @mock.patch("fedora_messaging.cli._get_message", return_value={"some": "data"})
+    @mock.patch(
+        "fedora_messaging.cli.api.publish", side_effect=Exception("Publish failure")
+    )
+    def test_publish_failure(self, mock_publish, mock_get_message):
+        """Test handling of exceptions during message publishing."""
+        message_id = "123"
+        result = self.runner.invoke(cli.replay, [message_id])
+        assert result.exit_code != 0
