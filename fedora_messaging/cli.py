@@ -20,7 +20,6 @@ The ``fedora-messaging`` `Click`_ CLI.
 .. _Click: http://click.pocoo.org/
 """
 
-
 import errno
 import importlib
 import logging
@@ -30,7 +29,10 @@ import sys
 
 import click
 import pkg_resources
+import requests
 from twisted.internet import asyncioreactor, error
+
+from fedora_messaging import message
 
 
 try:
@@ -90,6 +92,10 @@ _exchange_help = (
 _publish_exchange_help = (
     "The name of the exchange to publish to. Can contain ASCII letters, "
     "digits, hyphen, underscore, period, or colon."
+)
+_datagrepper_help = (
+    "The URL of the datagreeper instance to use, "
+    "defaults to the production environment"
 )
 _limit_help = "The maximum number of messages to record."
 
@@ -452,3 +458,29 @@ def record(exchange, queue_name, routing_key, app_name, limit, file):
     _consume(
         exchange, queue_name, routing_key, messages_recorder.collect_message, app_name
     )
+
+
+URL_TEMPLATE = "https://apps.fedoraproject.org/datagrepper/id?id={}&is_raw=true"
+
+
+@cli.command()
+@click.argument("message_id")
+@click.option("--datagrepper-url", help=_datagrepper_help, default=URL_TEMPLATE)
+def replay(message_id, datagrepper_url):
+    """Replay a message from Datagrepper by its message ID"""
+    try:
+        message_data = _get_message(message_id, datagrepper_url)
+    except requests.HTTPError as e:
+        raise click.ClickException(f"Failed to retrieve message from Datagrepper: {e}")
+
+    if message_data:
+        api.publish(message.load_message(message_data))
+        click.echo(f"Message with ID {message_id} has been successfully replayed.")
+
+
+def _get_message(message_id, datagrepper_url):
+    """Fetch a message by ID from Datagreeper"""
+    url = datagrepper_url.format(message_id)
+    response = requests.get(url, timeout=5)
+    response.raise_for_status()
+    return response.json()
