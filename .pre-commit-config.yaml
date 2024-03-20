@@ -45,5 +45,4 @@ repos:
     rev: v6.2.0
     hooks:
       - id: rstcheck
-        exclude: "news/_template.rst"
         additional_dependencies: [sphinx, tomli]

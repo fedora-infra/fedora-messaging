@@ -57,6 +57,7 @@ sphinx = [
     {version = "<=5.3.0", python = ">=3.8, <3.9"},
     {version = "^7.2.4", python = "^3.9"}
 ]
+myst-parser = ">=0.16"
 towncrier = "^23.6.0"
 treq = "^22.2.0 || ^23.0.0"
 twisted = ">22.4.0"
@@ -69,6 +70,7 @@ sphinx = [
     {version = "<=5.3.0", python = ">=3.6, <3.9"},
     {version = "^7.2.4", python = "^3.9"}
 ]
+myst-parser = ">=0.16"
 towncrier = "^23.6.0"
 
 
@@ -80,48 +82,59 @@ fedora-messaging = "fedora_messaging.cli:cli"
 
 [tool.towncrier]
 package = "fedora_messaging"
-filename = "docs/changelog.rst"
+filename = "docs/changelog.md"
 directory = "news/"
-title_format = "{version} ({project_date})"
+start_string = "<!-- towncrier release notes start -->\n"
+underlines = ["", "", ""]
+template = "news/_template.md"
+title_format = "## {version} ({project_date})"
 issue_format = "{issue}"
-template = "news/_template.rst"
 wrap = false
-all_bullets = true
 
-  [[tool.towncrier.type]]
-  directory = "api"
-  name = "API Changes"
-  showcontent = true
+[[tool.towncrier.type]]
+directory = "security"
+name = "Security"
+showcontent = true
 
-  [[tool.towncrier.type]]
-  directory = "feature"
-  name = "Features"
-  showcontent = true
+[[tool.towncrier.type]]
+directory = "api"
+name = "API Changes"
+showcontent = true
 
-  [[tool.towncrier.type]]
-  directory = "bug"
-  name = "Bug Fixes"
-  showcontent = true
+[[tool.towncrier.type]]
+directory = "deprecated"
+name = "Deprecated"
+showcontent = true
 
-  [[tool.towncrier.type]]
-  directory = "docs"
-  name = "Documentation Improvements"
-  showcontent = true
+[[tool.towncrier.type]]
+directory = "feature"
+name = "Features"
+showcontent = true
 
-  [[tool.towncrier.type]]
-  directory = "dev"
-  name = "Development Changes"
-  showcontent = true
+[[tool.towncrier.type]]
+directory = "bug"
+name = "Bug Fixes"
+showcontent = true
 
-  [[tool.towncrier.type]]
-  directory = "other"
-  name = "Other Changes"
-  showcontent = true
+[[tool.towncrier.type]]
+directory = "docs"
+name = "Documentation Improvements"
+showcontent = true
 
-  [[tool.towncrier.type]]
-  directory = "author"
-  name = "Contributors"
-  showcontent = true
+[[tool.towncrier.type]]
+directory = "dev"
+name = "Development Changes"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "other"
+name = "Other Changes"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "author"
+name = "Contributors"
+showcontent = true
 
 
 [tool.isort]
