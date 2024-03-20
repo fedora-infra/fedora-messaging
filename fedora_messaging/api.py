@@ -1,6 +1,5 @@
 """The API for publishing messages and consuming from message queues."""
 
-
 import inspect
 import logging
 
