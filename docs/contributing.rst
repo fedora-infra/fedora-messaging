@@ -147,7 +147,7 @@ Releasing
 =========
 When cutting a new release, follow these steps:
 
-* update the version in ``fedora_messaging/__init__.py``
+* update the version in ``pyproject.toml``
 * add missing authors to the release notes fragments by changing to the ``news``
   directory and running the ``get-authors.py`` script, but check for duplicates
   and errors
