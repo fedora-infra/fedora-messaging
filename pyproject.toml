@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fedora_messaging"
-version = "3.4.1"
+version = "3.5.0"
 description = "A set of tools for using Fedora's messaging infrastructure"
 authors = [
     "Fedora Infrastructure <admin@fedoraproject.org>"

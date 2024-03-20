@@ -4,6 +4,47 @@ Release Notes
 
 .. towncrier release notes start
 
+3.5.0 (2024-03-20)
+==================
+
+Features
+--------
+
+* Add a replay command
+  (`#332 <https://github.com/fedora-infra/fedora-messaging/issues/332>`_)
+* Add support Python 3.11 and 3.12, drop support for Python 3.6 and 3.7
+* Better protection against invalid bodies breaking the headers generation and the instanciation of a message
+* Testing framework: make the sent messages available in the context manager
+
+Documentation Improvements
+--------------------------
+
+* Add SECURITY.md for project security policy
+  (`PR#314 <https://github.com/fedora-infra/fedora-messaging/pull/314>`_)
+* Add fedora-messaging-git-hook-messages to the known schema packages
+
+Development Changes
+-------------------
+
+* Make the tests use the pytest fixtures and assert system
+  (`#961b82d <https://github.com/fedora-infra/fedora-messaging/issues/961b82d>`_)
+* Make fedora-messaging use poetry
+  (`#294 <https://github.com/fedora-infra/fedora-messaging/issues/294>`_)
+* Add some generic pre-commit checks
+* Don't distribute the tests in the wheel
+
+Contributors
+------------
+
+Many thanks to the contributors of bug reports, pull requests, and pull request
+reviews for this release:
+
+* Aurélien Bompard
+* Thibaut Batale
+* Khaled Achech
+* Lenka Segura
+* Ryan Lerch
+
 3.4.1 (2023-05-26)
 ==================
 

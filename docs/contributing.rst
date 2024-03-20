@@ -154,7 +154,7 @@ When cutting a new release, follow these steps:
 * generate the changelog by running ``poetry run towncrier build``
 * adjust the release notes in ``docs/changelog.rst``
 * generate the docs with ``tox -e docs`` and check them in ``docs/_build/html``
-* change the ``Development Status`` classifier in ``setup.py`` if necessary
+* change the ``Development Status`` classifier in ``pyproject.toml`` if necessary
 * commit the changes
 * push the commit to the upstream Github repository (via a PR or not).
 * change to the stable branch and merge the ``develop`` branch
