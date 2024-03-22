@@ -9,11 +9,11 @@ queue_rules:
       - status-success=Unit tests (py310-unittest)
       - status-success=Unit tests (py311-unittest)
       - status-success=Unit tests (py312-unittest)
-      - status-success=Integration tests (3.8)
-      - status-success=Integration tests (3.9)
-      - status-success=Integration tests (3.10)
-      - status-success=Integration tests (3.11)
-      - status-success=Integration tests (3.12)
+      - status-success=Integration tests (py38-integration)
+      - status-success=Integration tests (py39-integration)
+      - status-success=Integration tests (py310-integration)
+      - status-success=Integration tests (py311-integration)
+      - status-success=Integration tests (py312-integration)
 
 
 pull_request_rules:
@@ -36,11 +36,11 @@ pull_request_rules:
       - status-success=Unit tests (py310-unittest)
       - status-success=Unit tests (py311-unittest)
       - status-success=Unit tests (py312-unittest)
-      - status-success=Integration tests (3.8)
-      - status-success=Integration tests (3.9)
-      - status-success=Integration tests (3.10)
-      - status-success=Integration tests (3.11)
-      - status-success=Integration tests (3.12)
+      - status-success=Integration tests (py38-integration)
+      - status-success=Integration tests (py39-integration)
+      - status-success=Integration tests (py310-integration)
+      - status-success=Integration tests (py311-integration)
+      - status-success=Integration tests (py312-integration)
 
   # Merge contributions from the team as long as they have one approval by anyone
   - name: default-from-fedora-messaging-team
@@ -62,8 +62,8 @@ pull_request_rules:
       - status-success=Unit tests (py310-unittest)
       - status-success=Unit tests (py311-unittest)
       - status-success=Unit tests (py312-unittest)
-      - status-success=Integration tests (3.8)
-      - status-success=Integration tests (3.9)
-      - status-success=Integration tests (3.10)
-      - status-success=Integration tests (3.11)
-      - status-success=Integration tests (3.12)
+      - status-success=Integration tests (py38-integration)
+      - status-success=Integration tests (py39-integration)
+      - status-success=Integration tests (py310-integration)
+      - status-success=Integration tests (py311-integration)
+      - status-success=Integration tests (py312-integration)
