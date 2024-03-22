@@ -65,6 +65,7 @@ You can view the history of `all bodhi messages <https://apps.fedoraproject.org/
 * ``bodhi.update.requirements_met.stable``: Sent when all the update requirements are met for stable. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.update.requirements_met.stable>`__)
 * ``bodhi.update.status.testing.koji-build-group.build.complete``: Sent when an update is ready to be tested. Original version. Does not have 'update' property or inherit from UpdateMessage. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.update.status.testing.koji-build-group.build.complete>`__)
 * ``bodhi.update.status.testing.koji-build-group.build.complete``: Sent when an update is ready to be tested. Newer version. Has 'update' property, like other update messages. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.update.status.testing.koji-build-group.build.complete>`__)
+* ``bodhi.update.status.testing.koji-build-group.build.complete``: Sent when an update is ready to be tested. Simplified version. Specifically, this message is sent: * When an update is created * When an update is edited and its builds change * When a "re-trigger tests" request is made via the web UI or API These are the points where we expect that automated systems will test the update. Inherits from UpdateMessage and only contains as much extra information (in the 'artifact' dict) as the Fedora CI schedulers actually need. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.bodhi.update.status.testing.koji-build-group.build.complete>`__)
 
 
 Copr
@@ -108,18 +109,18 @@ You can view the history of `all elections messages <https://apps.fedoraproject.
 * ``fedora_elections.election.new``: A sub-class of a Fedora message that defines a message schema for messages published by Elections when a new election is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedora_elections.election.new>`__)
 
 
-git
+Git
 ===
 
-You can view the history of `all git messages <https://apps.fedoraproject.org/datagrepper/raw?category=git>`__ in datagrepper.
+You can view the history of `all Git messages <https://apps.fedoraproject.org/datagrepper/raw?category=git>`__ in datagrepper.
 
 * ``git.receive``: A sub-class of a Fedora message that defines a message schema for messages published by Fedora Messaging Git Hook when a new commit is received. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.git.receive>`__)
 
 
-hotness
-=======
+The New Hotness
+===============
 
-You can view the history of `all hotness messages <https://apps.fedoraproject.org/datagrepper/raw?category=hotness>`__ in datagrepper.
+You can view the history of `all The New Hotness messages <https://apps.fedoraproject.org/datagrepper/raw?category=hotness>`__ in datagrepper.
 
 * ``org.fedoraproject.prod.hotness.update.bug.file``: Message sent by the-new-hotness to "hotness.update.bug.file" topic when bugzilla issue is filled. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.hotness.update.bug.file>`__)
 * ``org.fedoraproject.prod.hotness.update.drop``: Message sent by the-new-hotness to "hotness.update.drop" topic when update is dropped. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.hotness.update.drop>`__)
@@ -158,6 +159,15 @@ You can view the history of `all Koji messages <https://apps.fedoraproject.org/d
 * ``buildsys.task.state.change``: This message is sent when a task state changes. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.buildsys.task.state.change>`__)
 
 
+Koschei
+=======
+
+You can view the history of `all Koschei messages <https://apps.fedoraproject.org/datagrepper/raw?category=koschei>`__ in datagrepper.
+
+* ``koschei.collection.state.change``: Messages published by Koschei when a collection state changes.     For example when collection buildroot becomes unresolvable     (broken) or when it is fixed. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.koschei.collection.state.change>`__)
+* ``koschei.package.state.change``: Messages published by Koschei when a package state changes.     For example when package starts to fail to build, package     dependencies become unresolved or when package is fixed. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.koschei.package.state.change>`__)
+
+
 mdapi
 =====
 
@@ -166,10 +176,18 @@ You can view the history of `all mdapi messages <https://apps.fedoraproject.org/
 * ``mdapi.repo.update``: A sub-class of a Fedora message that defines a message schema for messages published by mdapi when a repo's info is updated. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.mdapi.repo.update>`__)
 
 
-fas
+Wiki
+====
+
+You can view the history of `all Wiki messages <https://apps.fedoraproject.org/datagrepper/raw?category=wiki>`__ in datagrepper.
+
+* ``wiki.article.edit``: A sub-class of a Fedora message that defines a message schema for messages published by Mediawiki when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.wiki.article.edit>`__)
+
+
+FAS
 ===
 
-You can view the history of `all fas messages <https://apps.fedoraproject.org/datagrepper/raw?category=fas>`__ in datagrepper.
+You can view the history of `all FAS messages <https://apps.fedoraproject.org/datagrepper/raw?category=fas>`__ in datagrepper.
 
 * ``fas.group.member.sponsor``: The message sent when a user is added to a group by a sponsor (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fas.group.member.sponsor>`__)
 * ``fas.user.create``: The message sent when a user is created (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fas.user.create>`__)

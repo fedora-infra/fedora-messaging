@@ -12,7 +12,9 @@ fedora-messaging-git-hook-messages
 fedora-messaging-the-new-hotness-schema
 fedora-planet-messages
 koji-fedoramessaging-messages
+koschei-messages
 mdapi-messages
+mediawiki-messages
 noggin-messages
 nuancier-messages
 pagure-messages

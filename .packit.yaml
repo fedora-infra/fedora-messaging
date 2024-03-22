@@ -40,6 +40,7 @@ jobs:
       targets:
         - fedora-latest-stable
         - fedora-development
+        - epel9
 
   # upon upstream PRs, test builds
   - job: tests
@@ -48,6 +49,7 @@ jobs:
       targets:
         - fedora-latest-stable
         - fedora-development
+        - epel9
 
   # upon upstream releases, perform COPR builds
   - job: copr_build
@@ -56,6 +58,7 @@ jobs:
       targets:
         - fedora-latest-stable
         - fedora-development
+        - epel9
 
   # upon upstream releases, test builds
   - job: tests
@@ -64,6 +67,7 @@ jobs:
       targets:
         - fedora-latest-stable
         - fedora-development
+        - epel9
 
   # upon downstream changes, create a PR upstream with sync'd files from above
   - job: sync_from_downstream
@@ -76,6 +80,7 @@ jobs:
       dist_git_branches:
         - fedora-latest-stable
         - fedora-development
+        - epel9
 
   # create an srpm from upstream and submit a scratch build to koji
   - job: production_build
@@ -84,6 +89,7 @@ jobs:
       targets:
         - fedora-latest-stable
         - fedora-development
+        - epel9
 
   # downstream automation
 
@@ -94,6 +100,7 @@ jobs:
       dist_git_branches:
         - fedora-latest-stable
         - fedora-development
+        - epel9
 
   # create a new update in bodhi for a successful koji build. directly related to `koji_build`
   - job: bodhi_update
@@ -101,4 +108,5 @@ jobs:
     metadata:
       dist_git_branches:
         # Don't create an update on Rawhide.
-        - fedora-branched
+        - fedora-latest-stable
+        - epel9
