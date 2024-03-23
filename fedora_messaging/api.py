@@ -2,6 +2,7 @@
 
 import inspect
 import logging
+import asyncio
 
 import crochet
 from twisted.internet import defer, reactor
@@ -309,17 +310,20 @@ def publish(message, exchange=None, timeout=30):
         exchange = config.conf["publish_exchange"]
 
     eventual_result = _twisted_publish(message, exchange)
-    try:
-        eventual_result.wait(timeout=timeout)
-        publish_signal.send(publish, message=message)
-    except crochet.TimeoutError:
-        eventual_result.cancel()
-        wrapper = exceptions.PublishTimeout(
-            f"Publishing timed out after waiting {timeout} seconds."
-        )
-        publish_failed_signal.send(publish, message=message, reason=wrapper)
-        raise wrapper
-    except Exception as e:
-        _log.error(eventual_result.original_failure().getTraceback())
-        publish_failed_signal.send(publish, message=message, reason=e)
-        raise
+    async def wait_for_result():
+        try:
+            await asyncio.wait_for_result(eventual_result, timeout=timeout)
+            publish_signal.send(publish, message=message)
+        except asyncio.TimeoutError:
+            eventual_result.cancel()
+            wrapper = exceptions.PublishTimeout(
+                f"Publishing timed out after waiting {timeout} seconds."
+            )
+            publish_failed_signal.send(publish, message=message, reason=wrapper)
+            raise wrapper
+        except Exception as e:
+            _log.error(eventual_result.original_failure().getTraceback())
+            publish_failed_signal.send(publish, message=message, reason=e)
+            raise
+
+    asyncio.run(wait_for_result())
