@@ -45,6 +45,43 @@ interface, you'll see that a message has been sent to the ``amq.topic``
 exchange. However, since noone is listening to this topic, the message has been
 discarded. Now, we'll setup listeners.
 
+
+
+Consuming Messages
+------------------
+
+Consuming messages with a message schema ensures that messages adhere to predefined standards, facilitating interoperability and consistency within the Fedora Messaging ecosystem. This section provides guidance on how consumers can validate received messages against a schema and convert the base `Message` into more specific objects based on the schema definition.
+
+Validating Messages Against Schema
+----------------------------------
+
+Before processing a received message, consumers must validate it against the associated message schema. This ensures that the message structure conforms to the expected format defined in the schema. The `jsonschema` library is commonly used for this purpose within the Fedora Messaging project.
+
+To validate a received message against a schema:
+
+1. Extract the message body from the received message.
+2. Obtain the schema definition corresponding to the message type.
+3. Use the `jsonschema.validate()` function to validate the message body against the schema.
+
+Here's an example demonstrating how to validate a message using Python code:
+
+```python
+import jsonschema
+
+def validate_message(message, schema):
+    try:
+        jsonschema.validate(message.body, schema)
+        return True
+    except jsonschema.ValidationError as e:
+        print("Message validation failed:", e)
+        return False
+
+# Usage:
+# Assuming 'message' is the received message and 'schema' is the corresponding schema
+if validate_message(message, schema):
+    # Process the validated message
+    pass
+
 Listening
 ---------
 
