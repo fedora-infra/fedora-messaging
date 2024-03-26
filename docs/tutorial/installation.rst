@@ -67,3 +67,6 @@ Comment out the ``callback`` and ``bindings`` options, and all the
 
 In the ``[client_properties]`` section, change the ``app`` value to ``Fedora
 Messaging tutorial``.
+
+NOTE: Ensure the `passive_declares` option is correctly configured in `etc/fedora-messaging/config.toml` file.
+This option is mandatory for users of Fedora's `/pubsub` vhost to set to `true`. This controls how queues and exchanges are declared.
