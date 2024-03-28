@@ -792,8 +792,11 @@ class TestReplayCli:
 
     @mock.patch("fedora_messaging.cli._get_message")
     @mock.patch("fedora_messaging.api.publish")
-    def test_successful_message_replay(self, mock_publish, mock_get_message):
+    def test_successful_message_replay(
+        self, mock_publish, mock_get_message, monkeypatch
+    ):
         """Test successful replay of a message."""
+        monkeypatch.setitem(config.conf, "topic_prefix", "dummy.topic.prefix")
         message_id = "123"
         datagrepper_url = "http://example.com"
 
@@ -811,6 +814,11 @@ class TestReplayCli:
             result.exit_code == 0
         ), f"Command did not exit as expected. Output: {result.output}"
         assert "has been successfully replayed" in result.output
+        mock_publish.assert_called_once()
+        published_msg = mock_publish.call_args[0][0]
+        assert published_msg.topic == message_data["topic"]
+        assert published_msg.body == message_data["body"]
+        assert config.conf["topic_prefix"] == ""
 
     @mock.patch("fedora_messaging.cli.requests.get", side_effect=requests.HTTPError)
     def test_datagrepper_http_error(self, mock_get):

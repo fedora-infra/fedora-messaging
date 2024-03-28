@@ -479,6 +479,8 @@ def replay(message_id, datagrepper_url):
         raise click.ClickException(f"Failed to retrieve message from Datagrepper: {e}")
 
     if message_data:
+        # Disable the topic prefix, the loaded message already has everything.
+        config.conf["topic_prefix"] = ""
         api.publish(message.load_message(message_data))
         click.echo(f"Message with ID {message_id} has been successfully replayed.")
 
