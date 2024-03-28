@@ -32,7 +32,6 @@ import uuid
 import jsonschema
 import pika
 import pkg_resources
-import pytz
 
 from . import config
 from .exceptions import ValidationError
@@ -349,7 +348,7 @@ class Message:
         # of date.
         headers = headers.copy()
         headers["fedora_messaging_schema"] = get_name(self.__class__)
-        now = datetime.datetime.utcnow().replace(microsecond=0, tzinfo=pytz.utc)
+        now = datetime.datetime.now(tz=datetime.timezone.utc).replace(microsecond=0)
         headers["sent-at"] = now.isoformat()
         headers["fedora_messaging_severity"] = self.severity
         # Mirror the priority in the headers for debugging purposes

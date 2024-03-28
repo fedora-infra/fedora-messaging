@@ -401,7 +401,9 @@ class TestMessage:
     def test_sent_at(self):
         """Assert a timestamp is inserted and contains explicit timezone information."""
         mock_datetime = mock.Mock()
-        mock_datetime.utcnow.return_value = datetime.datetime(1970, 1, 1, 0, 0, 0)
+        mock_datetime.now.return_value = datetime.datetime(
+            1970, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc
+        )
 
         with mock.patch("datetime.datetime", mock_datetime):
             msg = message.Message()
