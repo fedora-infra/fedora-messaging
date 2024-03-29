@@ -238,6 +238,27 @@ def consume(callback, bindings=None, queues=None):
         raise
 
 
+@defer.inlineCallbacks
+def twisted_publish(message, exchange=None):
+    """
+    Publish messages via Twisted.
+
+    If you are calling this method from a consumption callback, you should use
+    :func:`twisted.internet.threads.blockingCallFromThread`. See:
+    https://twisted.org/documents/16.3.0/core/howto/threading.html#invoking-twisted-from-other-threads
+
+    Returns:
+        defer.Deferred: A deferred that fires when a message has been published
+            and confirmed by the broker.
+    """
+    if exchange is None:
+        exchange = config.conf["publish_exchange"]
+    try:
+        yield _twisted_service._service.factory.publish(message, exchange=exchange)
+    except defer.CancelledError:
+        _log.debug("Canceled publish of %r to %s due to timeout", message, exchange)
+
+
 @crochet.run_in_reactor
 @defer.inlineCallbacks
 def _twisted_publish(message, exchange):
@@ -249,10 +270,7 @@ def _twisted_publish(message, exchange):
             and confirmed by the broker.
     """
     _init_twisted_service()
-    try:
-        yield _twisted_service._service.factory.publish(message, exchange=exchange)
-    except defer.CancelledError:
-        _log.debug("Canceled publish of %r to %s due to timeout", message, exchange)
+    yield twisted_publish(message, exchange)
 
 
 def publish(message, exchange=None, timeout=30):
@@ -298,9 +316,6 @@ def publish(message, exchange=None, timeout=30):
     """
     crochet.setup()
     pre_publish_signal.send(publish, message=message)
-
-    if exchange is None:
-        exchange = config.conf["publish_exchange"]
 
     eventual_result = _twisted_publish(message, exchange)
     try:

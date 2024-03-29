@@ -738,6 +738,39 @@ def test_protocol_publish_forbidden_in_vhost(admin_user):
 
 
 @pytest_twisted.inlineCallbacks
+def test_publish_from_callback(queue_and_binding):
+    """Assert a consumer can publish."""
+    queues, bindings = queue_and_binding
+    received = []
+
+    def publishing_callback(msg):
+        received.append(msg)
+        if msg.topic == "repeat":
+            raise exceptions.HaltConsumer()
+        new_msg = message.Message(topic="repeat", body={"received": msg.body})
+        threads.blockingCallFromThread(reactor, api.twisted_publish, new_msg)
+
+    @pytest_twisted.inlineCallbacks
+    def delayed_publish():
+        """Publish, break the channel, and publish again."""
+        yield threads.deferToThread(api.publish, message.Message(topic="source"), "amq.topic")
+        yield api._twisted_service._service.factory.when_connected()
+
+    reactor.callLater(5, delayed_publish)
+
+    deferred_consume = threads.deferToThread(api.consume, publishing_callback, bindings, queues)
+    deferred_consume.addTimeout(30, reactor)
+    try:
+        yield deferred_consume
+        pytest.fail("consume should have raised an exception")
+    except (defer.TimeoutError, defer.CancelledError):
+        pytest.fail("Consumer did not receive both messages")
+    except exceptions.HaltConsumer as e:
+        assert 0 == e.exit_code
+    assert [m.topic for m in received] == ["source", "repeat"]
+
+
+@pytest_twisted.inlineCallbacks
 def test_pub_sub_default_settings(queue_and_binding):
     """
     Assert publishing and subscribing works with the default configuration.
