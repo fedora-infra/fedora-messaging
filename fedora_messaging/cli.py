@@ -44,11 +44,11 @@ except error.ReactorAlreadyInstalledError:
     if not isinstance(reactor, asyncioreactor.AsyncioSelectorReactor):
         raise
 
-from twisted.internet import reactor  # noqa: E402
-from twisted.python import log as legacy_twisted_log  # noqa: E402
+from twisted.internet import reactor
+from twisted.python import log as legacy_twisted_log
 
-from . import api, config, exceptions  # noqa: E402
-from .message import dumps, loads  # noqa: E402
+from . import api, config, exceptions
+from .message import dumps, loads
 
 
 _log = logging.getLogger(__name__)
@@ -94,8 +94,7 @@ _publish_exchange_help = (
     "digits, hyphen, underscore, period, or colon."
 )
 _datagrepper_help = (
-    "The URL of the datagreeper instance to use, "
-    "defaults to the production environment"
+    "The URL of the datagreeper instance to use, " "defaults to the production environment"
 )
 _limit_help = "The maximum number of messages to record."
 
@@ -115,7 +114,7 @@ def cli(conf):
         try:
             config.conf.load_config(config_path=conf)
         except exceptions.ConfigurationException as e:
-            raise click.exceptions.BadParameter(str(e))
+            raise click.exceptions.BadParameter(str(e)) from e
     twisted_observer = legacy_twisted_log.PythonLoggingObserver()
     twisted_observer.start()
     config.conf.setup_logging()
@@ -172,17 +171,15 @@ def _consume(exchange, queue_name, routing_key, callback, app_name):
         config.conf["client_properties"]["app"] = app_name
 
     try:
-        deferred_consumers = api.twisted_consume(
-            callback, bindings=bindings, queues=queues
-        )
+        deferred_consumers = api.twisted_consume(callback, bindings=bindings, queues=queues)
         deferred_consumers.addCallback(_consume_callback)
         deferred_consumers.addErrback(_consume_errback)
     except ValueError as e:
         click_version = pkg_resources.get_distribution("click").parsed_version
         if click_version < pkg_resources.parse_version("7.0"):
-            raise click.exceptions.BadOptionUsage(str(e))
+            raise click.exceptions.BadOptionUsage(str(e)) from e
         else:
-            raise click.exceptions.BadOptionUsage("callback", str(e))
+            raise click.exceptions.BadOptionUsage("callback", str(e)) from e
 
     reactor.run()
     sys.exit(_exit_code)
@@ -204,13 +201,13 @@ def _callback_from_filesystem(callback_file):
     """
     try:
         file_path, callable_name = callback_file.strip().split(":")
-    except ValueError:
+    except ValueError as e:
         raise click.ClickException(
             "Unable to parse the '--callback-file' option; the "
             'expected format is "path/to/file.py:callable_object" where '
             '"callable_object" is the name of the function or class in the '
             "Python file"
-        )
+        ) from e
 
     try:
         file_namespace = {}
@@ -219,21 +216,19 @@ def _callback_from_filesystem(callback_file):
                 # Using "exec" is generally a Bad Idea (TM), so bandit is upset at
                 # us. In this case, it seems like a Good Idea (TM), but I might be
                 # wrong. Sorry.
-                exec(compile(fd.read(), file_path, "exec"), file_namespace)  # nosec
+                exec(compile(fd.read(), file_path, "exec"), file_namespace)  # noqa: S102
             except Exception as e:
                 raise click.ClickException(
                     f"The {file_path} file raised the following exception during execution: {e}"
-                )
+                ) from e
 
         if callable_name not in file_namespace:
-            err = "The '{}' object was not found in the '{}' file.".format(
-                callable_name, file_path
-            )
+            err = f"The '{callable_name}' object was not found in the '{file_path}' file."
             raise click.ClickException(err)
         else:
             return file_namespace[callable_name]
     except OSError as e:
-        raise click.ClickException(f"An IO error occurred: {e}")
+        raise click.ClickException(f"An IO error occurred: {e}") from e
 
 
 def _callback_from_python_path(callback):
@@ -258,19 +253,19 @@ def _callback_from_python_path(callback):
         )
     try:
         module, cls = callback_path.strip().split(":")
-    except ValueError:
+    except ValueError as e:
         raise click.ClickException(
-            "Unable to parse the callback path ({}); the "
+            f"Unable to parse the callback path ({callback_path}); the "
             'expected format is "my_package.module:'
-            'callable_object"'.format(callback_path)
-        )
+            'callable_object"'
+        ) from e
     try:
         module = importlib.import_module(module)
     except ImportError as e:
         provider = "--callback argument" if callback else "configuration file"
         raise click.ClickException(
             f"Failed to import the callback module ({e}) provided in the {provider}"
-        )
+        ) from e
 
     try:
         callback_object = getattr(module, cls)
@@ -278,7 +273,7 @@ def _callback_from_python_path(callback):
         raise click.ClickException(
             f"Unable to import {callback_path} ({e}); is the package installed? The python "
             'path should be in the format "my_package.module:callable_object"'
-        )
+        ) from e
     _log.info("Starting consumer with %s callback", callback_path)
     return callback_object
 
@@ -329,7 +324,7 @@ def _consume_callback(consumers):
     """
     for consumer in consumers:
 
-        def errback(failure):
+        def errback(failure, consumer=consumer):
             global _exit_code
             if failure.check(exceptions.HaltConsumer):
                 _exit_code = failure.value.exit_code
@@ -352,9 +347,7 @@ def _consume_callback(consumers):
                 )
             else:
                 _exit_code = 13
-                _log.error(
-                    "Unexpected error occurred in consumer %r: %r", consumer, failure
-                )
+                _log.error("Unexpected error occurred in consumer %r: %r", consumer, failure)
             try:
                 reactor.stop()
             except error.ReactorNotRunning:
@@ -382,7 +375,7 @@ def publish(exchange, file):
         try:
             messages = loads(msgs_json_str)
         except exceptions.ValidationError as e:
-            raise click.BadArgumentUsage(f"Unable to validate message: {e}")
+            raise click.BadArgumentUsage(f"Unable to validate message: {e}") from e
 
         for msg in messages:
             click.echo(f"Publishing message with topic {msg.topic}")
@@ -434,7 +427,7 @@ class Recorder:
             json_str = dumps(message)
         except exceptions.ValidationError as e:
             click.echo(f"Unable to save messages to file: {e}")
-            raise exceptions.HaltConsumer(exit_code=1, requeue=False)
+            raise exceptions.HaltConsumer(exit_code=1, requeue=False) from e
         else:
             self._file.write(json_str)
 
@@ -455,9 +448,7 @@ class Recorder:
 def record(exchange, queue_name, routing_key, app_name, limit, file):
     """Record messages from an AMQP queue to provided file."""
     messages_recorder = Recorder(limit, file)
-    _consume(
-        exchange, queue_name, routing_key, messages_recorder.collect_message, app_name
-    )
+    _consume(exchange, queue_name, routing_key, messages_recorder.collect_message, app_name)
 
 
 DEFAULT_DATAGREPPER_URL = "https://apps.fedoraproject.org/datagrepper"
@@ -476,7 +467,7 @@ def replay(message_id, datagrepper_url):
     try:
         message_data = _get_message(message_id, datagrepper_url)
     except requests.HTTPError as e:
-        raise click.ClickException(f"Failed to retrieve message from Datagrepper: {e}")
+        raise click.ClickException(f"Failed to retrieve message from Datagrepper: {e}") from e
 
     if message_data:
         # Disable the topic prefix, the loaded message already has everything.

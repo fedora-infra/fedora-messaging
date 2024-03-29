@@ -130,7 +130,7 @@ def _configure_tls_parameters(parameters):
         except ssl.SSLError as e:
             raise exceptions.ConfigurationException(
                 f'The "ca_cert" setting in the "tls" section is invalid ({e})'
-            )
+            ) from e
     ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
     ssl_context.check_hostname = True
     if cert and key:
@@ -139,7 +139,7 @@ def _configure_tls_parameters(parameters):
         except ssl.SSLError as e:
             raise exceptions.ConfigurationException(
                 f'The "keyfile" setting in the "tls" section is invalid ({e})'
-            )
+            ) from e
     parameters.ssl_options = SSLOptions(ssl_context, server_hostname=parameters.host)
 
 

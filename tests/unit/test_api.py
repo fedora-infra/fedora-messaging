@@ -111,9 +111,7 @@ class TestTwistedConsume:
 
         api.twisted_consume(callback, bindings, {})
 
-        mock_service._service.factory.consume.assert_called_once_with(
-            callback, [bindings], {}
-        )
+        mock_service._service.factory.consume.assert_called_once_with(callback, [bindings], {})
 
     def test_defaults(self, mock_service):
         """Assert that bindings and queues come from the config if not provided."""

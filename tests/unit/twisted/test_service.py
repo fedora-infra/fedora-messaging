@@ -161,14 +161,10 @@ class TestSslContextFactory:
         )
         assert factory == mock_opts.return_value
 
-    @mock.patch(
-        "fedora_messaging.twisted.service.twisted_ssl.PrivateCertificate.loadPEM"
-    )
+    @mock.patch("fedora_messaging.twisted.service.twisted_ssl.PrivateCertificate.loadPEM")
     @mock.patch("fedora_messaging.twisted.service.twisted_ssl.Certificate.loadPEM")
     @mock.patch("fedora_messaging.twisted.service.twisted_ssl.optionsForClientTLS")
-    def test_key_and_cert(
-        self, mock_opts, mock_load_pem, mock_priv_load_pem, fixtures_dir
-    ):
+    def test_key_and_cert(self, mock_opts, mock_load_pem, mock_priv_load_pem, fixtures_dir):
         """Assert if there's a client key and cert, the factory has both."""
         tls_conf = {
             "keyfile": os.path.join(fixtures_dir, "key.pem"),

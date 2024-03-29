@@ -60,6 +60,7 @@ myst-parser = ">=0.16"
 towncrier = "^23.6.0"
 treq = "^22.2.0 || ^23.0.0"
 twisted = ">22.4.0"
+ruff = ">=0.3.4"
 
 
 [tool.poetry.scripts]
@@ -125,10 +126,27 @@ name = "Contributors"
 showcontent = true
 
 
-[tool.isort]
-profile = "black"
-lines_after_imports = 2
-force_alphabetical_sort_within_sections = true
+[tool.black]
+line-length = 100
+target-version = ["py38"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "S", "B", "RUF"]
+ignore = ["RUF012"]
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
+order-by-type = false
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "E501"]
+"fedora_messaging/testing.py" = ["S101"]
+"docs/sample_schema_package/mailman_messages/tests/*" = ["S101"]
+"news/get-authors.py" = ["S602", "S603", "S607"]
 
 [tool.rstcheck]
 report_level = "warning"

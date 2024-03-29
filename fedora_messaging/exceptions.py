@@ -31,8 +31,9 @@ class PermissionException(BaseException):
         return self.description
 
     def __repr__(self):
-        return "PermissionException(obj_type={}, description={}, reason={})".format(
-            self.obj_type, self.description, self.reason
+        return (
+            f"PermissionException(obj_type={self.obj_type}, description={self.description}, "
+            f"reason={self.reason})"
         )
 
 
@@ -48,13 +49,15 @@ class BadDeclaration(PermissionException):
     """
 
     def __str__(self):
-        return "Unable to declare the {} object ({}) because {}".format(
-            self.obj_type, self.description, self.reason
+        return (
+            f"Unable to declare the {self.obj_type} object ({self.description}) "
+            f"because {self.reason}"
         )
 
     def __repr__(self):
-        return "BadDeclaration(obj_type={}, description={}, reason={})".format(
-            self.obj_type, self.description, self.reason
+        return (
+            f"BadDeclaration(obj_type={self.obj_type}, description={self.description}, "
+            f"reason={self.reason})"
         )
 
 

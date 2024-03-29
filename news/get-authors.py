@@ -25,11 +25,7 @@ from subprocess import check_output
 
 EXCLUDE = ["Weblate (bot)"]
 
-last_tag = (
-    check_output(["git", "tag", "--sort=creatordate"], text=True)
-    .strip()
-    .split("\n")[-1]
-)
+last_tag = check_output(["git", "tag", "--sort=creatordate"], text=True).strip().split("\n")[-1]
 
 args_parser = ArgumentParser()
 args_parser.add_argument(

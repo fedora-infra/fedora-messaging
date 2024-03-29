@@ -59,18 +59,12 @@ class TestGetMessage:
         )
         assert isinstance(received_msg, message.Message)
 
-    @mock.patch.dict(
-        message._class_to_schema_name, {DeprecatedMessage: "deprecated_message_id"}
-    )
-    @mock.patch.dict(
-        message._schema_name_to_class, {"deprecated_message_id": DeprecatedMessage}
-    )
+    @mock.patch.dict(message._class_to_schema_name, {DeprecatedMessage: "deprecated_message_id"})
+    @mock.patch.dict(message._schema_name_to_class, {"deprecated_message_id": DeprecatedMessage})
     def test_deprecated(self, caplog):
         """Assert a deprecation warning is produced when indicated."""
         msg = DeprecatedMessage(topic="dummy.topic")
-        received_msg = message.get_message(
-            msg.topic, msg._properties, msg._encoded_body
-        )
+        received_msg = message.get_message(msg.topic, msg._properties, msg._encoded_body)
         assert isinstance(received_msg, DeprecatedMessage)
         assert len(caplog.messages) == 1
         assert caplog.messages[0] == (
@@ -101,9 +95,7 @@ class TestMessageDumps:
             message_id=test_id,
             priority=2,
         )
-        test_msg = message.Message(
-            body=test_body, topic=test_topic, properties=test_properties
-        )
+        test_msg = message.Message(body=test_body, topic=test_topic, properties=test_properties)
 
         test_msg.queue = test_queue
         expected_json = (
@@ -130,12 +122,8 @@ class TestMessageDumps:
             headers=test_headers,
             message_id=test_id,
         )
-        test_msg = message.Message(
-            body=test_body, topic=test_topic, properties=test_properties
-        )
-        test_msg2 = message.Message(
-            body=test_body, topic=test_topic, properties=test_properties
-        )
+        test_msg = message.Message(body=test_body, topic=test_topic, properties=test_properties)
+        test_msg2 = message.Message(body=test_body, topic=test_topic, properties=test_properties)
         test_msg.queue = test_queue
         test_msg2.queue = test_queue
         expected_json = (
@@ -325,10 +313,10 @@ class TestMessage:
             msg._headers, sort_keys=True, indent=4, separators=(",", ": ")
         )
         expected = (
-            "Id: {}\nTopic: test.topic\n"
-            "Headers: {}"
-            '\nBody: {{\n    "my": "key"\n}}'
-        ).format(msg.id, expected_headers)
+            f"Id: {msg.id}\nTopic: test.topic\n"
+            f"Headers: {expected_headers}"
+            '\nBody: {\n    "my": "key"\n}'
+        )
         assert expected == str(msg)
 
     def test_equality(self):
@@ -336,9 +324,9 @@ class TestMessage:
         Assert two messages of the same class with the same topic, headers, and
         body are equivalent.
         """
-        assert message.Message(
+        assert message.Message(topic="test.topic", body={"my": "key"}) == message.Message(
             topic="test.topic", body={"my": "key"}
-        ) == message.Message(topic="test.topic", body={"my": "key"})
+        )
 
     def test_equality_different_sent_at(self):
         """Assert the "sent-at" key is not included in the equality check."""
@@ -351,9 +339,7 @@ class TestMessage:
     def test_repr(self):
         """Assert the message produces a valid representation of the message."""
         msg = message.Message(topic="test.topic", body={"my": "key"})
-        expected = "Message(id='{}', topic='test.topic', body={{'my': 'key'}})".format(
-            msg.id
-        )
+        expected = f"Message(id='{msg.id}', topic='test.topic', body={{'my': 'key'}})"
         assert expected == repr(msg)
 
     def test_valid_message(self):
@@ -613,9 +599,7 @@ class CustomValidatedMessage(message.Message):
         return self.body["users"]
 
 
-@mock.patch.dict(
-    message._class_to_schema_name, {CustomValidatedMessage: "custom_validated_id"}
-)
+@mock.patch.dict(message._class_to_schema_name, {CustomValidatedMessage: "custom_validated_id"})
 class TestCustomValidatedMessage:
     """Tests for CustomValidatedMessage"""
 
@@ -624,9 +608,7 @@ class TestCustomValidatedMessage:
         try:
             msg = CustomValidatedMessage(body={})
         except KeyError:
-            pytest.fail(
-                "Error in filter properties prevented the message from being instanciated."
-            )
+            pytest.fail("Error in filter properties prevented the message from being instanciated.")
         with pytest.raises(jsonschema.ValidationError):
             msg.validate()
 

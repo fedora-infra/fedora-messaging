@@ -43,9 +43,7 @@ def halt_exit_0(message):
 
 def halt_exit_42(message):
     """Exit with code 42 when it gets a message"""
-    raise exceptions.HaltConsumer(
-        exit_code=42, reason="Life, the universe, and everything"
-    )
+    raise exceptions.HaltConsumer(exit_code=42, reason="Life, the universe, and everything")
 
 
 @pytest.fixture
@@ -81,7 +79,7 @@ def test_consume_halt_with_exitcode(callback, exit_code, msg, queue, cli_conf):
         "--routing-key=#",
     ]
 
-    process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
     yield sleep(5)
 
     yield threads.deferToThread(api.publish, message.Message())

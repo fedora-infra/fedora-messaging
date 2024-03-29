@@ -66,9 +66,7 @@ class MockProtocol(FedoraMessagingProtocolV2):
         self._impl = mock.Mock(name="_impl")
         self._impl.is_closed = True
         self._channel = MockChannel(name="_channel")
-        self.channel = mock.Mock(
-            name="channel", side_effect=lambda: defer.succeed(self._channel)
-        )
+        self.channel = mock.Mock(name="channel", side_effect=lambda: defer.succeed(self._channel))
 
     def _register_consumer(self, consumer):
         consumer._protocol = self

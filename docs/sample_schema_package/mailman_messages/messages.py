@@ -30,9 +30,7 @@ class BaseMessage(message.Message):
 
     def __str__(self):
         """Return a complete human-readable representation of the message."""
-        return "Subject: {subj}\n{body}\n".format(
-            subj=self.subject, body=self.email_body
-        )
+        return f"Subject: {self.subject}\n{self.email_body}\n"
 
     @property
     def summary(self):

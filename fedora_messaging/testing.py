@@ -72,17 +72,13 @@ def mock_sends(*expected_messages):
     sent.extend(messages)
     if len(expected_messages) != len(messages):
         raise AssertionError(
-            "Expected {} messages to be sent, but {} were sent".format(
-                len(expected_messages), len(messages)
-            )
+            f"Expected {len(expected_messages)} messages to be sent, but {len(messages)} were sent"
         )
     for msg, expected in zip(messages, expected_messages):
         if inspect.isclass(expected):
             if not isinstance(msg, expected):
                 raise AssertionError(
-                    "Expected message of type {}, but {} was sent".format(
-                        expected, msg.__class__
-                    )
+                    f"Expected message of type {expected}, but {msg.__class__} was sent"
                 )
         else:
             assert msg.topic == expected.topic

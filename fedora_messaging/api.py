@@ -7,7 +7,7 @@ import crochet
 from twisted.internet import defer, reactor
 
 from . import config, exceptions
-from .message import (  # noqa: F401
+from .message import (
     dumps,
     loads,
     Message,
@@ -16,7 +16,7 @@ from .message import (  # noqa: F401
 )
 from .signals import pre_publish_signal, publish_failed_signal, publish_signal
 from .twisted import service
-from .twisted.consumer import Consumer  # noqa: F401
+from .twisted.consumer import Consumer
 
 
 _log = logging.getLogger(__name__)
@@ -49,9 +49,7 @@ def _init_twisted_service():
         # Twisted is killing the underlying connection before stopService gets
         # called, so we need to add it as a pre-shutdown event to gracefully
         # finish up messages in progress.
-        reactor.addSystemEventTrigger(
-            "before", "shutdown", _twisted_service.stopService
-        )
+        reactor.addSystemEventTrigger("before", "shutdown", _twisted_service.stopService)
 
 
 def _check_callback(callback):
@@ -73,15 +71,11 @@ def _check_callback(callback):
     if inspect.isclass(callback):
         callback_object = callback()
         if not callable(callback_object):
-            raise ValueError(
-                "Callback must be a class that implements __call__ or a function."
-            )
+            raise ValueError("Callback must be a class that implements __call__ or a function.")
     elif callable(callback):
         callback_object = callback
     else:
-        raise ValueError(
-            "Callback must be a class that implements __call__ or a function."
-        )
+        raise ValueError("Callback must be a class that implements __call__ or a function.")
 
     return callback_object
 
@@ -137,7 +131,7 @@ def twisted_consume(callback, bindings=None, queues=None):
         try:
             config.validate_bindings(bindings)
         except exceptions.ConfigurationException as e:
-            raise ValueError(e.message)
+            raise ValueError(e.message) from e
 
     if queues is None:
         queues = config.conf["queues"]
@@ -145,7 +139,7 @@ def twisted_consume(callback, bindings=None, queues=None):
         try:
             config.validate_queues(queues)
         except exceptions.ConfigurationException as e:
-            raise ValueError(e.message)
+            raise ValueError(e.message) from e
 
     callback = _check_callback(callback)
 
@@ -312,13 +306,13 @@ def publish(message, exchange=None, timeout=30):
     try:
         eventual_result.wait(timeout=timeout)
         publish_signal.send(publish, message=message)
-    except crochet.TimeoutError:
+    except crochet.TimeoutError as e:
         eventual_result.cancel()
         wrapper = exceptions.PublishTimeout(
             f"Publishing timed out after waiting {timeout} seconds."
         )
         publish_failed_signal.send(publish, message=message, reason=wrapper)
-        raise wrapper
+        raise wrapper from e
     except Exception as e:
         _log.error(eventual_result.original_failure().getTraceback())
         publish_failed_signal.send(publish, message=message, reason=e)

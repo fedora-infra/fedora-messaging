@@ -81,10 +81,10 @@ def install_packages(dirname, packages):
     # https://pip.pypa.io/en/stable/user_guide/#using-pip-from-your-program
     pip = os.path.join(dirname, "bin", "pip")
     print("Upgrading pip...")
-    run([pip, "-q", "install", "--upgrade", "pip"], check=True)
+    run([pip, "-q", "install", "--upgrade", "pip"], check=True)  # noqa: S603
     for package in packages:
         print(f"Installing {package}...")
-        run([pip, "-q", "install", package], check=True)
+        run([pip, "-q", "install", package], check=True)  # noqa: S603
 
 
 def extract_docstring(cls):

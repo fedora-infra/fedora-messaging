@@ -106,9 +106,7 @@ class TestFactoryV2:
 
         self.factory.protocol = _get_protocol
         connected_d = self.factory.when_connected()
-        connected_d.addCallbacks(
-            lambda r: ValueError(f"This should fail but I got: {r!r}"), _check
-        )
+        connected_d.addCallbacks(lambda r: ValueError(f"This should fail but I got: {r!r}"), _check)
         self.factory.buildProtocol(None)
         return connected_d
 
@@ -148,9 +146,7 @@ class TestFactoryV2:
 
         self.factory.protocol = _get_protocol
         connected_d = self.factory.when_connected()
-        connected_d.addCallbacks(
-            lambda r: ValueError(f"This should fail but I got: {r!r}"), _check
-        )
+        connected_d.addCallbacks(lambda r: ValueError(f"This should fail but I got: {r!r}"), _check)
         with mock.patch("fedora_messaging.twisted.factory._std_log") as mock_log:
             self.factory.buildProtocol(None)
         mock_log.error.assert_called()
@@ -178,9 +174,7 @@ class TestFactoryV2:
             Consumer(queue=queue, callback=cb)
         )
         bindings = [{"exchange": "amq.topic", "routing_keys": ["#"]}]
-        expected_bindings = [
-            {"queue": declared_queue, "exchange": "amq.topic", "routing_key": "#"}
-        ]
+        expected_bindings = [{"queue": declared_queue, "exchange": "amq.topic", "routing_key": "#"}]
 
         self.factory.buildProtocol(None)
         self.protocol.ready.callback(None)
@@ -220,9 +214,7 @@ class TestFactoryV2:
         # Prepare the mocked existing consumer
         callback = mock.Mock()
         bindings = [{"exchange": "amq.topic", "routing_key": "#"}]
-        expected_bindings = [
-            {"queue": queue_new, "exchange": "amq.topic", "routing_key": "#"}
-        ]
+        expected_bindings = [{"queue": queue_new, "exchange": "amq.topic", "routing_key": "#"}]
         consumer = Consumer(queue=queue_orig, callback=callback)
         self.factory._consumers = [
             ConsumerRecord(consumer=consumer, queue=queue_config, bindings=bindings)
