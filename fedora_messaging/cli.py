@@ -28,7 +28,6 @@ import os
 import sys
 
 import click
-import pkg_resources
 import requests
 from twisted.internet import asyncioreactor, error
 
@@ -175,11 +174,7 @@ def _consume(exchange, queue_name, routing_key, callback, app_name):
         deferred_consumers.addCallback(_consume_callback)
         deferred_consumers.addErrback(_consume_errback)
     except ValueError as e:
-        click_version = pkg_resources.get_distribution("click").parsed_version
-        if click_version < pkg_resources.parse_version("7.0"):
-            raise click.exceptions.BadOptionUsage(str(e)) from e
-        else:
-            raise click.exceptions.BadOptionUsage("callback", str(e)) from e
+        raise click.exceptions.BadOptionUsage("callback", str(e)) from e
 
     reactor.run()
     sys.exit(_exit_code)

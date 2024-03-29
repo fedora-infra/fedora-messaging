@@ -28,10 +28,10 @@ import datetime
 import json
 import logging
 import uuid
+from importlib.metadata import entry_points
 
 import jsonschema
 import pika
-import pkg_resources
 
 from . import config
 from .exceptions import ValidationError
@@ -126,7 +126,13 @@ def get_name(cls):
 
 def load_message_classes():
     """Load the 'fedora.messages' entry points and register the message classes."""
-    for message in pkg_resources.iter_entry_points("fedora.messages"):
+    try:
+        eps = entry_points(group="fedora.messages")
+    except TypeError:
+        # Python < 3.10
+        # https://docs.python.org/3.10/library/importlib.metadata.html#entry-points
+        eps = entry_points().get("fedora.messages", [])
+    for message in eps:
         cls = message.load()
         _log.info(
             "Registering the '%s' key as the '%r' class in the Message " "class registry",

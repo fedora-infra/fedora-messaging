@@ -8,6 +8,7 @@ import tempfile
 import venv
 from collections import defaultdict
 from dataclasses import dataclass
+from importlib.metadata import entry_points
 from subprocess import run
 from textwrap import dedent
 from urllib.parse import urljoin
@@ -102,10 +103,8 @@ def extract_docstring(cls):
 
 
 def get_schemas():
-    import pkg_resources
-
     schemas = defaultdict(list)
-    for entry_point in pkg_resources.iter_entry_points("fedora.messages"):
+    for entry_point in entry_points().get("fedora.messages", []):
         msg_cls = entry_point.load()
         if not msg_cls.topic:
             target = f"{entry_point.module_name}:{'.'.join(entry_point.attrs)}"

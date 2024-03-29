@@ -294,8 +294,7 @@ import copy
 import logging
 import logging.config
 import os
-
-import pkg_resources
+from importlib.metadata import version
 
 
 try:
@@ -308,8 +307,8 @@ from . import exceptions
 
 _log = logging.getLogger(__name__)
 
-_fedora_version = pkg_resources.get_distribution("fedora_messaging").version
-_pika_version = pkg_resources.get_distribution("pika").version
+_fedora_version = version("fedora_messaging")
+_pika_version = version("pika")
 
 # By default, use a server-generated queue name
 _default_queue_name = ""
