@@ -95,3 +95,5 @@ def test_consume_halt_with_exitcode(callback, exit_code, msg, queue, cli_conf):
 
     assert process.returncode == exit_code
     assert msg in process.stdout.read()
+
+""" Adding Mypy to Fedora-Messaging"""
