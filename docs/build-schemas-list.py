@@ -104,16 +104,16 @@ def extract_docstring(cls):
 
 def get_schemas():
     schemas = defaultdict(list)
-    for entry_point in entry_points().get("fedora.messages", []):
+    for entry_point in entry_points(group="fedora.messages"):
         msg_cls = entry_point.load()
         if not msg_cls.topic:
-            target = f"{entry_point.module_name}:{'.'.join(entry_point.attrs)}"
+            target = f"{entry_point.module}:{entry_point.attr}"
             if target != "fedora_messaging.message:Message":
                 print(f"The {target} schema has no declared topic, skipping.")
             continue
         if msg_cls.deprecated:
             continue
-        package_name = entry_point.dist.project_name
+        package_name = entry_point.dist.name
         doc = extract_docstring(msg_cls)
         category = _get_category(msg_cls.topic)
         try:

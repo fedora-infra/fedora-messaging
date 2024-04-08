@@ -144,6 +144,16 @@ You can view the history of `all ansible messages <https://apps.fedoraproject.or
 * ``git.receive``: Defines the message that is sent when an Ansible Playbook starts (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.git.receive>`__)
 
 
+kerneltest
+==========
+
+You can view the history of `all kerneltest messages <https://apps.fedoraproject.org/datagrepper/raw?category=kerneltest>`__ in datagrepper.
+
+* ``kerneltest.release.edit``: The message sent when an admin creates a new release (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.kerneltest.release.edit>`__)
+* ``kerneltest.release.new``: The message sent when an admin creates a new release (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.kerneltest.release.new>`__)
+* ``kerneltest.upload.new``: The message sent when a user uploads a new kerneltest (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.kerneltest.upload.new>`__)
+
+
 Koji
 ====
 
