@@ -12,6 +12,7 @@ fedora-elections-messages
 fedora-messaging-git-hook-messages
 fedora-messaging-the-new-hotness-schema
 fedora-planet-messages
+fmn-messages
 kerneltest-messages
 koji-fedoramessaging-messages
 koschei-messages

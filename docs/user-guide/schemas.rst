@@ -144,6 +144,16 @@ You can view the history of `all ansible messages <https://apps.fedoraproject.or
 * ``git.receive``: Defines the message that is sent when an Ansible Playbook starts (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.git.receive>`__)
 
 
+FMN
+===
+
+You can view the history of `all FMN messages <https://apps.fedoraproject.org/datagrepper/raw?category=fmn>`__ in datagrepper.
+
+* ``fmn.rule.update.v1`` (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fmn.rule.update.v1>`__)
+* ``fmn.rule.delete.v1`` (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fmn.rule.delete.v1>`__)
+* ``fmn.rule.update.v1`` (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fmn.rule.update.v1>`__)
+
+
 kerneltest
 ==========
 
