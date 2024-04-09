@@ -17,6 +17,8 @@ koji-fedoramessaging-messages
 koschei-messages
 mdapi-messages
 mediawiki-messages
+meetbot-messages
 noggin-messages
 nuancier-messages
 pagure-messages
+tahrir-messages

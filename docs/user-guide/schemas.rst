@@ -194,6 +194,15 @@ You can view the history of `all Wiki messages <https://apps.fedoraproject.org/d
 * ``wiki.article.edit``: A sub-class of a Fedora message that defines a message schema for messages published by Mediawiki when a new thing is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.wiki.article.edit>`__)
 
 
+meetbot
+=======
+
+You can view the history of `all meetbot messages <https://apps.fedoraproject.org/datagrepper/raw?category=meetbot>`__ in datagrepper.
+
+* ``meetbot.meeting.complete`` (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.meetbot.meeting.complete>`__)
+* ``meetbot.meeting.start`` (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.meetbot.meeting.start>`__)
+
+
 FAS
 ===
 
@@ -262,3 +271,11 @@ You can view the history of `all Pagure messages <https://apps.fedoraproject.org
 * ``pagure.pull-request.tag.added``: A sub-class of a Fedora message that defines a message schema for messages published by pagure when a tag is added on a PR. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.pull-request.tag.added>`__)
 * ``pagure.pull-request.tag.removed``: A sub-class of a Fedora message that defines a message schema for messages published by pagure when a tag is removed on a PR. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.pull-request.tag.removed>`__)
 * ``pagure.pull-request.updated``: A sub-class of a Fedora message that defines a message schema for messages published by pagure when a PR is updated. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.pagure.pull-request.updated>`__)
+
+
+tahrir
+======
+
+You can view the history of `all tahrir messages <https://apps.fedoraproject.org/datagrepper/raw?category=person>`__ in datagrepper.
+
+* ``person.login.first``: The message sent when a user logs into tahrir for the first time (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.person.login.first>`__)
