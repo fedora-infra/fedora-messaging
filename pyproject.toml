@@ -33,7 +33,7 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.8.10"
 blinker = "^1.5"
 click = "^8.0.3"
 crochet = ">=1.12.0"
@@ -61,6 +61,7 @@ towncrier = "^23.6.0"
 treq = "^22.2.0 || ^23.0.0"
 twisted = ">22.4.0"
 ruff = ">=0.3.4"
+diff-cover = ">=8.0.3"
 
 
 [tool.poetry.scripts]
