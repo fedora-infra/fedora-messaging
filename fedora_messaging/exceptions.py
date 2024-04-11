@@ -1,5 +1,7 @@
 """Exceptions raised by Fedora Messaging."""
 
+import jsonschema
+
 
 class BaseException(Exception):
     """The base class for all exceptions raised by fedora_messaging."""
@@ -182,3 +184,11 @@ class ValidationError(BaseException):
     and testing that you're trying to publish a message with a different
     format, and that you should either fix it or update the schema.
     """
+
+    @property
+    def summary(self):
+        """A short summary of the error."""
+        original_exception = self.args[0]
+        if isinstance(original_exception, jsonschema.exceptions.ValidationError):
+            return original_exception.message
+        return str(original_exception)

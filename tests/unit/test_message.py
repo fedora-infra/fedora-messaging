@@ -46,8 +46,9 @@ class TestGetMessage:
         msg = message.Message()
         msg._headers["fedora_messaging_severity"] = 42
 
-        with pytest.raises(exceptions.ValidationError):
+        with pytest.raises(exceptions.ValidationError) as excinfo:
             message.get_message("", msg._properties, b"{}")
+        assert excinfo.value.summary == "42 is not one of [10, 20, 30, 40]"
 
     def test_missing_headers(self):
         """Assert missing headers results in a default message."""
@@ -140,8 +141,9 @@ class TestMessageDumps:
     def test_improper_messages(self):
         """Assert TypeError is raised when improper messages are provided"""
         messages = ["m1", "m2"]
-        with pytest.raises(exceptions.ValidationError):
+        with pytest.raises(exceptions.ValidationError) as excinfo:
             message.dumps(messages)
+        assert excinfo.value.summary == "'str' object has no attribute 'validate'"
 
 
 class TestMessageLoads:
