@@ -793,3 +793,54 @@ class TestReplayCli:
         message_id = "123"
         result = self.runner.invoke(cli.replay, [message_id])
         assert result.exit_code != 0
+
+
+@mock.patch("fedora_messaging.config.conf.setup_logging", mock.Mock())
+class TestReconsumeCli:
+
+    def setup_method(self, method):
+        """Setup test method environment."""
+        self.runner = CliRunner()
+
+    def teardown_method(self, method):
+        """Reset configuration after each test."""
+        config.conf = config.LazyConfig()
+        config.conf.load_config()
+
+    @mock.patch("fedora_messaging.cli._callback_from_filesystem")
+    @mock.patch("fedora_messaging.cli.requests.get")
+    def test_callback_file(self, mock_get, mock_loader):
+        """Assert callbacks loaded via a path work with reconsuming"""
+
+        def callback(msg):
+            assert msg.topic == expected_message["topic"]
+            assert msg.body == expected_message["body"]
+
+        expected_message = {"topic": "test.topic", "body": {"some": "data"}}
+        mock_get.return_value.json.return_value = expected_message
+        mock_loader.return_value = callback
+
+        self.runner.invoke(
+            cli.reconsume,
+            ["abc123", "--datagrepper-url=http://example.com", "--callback-file=/my/cb.py"],
+            catch_exceptions=False,
+        )
+
+    @mock.patch("fedora_messaging.cli._callback_from_python_path")
+    @mock.patch("fedora_messaging.cli.requests.get")
+    def test_callback_python_path(self, mock_get, mock_loader):
+        """Assert callbacks loaded via a path work with reconsuming"""
+
+        def callback(msg):
+            assert msg.topic == expected_message["topic"]
+            assert msg.body == expected_message["body"]
+
+        expected_message = {"topic": "test.topic", "body": {"some": "data"}}
+        mock_get.return_value.json.return_value = expected_message
+        mock_loader.return_value = callback
+
+        self.runner.invoke(
+            cli.reconsume,
+            ["abc123", "--datagrepper-url=http://example.com", "--callback=my.cb:func"],
+            catch_exceptions=False,
+        )

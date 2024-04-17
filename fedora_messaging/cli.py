@@ -476,3 +476,39 @@ def _get_message(message_id, datagrepper_url):
         return response.json()
     except requests.exceptions.RequestException as e:
         raise click.ClickException(f"Failed to retrieve message from Datagrepper: {e}") from e
+
+
+@cli.command()
+@click.argument("message_id")
+@click.option("--callback-file", help=_callback_file_help)
+@click.option("--callback", help=_callback_help)
+@click.option(
+    "--datagrepper-url",
+    help=_datagrepper_help,
+    default=DEFAULT_DATAGREPPER_URL,
+    show_default=True,
+)
+def reconsume(
+    datagrepper_url: str,
+    callback: str,
+    callback_file: click.Path,
+    message_id: click.types.UUIDParameterType,
+):
+    """
+    Re-consume a message from Datagrepper.
+
+    This command will load a message from Datagrepper and then pass it
+    to the configured consumer. This can be useful when testing a new
+    consumer, or in the event that your consumer accidentally acknowledged
+    a message it failed to properly process.
+    """
+    if callback_file:
+        callback = _callback_from_filesystem(callback_file)
+    else:
+        callback = _callback_from_python_path(callback)
+    # It's not a public API, but hopefully we will not break ourselves.
+    callback_instance = api._check_callback(callback)
+    msg = _get_message(message_id, datagrepper_url)
+    config.conf["topic_prefix"] = ""
+    msg = message.load_message(msg)
+    callback_instance(msg)
