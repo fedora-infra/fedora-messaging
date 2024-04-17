@@ -459,11 +459,7 @@ DEFAULT_DATAGREPPER_URL = "https://apps.fedoraproject.org/datagrepper"
 )
 def replay(message_id, datagrepper_url):
     """Replay a message from Datagrepper by its message ID"""
-    try:
-        message_data = _get_message(message_id, datagrepper_url)
-    except requests.HTTPError as e:
-        raise click.ClickException(f"Failed to retrieve message from Datagrepper: {e}") from e
-
+    message_data = _get_message(message_id, datagrepper_url)
     if message_data:
         # Disable the topic prefix, the loaded message already has everything.
         config.conf["topic_prefix"] = ""
@@ -474,6 +470,9 @@ def replay(message_id, datagrepper_url):
 def _get_message(message_id, datagrepper_url):
     """Fetch a message by ID from Datagreeper"""
     url = f"{datagrepper_url}/id?id={message_id}&is_raw=true"
-    response = requests.get(url, timeout=5)
-    response.raise_for_status()
-    return response.json()
+    try:
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        raise click.ClickException(f"Failed to retrieve message from Datagrepper: {e}") from e
