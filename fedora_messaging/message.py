@@ -134,7 +134,7 @@ def load_message_classes():
         eps = entry_points().get("fedora.messages", [])
     for message in eps:
         cls = message.load()
-        _log.info(
+        _log.debug(
             "Registering the '%s' key as the '%r' class in the Message " "class registry",
             message.name,
             cls,
