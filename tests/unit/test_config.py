@@ -122,9 +122,7 @@ class TestValidateBindings:
         bindings = [{}]
         with pytest.raises(ConfigurationException) as cm:
             msg_config.validate_bindings(bindings)
-        assert "Configuration error: a binding is missing the following keys" in str(
-            cm.value
-        )
+        assert "Configuration error: a binding is missing the following keys" in str(cm.value)
         assert "exchange" in str(cm.value)
         assert "routing_keys" in str(cm.value)
 
@@ -208,9 +206,7 @@ class TestLoad:
             "The configuration file, /etc/fedora-messaging/config.toml, does not exist."
         )
 
-    @mock.patch(
-        "fedora_messaging.config.open", mock.mock_open(read_data=b'bad_key = "val"')
-    )
+    @mock.patch("fedora_messaging.config.open", mock.mock_open(read_data=b'bad_key = "val"'))
     @mock.patch("fedora_messaging.config.os.path.exists", return_value=True)
     def test_override_client_props(self, mock_exists):
         """Assert overriding reserved keys in client properties fails."""
@@ -224,9 +220,7 @@ class TestLoad:
                 with pytest.raises(ConfigurationException):
                     config.load_config()
 
-    @mock.patch(
-        "fedora_messaging.config.open", mock.mock_open(read_data=b'bad_key = "val"')
-    )
+    @mock.patch("fedora_messaging.config.open", mock.mock_open(read_data=b'bad_key = "val"'))
     @mock.patch("fedora_messaging.config.os.path.exists", return_value=True)
     def test_invalid_key(self, mock_exists):
         """Assert an unknown config key raises an exception."""
@@ -248,9 +242,7 @@ class TestLoad:
         error_old = error.replace("'", '"')
         assert cm.value.message in (error, error_old)
 
-    @mock.patch(
-        "fedora_messaging.config.open", mock.mock_open(read_data=partial_config)
-    )
+    @mock.patch("fedora_messaging.config.open", mock.mock_open(read_data=partial_config))
     @mock.patch("fedora_messaging.config._log", autospec=True)
     @mock.patch("fedora_messaging.config.os.path.exists", return_value=True)
     def test_partial_config_file(self, mock_exists, mock_log):
@@ -297,9 +289,7 @@ class TestLoad:
                     "arguments": {},
                 }
             },
-            bindings=[
-                {"queue": "my_queue", "exchange": "amq.topic", "routing_keys": ["#"]}
-            ],
+            bindings=[{"queue": "my_queue", "exchange": "amq.topic", "routing_keys": ["#"]}],
             qos={"prefetch_size": 25, "prefetch_count": 25},
             callback="fedora_messaging.examples:print_msg",
             consumer_config={"example_key": "for my consumer"},
@@ -311,9 +301,7 @@ class TestLoad:
             log_config={
                 "version": 1,
                 "disable_existing_loggers": True,
-                "formatters": {
-                    "simple": {"format": "[%(name)s %(levelname)s] %(message)s"}
-                },
+                "formatters": {"simple": {"format": "[%(name)s %(levelname)s] %(message)s"}},
                 "handlers": {
                     "console": {
                         "class": "logging.StreamHandler",
@@ -341,12 +329,8 @@ class TestLoad:
         )
         assert 0 == mock_log.warning.call_count
 
-    @mock.patch(
-        "fedora_messaging.config.open", mock.mock_open(read_data=partial_config)
-    )
-    @mock.patch.dict(
-        "fedora_messaging.config.os.environ", {"FEDORA_MESSAGING_CONF": "/my/config"}
-    )
+    @mock.patch("fedora_messaging.config.open", mock.mock_open(read_data=partial_config))
+    @mock.patch.dict("fedora_messaging.config.os.environ", {"FEDORA_MESSAGING_CONF": "/my/config"})
     @mock.patch("fedora_messaging.config._log", autospec=True)
     @mock.patch("fedora_messaging.config.os.path.exists", return_value=True)
     def test_custom_config_file(self, mock_exists, mock_log):

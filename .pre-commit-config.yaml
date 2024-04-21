@@ -1,7 +1,7 @@
 repos:
   # Generic hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v4.6.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -9,41 +9,27 @@ repos:
       - id: check-added-large-files
 
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.15.0
+    rev: v3.15.2
     hooks:
       - id: pyupgrade
         args:
-          - --py36-plus
+          - --py38-plus
           - --keep-mock
 
   - repo: https://github.com/psf/black
-    rev: 23.12.1
+    rev: 24.3.0
     hooks:
       - id: black
-        args: ["--check", "--diff", "-t", "py36"]
 
-  - repo: https://github.com/pycqa/flake8
-    rev: 7.0.0
+  # Ruff
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.3.5
     hooks:
-      - id: flake8
-
-  - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
-    hooks:
-      - id: isort
-        args: ["-c", "--df"]
-
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.6
-    hooks:
-      - id: bandit
-        args: ["-ll", "-x", "*/tests/*"]
-        # All files in one go to get a single report
-        require_serial: true
+      - id: ruff
 
   - repo: https://github.com/myint/rstcheck
-    rev: v6.2.0
+    rev: v6.2.1
     hooks:
       - id: rstcheck
-        exclude: "news/_template.rst"
         additional_dependencies: [sphinx, tomli]

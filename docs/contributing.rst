@@ -147,14 +147,14 @@ Releasing
 =========
 When cutting a new release, follow these steps:
 
-* update the version in ``fedora_messaging/__init__.py``
+* update the version in ``pyproject.toml``
 * add missing authors to the release notes fragments by changing to the ``news``
   directory and running the ``get-authors.py`` script, but check for duplicates
   and errors
-* generate the changelog by running ``towncrier``
-* adjust the release notes in ``docs/changelog.rst``
+* generate the changelog by running ``poetry run towncrier build``
+* adjust the release notes in ``docs/changelog.md``
 * generate the docs with ``tox -e docs`` and check them in ``docs/_build/html``
-* change the ``Development Status`` classifier in ``setup.py`` if necessary
+* change the ``Development Status`` classifier in ``pyproject.toml`` if necessary
 * commit the changes
 * push the commit to the upstream Github repository (via a PR or not).
 * change to the stable branch and merge the ``develop`` branch
@@ -162,13 +162,7 @@ When cutting a new release, follow these steps:
 * tag the commit with ``-s`` to generate a signed tag
 * push the commit to the upstream Github repository with ``git push`` and the
   new tag with ``git push --tags``
-* generate a tarball and push to PyPI with the commands:
-
-::
-
-    python setup.py sdist bdist_wheel
-    twine upload -s dist/*
-
+* generate a tarball and push to PyPI with the command ``poetry publish --build``
 * create `the release on GitHub <https://github.com/fedora-infra/fedora-messaging/tags>`_
   and copy the release notes in there
 * deploy and announce

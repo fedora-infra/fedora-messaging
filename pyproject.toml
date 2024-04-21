@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fedora_messaging"
-version = "3.4.1"
+version = "3.5.0"
 description = "A set of tools for using Fedora's messaging infrastructure"
 authors = [
     "Fedora Infrastructure <admin@fedoraproject.org>"
@@ -14,11 +14,11 @@ classifiers = [
         "License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)",
         "Operating System :: POSIX :: Linux",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
     ]
 keywords = ["fedora"]
 packages = [
@@ -33,116 +33,36 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.6"
-blinker = [
-    {version = "<=1.5", python = ">=3.6, <3.7"},
-    {version = "^1.5", python = "^3.7"}
-]
-click = [
-    {version = "<=8.0.4", python = ">=3.6, <3.7"},
-    {version = "^8.1.3", python = "^3.7"}
-]
+python = "^3.8.10"
+blinker = "^1.5"
+click = "^8.0.3"
 crochet = ">=1.12.0"
-jsonschema = [
-    {version = "<=3.2.0", python = ">=3.6, <3.8"},
-    {version = "^4.17.3", python = "^3.8"}
-]
-pika = [
-    {version = "<=1.2.1", python = ">=3.6, <3.7"},
-    {version = "^1.2.1", python = "^3.7"}
-]
-pyopenssl = ">=21.0.0, <24.0"
-pytz = "^2023.3"
-service-identity = [
-    {version = "<=21.1.0", python = ">=3.6, <3.8"},
-    {version = ">=21.1.0, <24.0", python = "^3.8"}
-]
-tomli = [
-    {version = "<=1.2.3", python = ">=3.6, <3.7"},
-    {version = "^2.0.1", python = "^3.7"}
-]
-twisted = [
-    {version = "<=22.4.0", python = ">=3.6, <3.7.1"},
-    {version = ">=22.4.0, <24.0", python = "^3.7.1"}
-]
+jsonschema = "^3.2.0 || ^4.0.0"
+pika = "^1.2.1"
+pyopenssl = ">=21.0.0"
+service-identity = ">=21.1.0"
+tomli = "^2.0.1"
+twisted = ">=22.4.0"
 
 [tool.poetry.group.dev.dependencies]
-coverage = [
-    {version = "<=6.2", python = ">=3.6, <3.8"},
-    {version = "^7.3.0", python = "^3.8"}
-]
+coverage = "^7.3.0"
 liccheck = "^0.9.1"
 mock = "^5.1.0"
-pyopenssl = ">=21.0.0, <24.0"
-pytest = [
-    {version = "<=7.0.1", python = ">=3.6, <3.7"},
-    {version = "^7.4.0", python = "^3.7"}
-]
-pytest-mock = [
-    {version = "<=3.6.1", python = ">=3.6, <3.7"},
-    {version = "^3.11.1", python = "^3.7"}
-]
+pyopenssl = ">=21.0.0"
+pytest = "^7.4.0 || ^8.0.0"
+pytest-mock = "^3.11.1"
 pytest-twisted = "^1.14.0"
 sphinx = [
-    {version = "<=5.3.0", python = ">=3.6, <3.9"},
+    {version = "<=5.3.0", python = ">=3.8, <3.9"},
     {version = "^7.2.4", python = "^3.9"}
 ]
-towncrier = [
-    {version = "<=21.9.0", python = ">=3.6, <3.7"},
-    {version = "^23.6.0", python = "^3.7"}
-]
-treq = [
-    {version = "<=22.1.0", python = ">=3.6, <3.7.1"},
-    {version = "^22.2.0", python = "^3.7.1"}
-]
-twisted = [
-    {version = "<=22.4.0", python = ">=3.6, <3.7.1"},
-    {version = ">22.4.0, <24.0", python = "^3.7.1"}
-]
+myst-parser = ">=0.16"
+towncrier = "^23.6.0"
+treq = "^22.2.0 || ^23.0.0"
+twisted = ">22.4.0"
+ruff = ">=0.3.4"
+diff-cover = ">=8.0.3"
 
-[tool.poetry.group.docs.dependencies]
-blinker = [
-    {version = "<=1.5", python = ">=3.6, <3.7"},
-    {version = "^1.5", python = "^3.7"}
-]
-click = [
-    {version = "<=8.0.4", python = ">=3.6, <3.7"},
-    {version = "^8.1.7", python = "^3.7"}
-]
-coverage = [
-    {version = "<=6.2", python = ">=3.6, <3.8"},
-    {version = "^7.3.0", python = "^3.8"}
-]
-jsonschema = [
-    {version = "<=3.2.0", python = ">=3.6, <3.8"},
-    {version = "^4.19.0", python = "^3.8"}
-]
-mock = "^5.1.0"
-pika = [
-    {version = "<=1.2.1", python = ">=3.6, <3.7"},
-    {version = "^1.2.1", python = "^3.7"}
-]
-pyopenssl = ">=21.0.0, <24.0"
-pytest-twisted = "^1.14.0"
-pytz = "^2023.3"
-service-identity = [
-    {version = "<=21.1.0", python = ">=3.6, <3.8"},
-    {version = ">=21.1.0, <24.0", python = "^3.8"}
-#    {version = "^23.1.0", python = "^3.8"}
-]
-sphinx = [
-    {version = "<=5.3.0", python = ">=3.6, <3.9"},
-    {version = "^7.2.4", python = "^3.9"}
-]
-toml = "^0.10.2"
-towncrier = [
-    {version = "<=21.9.0", python = ">=3.6, <3.7"},
-    {version = "^23.6.0", python = "^3.7"}
-]
-twisted = [
-    {version = "<=22.4.0", python = ">=3.6, <3.7.1"},
-    {version = ">=22.4.0, <24.0", python = "^3.7.1"}
-]
 
 [tool.poetry.scripts]
 fedora-messaging = "fedora_messaging.cli:cli"
@@ -152,54 +72,82 @@ fedora-messaging = "fedora_messaging.cli:cli"
 
 [tool.towncrier]
 package = "fedora_messaging"
-filename = "docs/changelog.rst"
+filename = "docs/changelog.md"
 directory = "news/"
-title_format = "{version} ({project_date})"
+start_string = "<!-- towncrier release notes start -->\n"
+underlines = ["", "", ""]
+template = "news/_template.md"
+title_format = "## {version} ({project_date})"
 issue_format = "{issue}"
-template = "news/_template.rst"
 wrap = false
-all_bullets = true
 
-  [[tool.towncrier.type]]
-  directory = "api"
-  name = "API Changes"
-  showcontent = true
+[[tool.towncrier.type]]
+directory = "security"
+name = "Security"
+showcontent = true
 
-  [[tool.towncrier.type]]
-  directory = "feature"
-  name = "Features"
-  showcontent = true
+[[tool.towncrier.type]]
+directory = "api"
+name = "API Changes"
+showcontent = true
 
-  [[tool.towncrier.type]]
-  directory = "bug"
-  name = "Bug Fixes"
-  showcontent = true
+[[tool.towncrier.type]]
+directory = "deprecated"
+name = "Deprecated"
+showcontent = true
 
-  [[tool.towncrier.type]]
-  directory = "docs"
-  name = "Documentation Improvements"
-  showcontent = true
+[[tool.towncrier.type]]
+directory = "feature"
+name = "Features"
+showcontent = true
 
-  [[tool.towncrier.type]]
-  directory = "dev"
-  name = "Development Changes"
-  showcontent = true
+[[tool.towncrier.type]]
+directory = "bug"
+name = "Bug Fixes"
+showcontent = true
 
-  [[tool.towncrier.type]]
-  directory = "other"
-  name = "Other Changes"
-  showcontent = true
+[[tool.towncrier.type]]
+directory = "docs"
+name = "Documentation Improvements"
+showcontent = true
 
-  [[tool.towncrier.type]]
-  directory = "author"
-  name = "Contributors"
-  showcontent = true
+[[tool.towncrier.type]]
+directory = "dev"
+name = "Development Changes"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "other"
+name = "Other Changes"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "author"
+name = "Contributors"
+showcontent = true
 
 
-[tool.isort]
-profile = "black"
-lines_after_imports = 2
-force_alphabetical_sort_within_sections = true
+[tool.black]
+line-length = 100
+target-version = ["py38"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "S", "B", "RUF"]
+ignore = ["RUF012"]
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
+order-by-type = false
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "E501"]
+"fedora_messaging/testing.py" = ["S101"]
+"docs/sample_schema_package/mailman_messages/tests/*" = ["S101"]
+"news/get-authors.py" = ["S602", "S603", "S607"]
 
 [tool.rstcheck]
 report_level = "warning"

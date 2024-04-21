@@ -15,6 +15,9 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+import importlib.metadata
+
+
 try:
     import pytest
 
@@ -23,4 +26,4 @@ except ImportError:
     pass
 
 
-__version__ = "3.4.1"
+__version__ = importlib.metadata.version("fedora-messaging")

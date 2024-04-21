@@ -85,9 +85,7 @@ def get_queue(queue_dict, delay=10):
     # Assert both messages are delivered, no messages are un-acked, and only one
     # message got a positive acknowledgment.
     url = f"{HTTP_API}queues/%2F/{name}"
-    server_queue = yield task.deferLater(
-        reactor, delay, treq.get, url, auth=HTTP_AUTH, timeout=3
-    )
+    server_queue = yield task.deferLater(reactor, delay, treq.get, url, auth=HTTP_AUTH, timeout=3)
     server_queue = yield server_queue.json()
     defer.returnValue(server_queue)
 
@@ -433,9 +431,7 @@ def test_twisted_consume_connection_reset(queue_and_binding):
         ]
         if this_conn:
             cname = quote(this_conn[0]["name"])
-            yield treq.delete(
-                HTTP_API + "connections/" + cname, auth=HTTP_AUTH, timeout=3
-            )
+            yield treq.delete(HTTP_API + "connections/" + cname, auth=HTTP_AUTH, timeout=3)
             break
     else:
         pytest.fail("Unable to find and kill connection!")
@@ -464,7 +460,7 @@ def test_twisted_consume_serverside_cancel(queue_and_binding):
     consumers = yield api.twisted_consume(lambda x: x, bindings, queues)
 
     # Delete the queue and assert the consumer errbacks
-    url = f"{HTTP_API}queues/%2F/{list(queues.keys())[0]}"
+    url = f"{HTTP_API}queues/%2F/{next(iter(queues.keys()))}"
     yield treq.delete(url, auth=HTTP_AUTH, timeout=3)
 
     _add_timeout(consumers[0].result, 10)
@@ -639,8 +635,9 @@ def test_twisted_consume_update_callback(queue_and_binding):
 def test_publish_channel_error(queue_and_binding):
     """Assert publishing recovers from a channel error."""
     queues, bindings = queue_and_binding
+    storage = defaultdict(int)
 
-    def counting_callback(message, storage=defaultdict(int)):
+    def counting_callback(message):
         storage[message.topic] += 1
         if storage[message.topic] == 2:
             raise exceptions.HaltConsumer()
@@ -655,9 +652,7 @@ def test_publish_channel_error(queue_and_binding):
 
     reactor.callLater(5, delayed_publish)
 
-    deferred_consume = threads.deferToThread(
-        api.consume, counting_callback, bindings, queues
-    )
+    deferred_consume = threads.deferToThread(api.consume, counting_callback, bindings, queues)
     deferred_consume.addTimeout(30, reactor)
     try:
         yield deferred_consume
@@ -743,6 +738,39 @@ def test_protocol_publish_forbidden_in_vhost(admin_user):
 
 
 @pytest_twisted.inlineCallbacks
+def test_publish_from_callback(queue_and_binding):
+    """Assert a consumer can publish."""
+    queues, bindings = queue_and_binding
+    received = []
+
+    def publishing_callback(msg):
+        received.append(msg)
+        if msg.topic == "repeat":
+            raise exceptions.HaltConsumer()
+        new_msg = message.Message(topic="repeat", body={"received": msg.body})
+        threads.blockingCallFromThread(reactor, api.twisted_publish, new_msg)
+
+    @pytest_twisted.inlineCallbacks
+    def delayed_publish():
+        """Publish, break the channel, and publish again."""
+        yield threads.deferToThread(api.publish, message.Message(topic="source"), "amq.topic")
+        yield api._twisted_service._service.factory.when_connected()
+
+    reactor.callLater(5, delayed_publish)
+
+    deferred_consume = threads.deferToThread(api.consume, publishing_callback, bindings, queues)
+    deferred_consume.addTimeout(30, reactor)
+    try:
+        yield deferred_consume
+        pytest.fail("consume should have raised an exception")
+    except (defer.TimeoutError, defer.CancelledError):
+        pytest.fail("Consumer did not receive both messages")
+    except exceptions.HaltConsumer as e:
+        assert 0 == e.exit_code
+    assert [m.topic for m in received] == ["source", "repeat"]
+
+
+@pytest_twisted.inlineCallbacks
 def test_pub_sub_default_settings(queue_and_binding):
     """
     Assert publishing and subscribing works with the default configuration.
@@ -752,16 +780,15 @@ def test_pub_sub_default_settings(queue_and_binding):
     auto-named queue and a default subscription key of '#'.
     """
     queues, bindings = queue_and_binding
+    storage = defaultdict(int)
 
     # Consumer setup
-    def counting_callback(message, storage=defaultdict(int)):
+    def counting_callback(message):
         storage[message.topic] += 1
         if storage[message.topic] == 3:
             raise exceptions.HaltConsumer()
 
-    deferred_consume = threads.deferToThread(
-        api.consume, counting_callback, bindings, queues
-    )
+    deferred_consume = threads.deferToThread(api.consume, counting_callback, bindings, queues)
 
     @pytest_twisted.inlineCallbacks
     def delayed_publish():
@@ -793,9 +820,7 @@ def bad_amqp_url():
     amqp_url_backup = config.conf["amqp_url"]
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind(("", 0))
-    config.conf["amqp_url"] = "amqp://{host}:{port}/".format(
-        host=RABBITMQ_HOST, port=sock.getsockname()[1]
-    )
+    config.conf["amqp_url"] = f"amqp://{RABBITMQ_HOST}:{sock.getsockname()[1]}/"
     yield
     config.conf["amqp_url"] = amqp_url_backup
     sock.close()

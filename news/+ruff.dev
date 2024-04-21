@@ -1,0 +1,1 @@
+Switch to ruff instead of flake8 + isort + bandit

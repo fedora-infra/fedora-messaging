@@ -24,6 +24,7 @@ from unittest import mock
 
 import click
 import pytest
+import requests
 from click.testing import CliRunner
 from twisted.internet import error
 from twisted.python import failure
@@ -88,9 +89,7 @@ class TestConsumeCli:
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
     def test_conf_env_support(self, mock_consume, good_conf):
         """Assert FEDORA_MESSAGING_CONF environment variable is supported."""
-        result = self.runner.invoke(
-            cli.cli, ["consume"], env={"FEDORA_MESSAGING_CONF": good_conf}
-        )
+        result = self.runner.invoke(cli.cli, ["consume"], env={"FEDORA_MESSAGING_CONF": good_conf})
         mock_consume.assert_called_with(
             echo,
             bindings=[{"exchange": "e", "queue": "q", "routing_keys": ["#"]}],
@@ -104,7 +103,7 @@ class TestConsumeCli:
         BAD_CONF = os.path.join(fixtures_dir, "bad_conf.toml")
         expected_err = (
             "Error: Invalid value: Configuration error: Failed to parse"
-            " {}: Invalid value (at line 1, column 20)".format(BAD_CONF)
+            f" {BAD_CONF}: Invalid value (at line 1, column 20)"
         )
         result = self.runner.invoke(cli.cli, ["--conf=" + BAD_CONF, "consume"])
         assert 2 == result.exit_code
@@ -115,9 +114,7 @@ class TestConsumeCli:
         """Assert a missing configuration file is reported."""
         result = self.runner.invoke(cli.cli, ["--conf=thispathdoesnotexist", "consume"])
         assert 2 == result.exit_code
-        assert (
-            "Error: Invalid value: thispathdoesnotexist is not a file" in result.output
-        )
+        assert "Error: Invalid value: thispathdoesnotexist is not a file" in result.output
 
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
     def test_good_cli_bindings(self, mock_consume):
@@ -165,15 +162,11 @@ class TestConsumeCli:
         """Asser  providing improper bindings is reported."""
         config.conf["callback"] = "tests.unit.test_cli:echo"
 
-        result = self.runner.invoke(
-            cli.cli, ["consume", "--queue-name=qn", "--routing-key=rk"]
-        )
+        result = self.runner.invoke(cli.cli, ["consume", "--queue-name=qn", "--routing-key=rk"])
 
         mock_consume.assert_called_once_with(
             echo,
-            bindings=[
-                {"exchange": "amq.topic", "queue": "qn", "routing_keys": ("rk",)}
-            ],
+            bindings=[{"exchange": "amq.topic", "queue": "qn", "routing_keys": ("rk",)}],
             queues={
                 "qn": {
                     "durable": False,
@@ -188,9 +181,7 @@ class TestConsumeCli:
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
     def test_good_cli_callable(self, mock_consume):
         """Assert providing a callable via the CLI works."""
-        result = self.runner.invoke(
-            cli.cli, ["consume", "--callback=tests.unit.test_cli:echo"]
-        )
+        result = self.runner.invoke(cli.cli, ["consume", "--callback=tests.unit.test_cli:echo"])
 
         mock_consume.assert_called_once_with(
             echo, bindings=config.conf["bindings"], queues=config.conf["queues"]
@@ -215,7 +206,7 @@ class TestConsumeCli:
             ],
         )
         assert config.conf["client_properties"]["app"] == cli_options["app-name"]
-        mock_importlib.import_module.called_once_with("mod")
+        mock_importlib.import_module.assert_called_once_with("mod")
         mock_consume.assert_called_once_with(
             mock_mod_with_callable.callable, bindings="b", queues="c"
         )
@@ -223,16 +214,14 @@ class TestConsumeCli:
 
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
-    def test_missing_cli_and_conf_callable(
-        self, mock_consume, mock_importlib, monkeypatch
-    ):
+    def test_missing_cli_and_conf_callable(self, mock_consume, mock_importlib, monkeypatch):
         """Assert missing callable via cli and in conf is reported."""
         monkeypatch.setitem(config.conf, "bindings", "b")
         monkeypatch.setitem(config.conf, "callback", None)
         mock_mod_with_callable = mock.Mock(spec=["callable"])
         mock_importlib.import_module.return_value = mock_mod_with_callable
         result = self.runner.invoke(cli.cli, ["consume"])
-        mock_importlib.import_module.not_called()
+        mock_importlib.import_module.assert_not_called()
         mock_consume.assert_not_called()
         assert (
             "A Python path to a callable object that accepts the message must be provided"
@@ -248,10 +237,8 @@ class TestConsumeCli:
         cli_options = {"callback": "modcallable"}
         mock_mod_with_callable = mock.Mock(spec=["callable"])
         mock_importlib.import_module.return_value = mock_mod_with_callable
-        result = self.runner.invoke(
-            cli.cli, ["consume", "--callback=" + cli_options["callback"]]
-        )
-        mock_importlib.import_module.not_called()
+        result = self.runner.invoke(cli.cli, ["consume", "--callback=" + cli_options["callback"]])
+        mock_importlib.import_module.assert_not_called()
         mock_consume.assert_not_called()
         assert (
             "Unable to parse the callback path ({}); the "
@@ -262,23 +249,17 @@ class TestConsumeCli:
 
     @mock.patch("fedora_messaging.cli.importlib")
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
-    def test_cli_callable_import_failure_cli_opt(
-        self, mock_consume, mock_importlib, monkeypatch
-    ):
+    def test_cli_callable_import_failure_cli_opt(self, mock_consume, mock_importlib, monkeypatch):
         """Assert module with callable import failure is reported."""
         monkeypatch.setitem(config.conf, "bindings", "b")
         cli_options = {"callback": "mod:callable"}
         error_message = "No module named 'mod'"
         mock_importlib.import_module.side_effect = ImportError(error_message)
-        result = self.runner.invoke(
-            cli.cli, ["consume", "--callback=" + cli_options["callback"]]
-        )
-        mock_importlib.import_module.called_once_with("mod")
+        result = self.runner.invoke(cli.cli, ["consume", "--callback=" + cli_options["callback"]])
+        mock_importlib.import_module.assert_called_once_with("mod")
         mock_consume.assert_not_called()
         assert (
-            "Failed to import the callback module ({}) provided in the --callback argument".format(
-                error_message
-            )
+            f"Failed to import the callback module ({error_message}) provided in the --callback argument"
             in result.output
         )
         assert 1 == result.exit_code
@@ -309,10 +290,8 @@ class TestConsumeCli:
         mock_mod_with_callable = mock.Mock(spec=["callable"])
         mock_importlib.import_module.return_value = mock_mod_with_callable
         mock_getattr.side_effect = AttributeError(error_message)
-        result = self.runner.invoke(
-            cli.cli, ["consume", "--callback=" + cli_options["callback"]]
-        )
-        mock_importlib.import_module.called_once_with("mod")
+        result = self.runner.invoke(cli.cli, ["consume", "--callback=" + cli_options["callback"]])
+        mock_importlib.import_module.assert_called_once_with("mod")
         mock_consume.assert_not_called()
         assert (
             "Unable to import {} ({}); is the package installed? The python path should "
@@ -325,9 +304,7 @@ class TestConsumeCli:
 
     def test_consume_improper_callback_object(self):
         """Assert improper callback object type failure is reported."""
-        error_message = (
-            "Callback must be a class that implements __call__ or a function."
-        )
+        error_message = "Callback must be a class that implements __call__ or a function."
 
         result = self.runner.invoke(
             cli.cli,
@@ -469,9 +446,7 @@ class CallbackFromFilesytem:
 
     def test_good_callback(self, fixtures_dir):
         """Assert loading a callback from a file works."""
-        cb = cli._callback_from_filesystem(
-            os.path.join(fixtures_dir, "callback.py") + ":rand"
-        )
+        cb = cli._callback_from_filesystem(os.path.join(fixtures_dir, "callback.py") + ":rand")
         assert 4 == cb(None)
 
     def test_bad_format(self):
@@ -489,9 +464,7 @@ class CallbackFromFilesytem:
     def test_invalid_file(self, fixtures_dir):
         """Assert an exception is raised if the Python file can't be executed."""
         with pytest.raises(click.ClickException) as cm:
-            cli._callback_from_filesystem(
-                os.path.join(fixtures_dir, "bad_cb") + ":missing"
-            )
+            cli._callback_from_filesystem(os.path.join(fixtures_dir, "bad_cb") + ":missing")
 
         if sys.version_info >= (3, 10) and sys.version_info < (3, 10, 4):
             # https://github.com/python/cpython/issues/90398
@@ -510,9 +483,7 @@ class CallbackFromFilesytem:
     def test_callable_does_not_exist(self, fixtures_dir):
         """Assert an exception is raised if the callable is missing."""
         with pytest.raises(click.ClickException) as cm:
-            cli._callback_from_filesystem(
-                os.path.join(fixtures_dir, "callback.py") + ":missing"
-            )
+            cli._callback_from_filesystem(os.path.join(fixtures_dir, "callback.py") + ":missing")
 
         assert (
             "The 'missing' object was not found in the '{}' file."
@@ -583,9 +554,7 @@ class TestPublishCli:
     @mock.patch("fedora_messaging.cli.api.publish")
     def test_file_with_msg_without_topic(self, mock_publish, fixtures_dir, good_conf):
         """Assert providing path to file with incorrect message via the CLI works."""
-        msg_without_topic_dump = os.path.join(
-            fixtures_dir, "msg_without_topic_dump.txt"
-        )
+        msg_without_topic_dump = os.path.join(fixtures_dir, "msg_without_topic_dump.txt")
         cli_options = {"file": msg_without_topic_dump, "exchange": "test_pe"}
         result = self.runner.invoke(
             cli.cli,
@@ -596,10 +565,7 @@ class TestPublishCli:
                 cli_options["file"],
             ],
         )
-        assert (
-            "Error: Unable to validate message: 'topic' is a required property"
-            in result.output
-        )
+        assert "Error: Unable to validate message: 'topic' is a required property" in result.output
         mock_publish.assert_not_called()
         assert 2 == result.exit_code
 
@@ -617,10 +583,7 @@ class TestPublishCli:
                 cli_options["file"],
             ],
         )
-        assert (
-            "Error: Unable to validate message: [] is not of type 'object'"
-            in result.output
-        )
+        assert "Error: Unable to validate message: [] is not of type 'object'" in result.output
         mock_publish.assert_not_called()
         assert 2 == result.exit_code
 
@@ -662,9 +625,7 @@ class TestPublishCli:
         assert errno.ECONNREFUSED == result.exit_code
 
     @mock.patch("fedora_messaging.cli.api.publish")
-    def test_publish_general_publish_error(
-        self, mock_publish, good_conf, good_msg_dump
-    ):
+    def test_publish_general_publish_error(self, mock_publish, good_conf, good_msg_dump):
         """Assert a connection problem is reported."""
         cli_options = {"file": good_msg_dump, "exchange": "test_pe"}
         mock_publish.side_effect = exceptions.PublishException(reason="eh")
@@ -714,9 +675,7 @@ class TestRecordCli:
                 "--routing-key=" + cli_options["routing-keys"][1],
             ],
         )
-        mock_consume.assert_called_once_with(
-            "e", "qn", ("rk1", "rk2"), mock.ANY, "recorder"
-        )
+        mock_consume.assert_called_once_with("e", "qn", ("rk1", "rk2"), mock.ANY, "recorder")
 
 
 class TestRecorderClass:
@@ -774,3 +733,59 @@ class TestRecorderClass:
         assert the_exception.exit_code == 1
         assert test_recorder.counter == 0
         mock_file.write.assert_not_called()
+
+
+@mock.patch("fedora_messaging.config.conf.setup_logging", mock.Mock())
+class TestReplayCli:
+    """Unit tests for the 'replay' command of the CLI."""
+
+    def setup_method(self, method):
+        """Setup test method environment."""
+        self.runner = CliRunner()
+
+    def teardown_method(self, method):
+        """Reset configuration after each test."""
+        config.conf = config.LazyConfig()
+        config.conf.load_config()
+
+    @mock.patch("fedora_messaging.cli._get_message")
+    @mock.patch("fedora_messaging.api.publish")
+    def test_successful_message_replay(self, mock_publish, mock_get_message, monkeypatch):
+        """Test successful replay of a message."""
+        monkeypatch.setitem(config.conf, "topic_prefix", "dummy.topic.prefix")
+        message_id = "123"
+        datagrepper_url = "http://example.com"
+
+        message_data = {
+            "topic": "test.topic",
+            "body": {"data_key": "data_value"},
+        }
+        mock_get_message.return_value = message_data
+
+        result = self.runner.invoke(
+            cli.replay, [message_id, f"--datagrepper-url={datagrepper_url}"]
+        )
+
+        assert result.exit_code == 0, f"Command did not exit as expected. Output: {result.output}"
+        assert "has been successfully replayed" in result.output
+        mock_publish.assert_called_once()
+        published_msg = mock_publish.call_args[0][0]
+        assert published_msg.topic == message_data["topic"]
+        assert published_msg.body == message_data["body"]
+        assert config.conf["topic_prefix"] == ""
+
+    @mock.patch("fedora_messaging.cli.requests.get", side_effect=requests.HTTPError)
+    def test_datagrepper_http_error(self, mock_get):
+        """Test handling of HTTP errors when fetching message data."""
+        message_id = "123"
+        result = self.runner.invoke(cli.replay, [message_id])
+        assert "Failed to retrieve message from Datagrepper" in result.output
+        assert result.exit_code != 0
+
+    @mock.patch("fedora_messaging.cli._get_message", return_value={"some": "data"})
+    @mock.patch("fedora_messaging.cli.api.publish", side_effect=Exception("Publish failure"))
+    def test_publish_failure(self, mock_publish, mock_get_message):
+        """Test handling of exceptions during message publishing."""
+        message_id = "123"
+        result = self.runner.invoke(cli.replay, [message_id])
+        assert result.exit_code != 0

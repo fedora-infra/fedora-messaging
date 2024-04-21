@@ -111,9 +111,7 @@ class TestTwistedConsume:
 
         api.twisted_consume(callback, bindings, {})
 
-        mock_service._service.factory.consume.assert_called_once_with(
-            callback, [bindings], {}
-        )
+        mock_service._service.factory.consume.assert_called_once_with(callback, [bindings], {})
 
     def test_defaults(self, mock_service):
         """Assert that bindings and queues come from the config if not provided."""
@@ -256,33 +254,6 @@ class TestPublish:
         assert self.publish_signal_data == expected_publish_signal_data
         assert self.publish_failed_signal_data == expected_publish_failed_signal_data
 
-    def test_publish_to_config_exchange(self, mock_twisted_publish, monkeypatch):
-        """Assert a message can be published to the exchange from config."""
-        monkeypatch.setitem(config.conf, "publish_exchange", "test_public_exchange")
-        message = "test_message"
-        expected_pre_publish_signal_data = {
-            "called": True,
-            "sender": api.publish,
-            "args": {"message": message},
-        }
-        expected_publish_signal_data = {
-            "called": True,
-            "sender": api.publish,
-            "args": {"message": message},
-        }
-        expected_publish_failed_signal_data = {
-            "called": False,
-            "sender": None,
-            "args": None,
-        }
-
-        api.publish(message)
-
-        mock_twisted_publish.assert_called_once_with(message, "test_public_exchange")
-        assert self.pre_publish_signal_data == expected_pre_publish_signal_data
-        assert self.publish_signal_data == expected_publish_signal_data
-        assert self.publish_failed_signal_data == expected_publish_failed_signal_data
-
     def test_publish_failed(self, mock_twisted_publish):
         """Assert an exception is raised when message can't be published."""
         message = "test_message"
@@ -308,6 +279,19 @@ class TestPublish:
         assert self.pre_publish_signal_data == expected_pre_publish_signal_data
         assert self.publish_signal_data == expected_publish_signal_data
         assert self.publish_failed_signal_data == expected_publish_failed_signal_data
+
+
+@pytest_twisted.inlineCallbacks
+def test_publish_to_config_exchange(monkeypatch):
+    """Assert a message can be published to the exchange from config."""
+    monkeypatch.setitem(config.conf, "publish_exchange", "test_public_exchange")
+    mock_twisted_service = mock.Mock()
+    monkeypatch.setattr("fedora_messaging.api._twisted_service", mock_twisted_service)
+    message = "test_message"
+    yield api.twisted_publish(message)
+    mock_twisted_service._service.factory.publish.assert_called_once_with(
+        message, exchange="test_public_exchange"
+    )
 
 
 @pytest_twisted.inlineCallbacks

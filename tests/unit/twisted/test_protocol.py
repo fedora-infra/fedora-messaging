@@ -72,9 +72,7 @@ class TestProtocol:
         d.addErrback(lambda f: f.trap(ConnectionException))
         return d
 
-    @mock.patch(
-        "fedora_messaging.twisted.consumer.uuid.uuid4", mock.Mock(return_value="tag1")
-    )
+    @mock.patch("fedora_messaging.twisted.consumer.uuid.uuid4", mock.Mock(return_value="tag1"))
     def test_consume_not_running(self):
         """Assert calling consume results in resumeProducing being invoked."""
         func = mock.Mock()
@@ -113,9 +111,7 @@ class TestProtocol:
 
         return d
 
-    @mock.patch(
-        "fedora_messaging.twisted.consumer.uuid.uuid4", mock.Mock(return_value="tag1")
-    )
+    @mock.patch("fedora_messaging.twisted.consumer.uuid.uuid4", mock.Mock(return_value="tag1"))
     def test_consume_running(self):
         """Assert when running, consume sets up the AMQP consumer"""
         func = mock.Mock()
@@ -198,8 +194,8 @@ class TestProtocol:
         body = {"bodykey": "bodyvalue"}
         headers = {"headerkey": "headervalue"}
         message = Message(body, headers, "testing.topic")
-        self.protocol._channel.basic_publish.side_effect = (
-            pika.exceptions.ChannelClosed(403, "Test forbidden message")
+        self.protocol._channel.basic_publish.side_effect = pika.exceptions.ChannelClosed(
+            403, "Test forbidden message"
         )
         d = self.protocol.publish(message, "test-exchange")
 
@@ -244,8 +240,8 @@ class TestProtocol:
         body = {"bodykey": "bodyvalue"}
         headers = {"headerkey": "headervalue"}
         message = Message(body, headers, "testing.topic")
-        self.protocol._channel.basic_publish.side_effect = (
-            pika.exceptions.ConnectionClosed(42, "testing")
+        self.protocol._channel.basic_publish.side_effect = pika.exceptions.ConnectionClosed(
+            42, "testing"
         )
         d = self.protocol.publish(message, "test-exchange")
 
@@ -258,9 +254,7 @@ class TestProtocol:
         """If consuming fails due to a non-permission error, a ConnectionException happens."""
         proto = FedoraMessagingProtocolV2(None)
         mock_channel = mock.Mock()
-        mock_channel.basic_consume.side_effect = pika.exceptions.ChannelClosed(
-            400, "Bad Request!"
-        )
+        mock_channel.basic_consume.side_effect = pika.exceptions.ChannelClosed(400, "Bad Request!")
         deferred_channel = defer.succeed(mock_channel)
         proto._allocate_channel = mock.Mock(return_value=deferred_channel)
 

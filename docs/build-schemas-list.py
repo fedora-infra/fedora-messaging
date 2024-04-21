@@ -8,6 +8,7 @@ import tempfile
 import venv
 from collections import defaultdict
 from dataclasses import dataclass
+from importlib.metadata import entry_points
 from subprocess import run
 from textwrap import dedent
 from urllib.parse import urljoin
@@ -81,10 +82,10 @@ def install_packages(dirname, packages):
     # https://pip.pypa.io/en/stable/user_guide/#using-pip-from-your-program
     pip = os.path.join(dirname, "bin", "pip")
     print("Upgrading pip...")
-    run([pip, "-q", "install", "--upgrade", "pip"], check=True)
+    run([pip, "-q", "install", "--upgrade", "pip"], check=True)  # noqa: S603
     for package in packages:
         print(f"Installing {package}...")
-        run([pip, "-q", "install", package], check=True)
+        run([pip, "-q", "install", package], check=True)  # noqa: S603
 
 
 def extract_docstring(cls):
@@ -102,19 +103,17 @@ def extract_docstring(cls):
 
 
 def get_schemas():
-    import pkg_resources
-
     schemas = defaultdict(list)
-    for entry_point in pkg_resources.iter_entry_points("fedora.messages"):
+    for entry_point in entry_points(group="fedora.messages"):
         msg_cls = entry_point.load()
         if not msg_cls.topic:
-            target = f"{entry_point.module_name}:{'.'.join(entry_point.attrs)}"
+            target = f"{entry_point.module}:{entry_point.attr}"
             if target != "fedora_messaging.message:Message":
                 print(f"The {target} schema has no declared topic, skipping.")
             continue
         if msg_cls.deprecated:
             continue
-        package_name = entry_point.dist.project_name
+        package_name = entry_point.dist.name
         doc = extract_docstring(msg_cls)
         category = _get_category(msg_cls.topic)
         try:

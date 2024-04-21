@@ -135,9 +135,9 @@ class Consumer:
             if exc.args[0] == 403:
                 raise PermissionException(
                     obj_type="queue", description=self.queue, reason=exc.args[1]
-                )
+                ) from exc
             else:
-                raise ConnectionException(reason=exc)
+                raise ConnectionException(reason=exc) from exc
 
         try:
             self._channel.add_on_cancel_callback(self._on_cancel_callback)
@@ -204,9 +204,7 @@ class Consumer:
                 "Message id %s did not pass validation; ignoring message",
                 properties.message_id,
             )
-            yield channel.basic_nack(
-                delivery_tag=delivery_frame.delivery_tag, requeue=False
-            )
+            yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=False)
             return
 
         try:
@@ -216,34 +214,20 @@ class Consumer:
                 properties.message_id,
             )
             if is_coro(self.callback):
-                d = defer.Deferred.fromFuture(
-                    asyncio.ensure_future(self.callback(message))
-                )
+                d = defer.Deferred.fromFuture(asyncio.ensure_future(self.callback(message)))
             else:
                 d = threads.deferToThread(self.callback, message)
             yield d
         except Nack:
-            _std_log.warning(
-                "Returning message id %s to the queue", properties.message_id
-            )
-            yield channel.basic_nack(
-                delivery_tag=delivery_frame.delivery_tag, requeue=True
-            )
+            _std_log.warning("Returning message id %s to the queue", properties.message_id)
+            yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=True)
         except Drop:
-            _std_log.warning(
-                "Consumer requested message id %s be dropped", properties.message_id
-            )
-            yield channel.basic_nack(
-                delivery_tag=delivery_frame.delivery_tag, requeue=False
-            )
+            _std_log.warning("Consumer requested message id %s be dropped", properties.message_id)
+            yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=False)
         except HaltConsumer as e:
-            _std_log.info(
-                "Consumer indicated it wishes consumption to halt, shutting down"
-            )
+            _std_log.info("Consumer indicated it wishes consumption to halt, shutting down")
             if e.requeue:
-                yield channel.basic_nack(
-                    delivery_tag=delivery_frame.delivery_tag, requeue=True
-                )
+                yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=True)
             else:
                 yield channel.basic_ack(delivery_tag=delivery_frame.delivery_tag)
             raise e
@@ -312,8 +296,7 @@ class Consumer:
                 self.cancel()
             else:
                 _std_log.exception(
-                    "Consumer halted (%r) unexpectedly; "
-                    "the connection should restart.",
+                    "Consumer halted (%r) unexpectedly; " "the connection should restart.",
                     failure,
                 )
         elif failure.check(error.ConnectionDone, error.ConnectionLost):

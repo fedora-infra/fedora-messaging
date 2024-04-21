@@ -294,8 +294,7 @@ import copy
 import logging
 import logging.config
 import os
-
-import pkg_resources
+from importlib.metadata import version
 
 
 try:
@@ -308,8 +307,8 @@ from . import exceptions
 
 _log = logging.getLogger(__name__)
 
-_fedora_version = pkg_resources.get_distribution("fedora_messaging").version
-_pika_version = pkg_resources.get_distribution("pika").version
+_fedora_version = version("fedora_messaging")
+_pika_version = version("pika")
 
 # By default, use a server-generated queue name
 _default_queue_name = ""
@@ -326,9 +325,7 @@ DEFAULTS = dict(
         "app": "Unknown",
         "product": "Fedora Messaging with Pika",
         "information": "https://fedora-messaging.readthedocs.io/en/stable/",
-        "version": "fedora_messaging-{} with pika-{}".format(
-            _fedora_version, _pika_version
-        ),
+        "version": f"fedora_messaging-{_fedora_version} with pika-{_pika_version}",
     },
     publish_exchange="amq.topic",
     topic_prefix="",
@@ -350,9 +347,7 @@ DEFAULTS = dict(
             "arguments": {},
         }
     },
-    bindings=[
-        {"queue": _default_queue_name, "exchange": "amq.topic", "routing_keys": ["#"]}
-    ],
+    bindings=[{"queue": _default_queue_name, "exchange": "amq.topic", "routing_keys": ["#"]}],
     qos={"prefetch_size": 0, "prefetch_count": 10},
     callback=None,
     consumer_config={},
@@ -392,9 +387,7 @@ def validate_bindings(bindings):
     """
     if not isinstance(bindings, (list, tuple)):
         raise exceptions.ConfigurationException(
-            "bindings must be a list or tuple of dictionaries, but was a {}".format(
-                type(bindings)
-            )
+            f"bindings must be a list or tuple of dictionaries, but was a {type(bindings)}"
         )
 
     for binding in bindings:
@@ -405,7 +398,7 @@ def validate_bindings(bindings):
         if missing_keys:
             raise exceptions.ConfigurationException(
                 "a binding is missing the following keys from its settings "
-                "value: {}".format(missing_keys)
+                f"value: {missing_keys}"
             )
 
         if not isinstance(binding["routing_keys"], (list, tuple)):
@@ -432,8 +425,8 @@ def validate_queues(queues):
     for queue, settings in queues.items():
         if not isinstance(settings, dict):
             raise exceptions.ConfigurationException(
-                "the {} queue in the 'queues' setting has a value of type {}, but it "
-                "should be a dictionary of settings.".format(queue, type(settings))
+                f"the {queue} queue in the 'queues' setting has a value of type {type(settings)}, "
+                "but it should be a dictionary of settings."
             )
         missing_keys = []
         for key in ("durable", "auto_delete", "exclusive", "arguments"):
@@ -441,8 +434,8 @@ def validate_queues(queues):
                 missing_keys.append(key)
         if missing_keys:
             raise exceptions.ConfigurationException(
-                "the {} queue is missing the following keys from its settings "
-                "value: {}".format(queue, missing_keys)
+                f"the {queue} queue is missing the following keys from its settings "
+                f"value: {missing_keys}"
             )
 
 
@@ -510,8 +503,8 @@ class LazyConfig(dict):
         for key in self:
             if key not in DEFAULTS:
                 raise exceptions.ConfigurationException(
-                    'Unknown configuration key "{}"! Valid configuration keys are'
-                    " {}".format(key, list(DEFAULTS.keys()))
+                    f"Unknown configuration key {key!r}! Valid configuration keys are"
+                    f" {list(DEFAULTS.keys())}"
                 )
 
         validate_queues(self["queues"])
@@ -545,7 +538,7 @@ class LazyConfig(dict):
                         config[key.lower()] = file_config[key]
                 except tomllib.TOMLDecodeError as e:
                     msg = f"Failed to parse {config_path}: {e}"
-                    raise exceptions.ConfigurationException(msg)
+                    raise exceptions.ConfigurationException(msg) from e
         else:
             _log.info(f"The configuration file, {config_path}, does not exist.")
 

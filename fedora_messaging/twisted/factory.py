@@ -89,9 +89,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
 
     def __repr__(self):
         """Return the representation of the factory as a string"""
-        return "FedoraMessagingFactoryV2(parameters={}, confirms={})".format(
-            self._parameters, self.confirms
-        )
+        return f"FedoraMessagingFactoryV2(parameters={self._parameters}, confirms={self.confirms})"
 
     def buildProtocol(self, addr):
         """Create the Protocol instance.
@@ -119,9 +117,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
                 queue_name = yield client.declare_queue(record.queue)
                 _remap_queue_name(record.bindings, queue_name)
                 yield client.bind_queues(record.bindings)
-                yield client.consume(
-                    record.consumer.callback, queue_name, record.consumer
-                )
+                yield client.consume(record.consumer.callback, queue_name, record.consumer)
 
         def on_ready_connection_errback(failure):
             """If opening the connection fails or is lost, this errback is called."""
@@ -196,9 +192,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             _std_log.debug("Already connected with %r", self._client)
         else:
             self._client = None
-            _std_log.debug(
-                "Waiting for %r to fire with new connection", self._client_deferred
-            )
+            _std_log.debug("Waiting for %r to fire with new connection", self._client_deferred)
             try:
                 yield self._client_deferred
             except defer.CancelledError:
@@ -240,9 +234,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
                 yield protocol.publish(message, exchange)
                 break
             except ConnectionException:
-                _std_log.info(
-                    "Publish failed on %r, waiting for new connection", protocol
-                )
+                _std_log.info("Publish failed on %r, waiting for new connection", protocol)
 
     @defer.inlineCallbacks
     def consume(self, callback, bindings, queues):
@@ -298,9 +290,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             _remap_queue_name(ebs, queue_name)
             yield protocol.bind_queues(ebs)
             consumer = yield protocol.consume(callback, queue_name)
-            self._consumers.append(
-                ConsumerRecord(consumer=consumer, queue=queue, bindings=ebs)
-            )
+            self._consumers.append(ConsumerRecord(consumer=consumer, queue=queue, bindings=ebs))
             consumers.append(consumer)
 
         defer.returnValue(consumers)
@@ -324,6 +314,4 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
         Args:
             queue (str): Forget the consumers that consume from this queue.
         """
-        self._consumers = [
-            record for record in self._consumers if record.consumer.queue != queue
-        ]
+        self._consumers = [record for record in self._consumers if record.consumer.queue != queue]

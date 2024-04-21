@@ -28,11 +28,10 @@ import datetime
 import json
 import logging
 import uuid
+from importlib.metadata import entry_points
 
 import jsonschema
 import pika
-import pkg_resources
-import pytz
 
 from . import config
 from .exceptions import ValidationError
@@ -117,22 +116,26 @@ def get_name(cls):
 
     try:
         return _class_to_schema_name[cls]
-    except KeyError:
+    except KeyError as e:
         raise TypeError(
-            "The class {} is not in the message registry, which indicates it is"
+            f"The class {cls!r} is not in the message registry, which indicates it is"
             ' not in the current list of entry points for "fedora_messaging".'
-            " Please check that the class has been added to your package's"
-            " entry points.".format(repr(cls))
-        )
+            " Please check that the class has been added to your package's entry points."
+        ) from e
 
 
 def load_message_classes():
     """Load the 'fedora.messages' entry points and register the message classes."""
-    for message in pkg_resources.iter_entry_points("fedora.messages"):
+    try:
+        eps = entry_points(group="fedora.messages")
+    except TypeError:
+        # Python < 3.10
+        # https://docs.python.org/3.10/library/importlib.metadata.html#entry-points
+        eps = entry_points().get("fedora.messages", [])
+    for message in eps:
         cls = message.load()
         _log.info(
-            "Registering the '%s' key as the '%r' class in the Message "
-            "class registry",
+            "Registering the '%s' key as the '%r' class in the Message " "class registry",
             message.name,
             cls,
         )
@@ -196,23 +199,21 @@ def get_message(routing_key, properties, body):
             body,
             properties.content_encoding,
         )
-        raise ValidationError(e)
+        raise ValidationError(e) from e
 
     try:
         body = json.loads(body)
     except ValueError as e:
         _log.error("Failed to load message body %r, %r", body, e)
-        raise ValidationError(e)
+        raise ValidationError(e) from e
 
-    message = MessageClass(
-        body=body, topic=routing_key, properties=properties, severity=severity
-    )
+    message = MessageClass(body=body, topic=routing_key, properties=properties, severity=severity)
     try:
         message.validate()
         _log.debug("Successfully validated message %r", message)
     except jsonschema.exceptions.ValidationError as e:
         _log.error("Message validation of %r failed: %r", message, e)
-        raise ValidationError(e)
+        raise ValidationError(e) from e
 
     if MessageClass.deprecated:
         _log.warning(
@@ -329,9 +330,7 @@ class Message:
     }
     deprecated = False
 
-    def __init__(
-        self, body=None, headers=None, topic=None, properties=None, severity=None
-    ):
+    def __init__(self, body=None, headers=None, topic=None, properties=None, severity=None):
         self.body = body or {}
 
         if topic:
@@ -349,7 +348,7 @@ class Message:
         # of date.
         headers = headers.copy()
         headers["fedora_messaging_schema"] = get_name(self.__class__)
-        now = datetime.datetime.utcnow().replace(microsecond=0, tzinfo=pytz.utc)
+        now = datetime.datetime.now(tz=datetime.timezone.utc).replace(microsecond=0)
         headers["sent-at"] = now.isoformat()
         headers["fedora_messaging_severity"] = self.severity
         # Mirror the priority in the headers for debugging purposes
@@ -386,6 +385,7 @@ class Message:
                 items = getattr(self, prop_name)
             except Exception:
                 # The message is probably invalid, don't add the header
+                _log.warning("Header %s not found in message", prop_name)
                 continue
             for item in items:
                 headers[f"fedora_messaging_{header_name}_{item}"] = True
@@ -441,8 +441,8 @@ class Message:
         """
         Provide a printable representation of the object that can be passed to func:`eval`.
         """
-        return "{}(id={}, topic={}, body={})".format(
-            self.__class__.__name__, repr(self.id), repr(self.topic), repr(self.body)
+        return (
+            f"{self.__class__.__name__}(id={self.id!r}, topic={self.topic!r}, body={self.body!r})"
         )
 
     def __eq__(self, other):
@@ -472,11 +472,7 @@ class Message:
         except KeyError:
             pass
 
-        return (
-            self.topic == other.topic
-            and self.body == other.body
-            and headers == other_headers
-        )
+        return self.topic == other.topic and self.body == other.body and headers == other_headers
 
     def validate(self):
         """
@@ -502,9 +498,7 @@ class Message:
             )
             jsonschema.validate(self._headers, schema)
         for schema in (self.body_schema, Message.body_schema):
-            _log.debug(
-                'Validating message body "%r" with schema "%r"', self.body, schema
-            )
+            _log.debug('Validating message body "%r" with schema "%r"', self.body, schema)
             jsonschema.validate(self.body, schema)
 
     @property
@@ -538,9 +532,7 @@ class Message:
         return "Id: {i}\nTopic: {t}\nHeaders: {h}\nBody: {b}".format(
             i=self.id,
             t=self.topic,
-            h=json.dumps(
-                self._headers, sort_keys=True, indent=4, separators=(",", ": ")
-            ),
+            h=json.dumps(self._headers, sort_keys=True, indent=4, separators=(",", ": ")),
             b=json.dumps(self.body, sort_keys=True, indent=4, separators=(",", ": ")),
         )
 
@@ -730,7 +722,7 @@ def load_message(message_dict):
     try:
         jsonschema.validate(message_dict, SERIALIZED_MESSAGE_SCHEMA)
     except jsonschema.exceptions.ValidationError as e:
-        raise ValidationError(e)
+        raise ValidationError(e) from e
     MessageClass = get_class(
         message_dict.get("headers", {}).get("fedora_messaging_schema", "base.message")
     )
@@ -777,7 +769,7 @@ def dumps(messages):
         try:
             message.validate()
         except (jsonschema.exceptions.ValidationError, AttributeError) as e:
-            raise ValidationError(e)
+            raise ValidationError(e) from e
         m = {
             "topic": message.topic,
             "headers": message._headers,
@@ -812,7 +804,7 @@ def loads(serialized_messages):
         try:
             message_dict = json.loads(serialized_message)
         except ValueError as e:
-            raise ValidationError(e)
+            raise ValidationError(e) from e
         message = load_message(message_dict)
         messages.append(message)
 

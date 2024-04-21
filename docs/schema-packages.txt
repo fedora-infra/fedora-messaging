@@ -2,6 +2,7 @@
 
 anitya-schema
 bodhi-messages
+bugzilla2fedmsg-schema
 ci-messages
 copr-messaging
 discourse2fedmsg-messages
@@ -11,8 +12,14 @@ fedora-elections-messages
 fedora-messaging-git-hook-messages
 fedora-messaging-the-new-hotness-schema
 fedora-planet-messages
+fmn-messages
+kerneltest-messages
 koji-fedoramessaging-messages
+koschei-messages
 mdapi-messages
+mediawiki-messages
+meetbot-messages
 noggin-messages
 nuancier-messages
 pagure-messages
+tahrir-messages
