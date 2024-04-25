@@ -8,9 +8,9 @@ create a directory to hold the code you will write, than change to this
 directory.
 
 Publishing
-----------
+~~~~~~~~~~
 
-To publish on the Fedora Messaging bus, you just need to use the
+To publish on the Fedora Messaging bus, you need to use the
 :py:func:`fedora_messaging.api.publish` function, passing it an
 instance of the :py:class:`fedora_messaging.message.Message` class
 that represents the message you want to publish.
@@ -22,7 +22,7 @@ containing elements separated by dots that will be used to route messages.
 
 Create a publishing script called ``publish.py``::
 
-    #!/usr/bin/env python3
+    ```#!/usr/bin/env python3
 
     from fedora_messaging.api import publish, Message
     from fedora_messaging.config import conf
@@ -32,10 +32,10 @@ Create a publishing script called ``publish.py``::
         topic="tutorial.topic",
         body={"reason": "test message"}
     )
-    publish(message)
+    publish(message)```
 
 Of course, you can make a smarter script that will use command-line arguments,
-this is left as an exercice to the reader. Now run it::
+this is left as an exercise to the reader. Now run it::
 
     chmod +x publish.py
     ./publish.py
