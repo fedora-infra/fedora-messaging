@@ -253,10 +253,7 @@ def twisted_publish(message, exchange=None):
     """
     if exchange is None:
         exchange = config.conf["publish_exchange"]
-    try:
-        yield _twisted_service._service.factory.publish(message, exchange=exchange)
-    except defer.CancelledError:
-        _log.debug("Canceled publish of %r to %s due to timeout", message, exchange)
+    yield _twisted_service._service.factory.publish(message, exchange=exchange)
 
 
 @crochet.run_in_reactor
@@ -270,7 +267,10 @@ def _twisted_publish(message, exchange):
             and confirmed by the broker.
     """
     _init_twisted_service()
-    yield twisted_publish(message, exchange)
+    try:
+        yield twisted_publish(message, exchange)
+    except defer.CancelledError:
+        _log.debug("Canceled publish of %r to %s due to timeout", message, exchange)
 
 
 def publish(message, exchange=None, timeout=30):
