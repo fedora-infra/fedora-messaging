@@ -42,6 +42,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Mark the directory as safe for git
+        run: git config --global --add safe.directory $PWD
+
       - name: Install dependencies
         run: |
           dnf install -y rust cargo openssl-devel
