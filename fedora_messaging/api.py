@@ -4,7 +4,7 @@ import inspect
 import logging
 
 import crochet
-from twisted.internet import defer, reactor
+from twisted.internet import defer, reactor, threads
 
 from . import config, exceptions
 from .message import (
@@ -253,12 +253,18 @@ def twisted_publish(message, exchange=None):
     """
     if exchange is None:
         exchange = config.conf["publish_exchange"]
-    yield _twisted_service._service.factory.publish(message, exchange=exchange)
+    yield threads.deferToThread(pre_publish_signal.send, publish, message=message)
+    try:
+        yield _twisted_service._service.factory.publish(message, exchange=exchange)
+        yield threads.deferToThread(publish_signal.send, publish, message=message)
+    except Exception as e:
+        yield threads.deferToThread(publish_failed_signal.send, publish, message=message, reason=e)
+        raise
 
 
 @crochet.run_in_reactor
 @defer.inlineCallbacks
-def _twisted_publish(message, exchange):
+def _twisted_publish_wrapper(message, exchange):
     """
     Wrapper to provide a synchronous API for publishing messages via Twisted.
 
@@ -315,20 +321,16 @@ def publish(message, exchange=None, timeout=30):
             message you are trying to send, the AMQP server is not involved.
     """
     crochet.setup()
-    pre_publish_signal.send(publish, message=message)
 
-    eventual_result = _twisted_publish(message, exchange)
+    eventual_result = _twisted_publish_wrapper(message, exchange)
     try:
         eventual_result.wait(timeout=timeout)
-        publish_signal.send(publish, message=message)
     except crochet.TimeoutError as e:
         eventual_result.cancel()
         wrapper = exceptions.PublishTimeout(
             f"Publishing timed out after waiting {timeout} seconds."
         )
-        publish_failed_signal.send(publish, message=message, reason=wrapper)
         raise wrapper from e
-    except Exception as e:
+    except Exception:
         _log.error(eventual_result.original_failure().getTraceback())
-        publish_failed_signal.send(publish, message=message, reason=e)
         raise

@@ -65,7 +65,7 @@ def mock_sends(*expected_messages):
 
     sent = []
     with mock.patch("fedora_messaging.api.crochet"):
-        with mock.patch("fedora_messaging.api._twisted_publish") as mock_pub:
+        with mock.patch("fedora_messaging.api._twisted_publish_wrapper") as mock_pub:
             yield sent
 
     messages = [call[0][0] for call in mock_pub.call_args_list]
