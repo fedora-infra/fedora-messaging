@@ -188,6 +188,14 @@ You can view the history of `all Koschei messages <https://apps.fedoraproject.or
 * ``koschei.package.state.change``: Messages published by Koschei when a package state changes.     For example when package starts to fail to build, package     dependencies become unresolved or when package is fixed. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.koschei.package.state.change>`__)
 
 
+Maubot Fedora
+=============
+
+You can view the history of `all Maubot Fedora messages <https://apps.fedoraproject.org/datagrepper/raw?category=maubot>`__ in datagrepper.
+
+* ``maubot.cookie.give.v1``: A sub-class of a Fedora message that defines a message schema for messages published by Maubot Fedora when a cookie is given. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.maubot.cookie.give.v1>`__)
+
+
 mdapi
 =====
 
@@ -286,6 +294,8 @@ You can view the history of `all Pagure messages <https://apps.fedoraproject.org
 tahrir
 ======
 
-You can view the history of `all tahrir messages <https://apps.fedoraproject.org/datagrepper/raw?category=person>`__ in datagrepper.
+You can view the history of `all tahrir messages <https://apps.fedoraproject.org/datagrepper/raw?category=badges>`__ in datagrepper.
 
-* ``person.login.first``: The message sent when a user logs into tahrir for the first time (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.person.login.first>`__)
+* ``badges.badge.award``: The message sent when a badge is awarded (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.badges.badge.award>`__)
+* ``badges.person.login.first``: The message sent when a user logs into tahrir for the first time (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.badges.person.login.first>`__)
+* ``badges.person.rank.advance``: The message sent when a user's rank changes (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.badges.person.rank.advance>`__)
