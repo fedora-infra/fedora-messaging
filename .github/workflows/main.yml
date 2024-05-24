@@ -41,6 +41,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Mark the directory as safe for git
         run: git config --global --add safe.directory $PWD
@@ -49,6 +51,7 @@ jobs:
         run: |
           dnf install -y rust cargo openssl-devel
           python3 -m pip install poetry>=1.3.0
+
       - name: Run tests
         run: tox -e ${{ matrix.tox_env }}
 
