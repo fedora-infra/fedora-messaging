@@ -8,6 +8,42 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## 3.6.0 (2024-06-13)
+
+### Features
+
+- Add `api.twisted_publish()`, a function to publish messages from within a consumer callback (remember to use `twisted.internet.threads.blockingCallFromThread()` when calling it, or `reactor.callFromThread()`)
+- Add a `summary` property to `ValidationError` exceptions
+
+### Bug Fixes
+
+- Add missing dependency on `requests` (PR #365)
+- Don't respect the configured `topic_prefix` when replaying messages
+
+### Documentation Improvements
+
+- Add the maubot-fedora-messages schema package (#4b3c8d0)
+
+### Development Changes
+
+- Integrate diff-cover in the testing workflow
+- Switch to ruff instead of flake8 + isort + bandit
+
+### Other Changes
+
+- Drop the dependency on pytz
+- Get rid of `pkg_resources`
+
+### Contributors
+
+Many thanks to the contributors of bug reports, pull requests, and pull request
+reviews for this release:
+
+- Vidit Maheshwari
+- Aurélien Bompard
+- Matej Focko
+
+
 ## 3.5.0 (2024-03-20)
 
 ### Features
