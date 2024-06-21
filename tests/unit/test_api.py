@@ -222,6 +222,22 @@ class TestTwistedPublishWrapper:
 
         mock_twisted_publish.assert_called_once_with(message, exchange)
 
+    @mock.patch("warnings.warn")
+    def test_deprecated_twisted_publish(self, warn):
+        """Assert calling the deprecated method emits warning."""
+        message = "test_message"
+        exchange = "test_exchange"
+
+        with mock.patch("fedora_messaging.api._twisted_publish_wrapper") as mock_twisted_publish:
+            api._twisted_publish(message, exchange)
+
+        warn.assert_called_once_with(
+            "_twisted_publish() is deprecated, use _twisted_publish_wrapper(); version 3.6.0",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        mock_twisted_publish.assert_called_once_with(message, exchange)
+
     @pytest_twisted.inlineCallbacks
     def test_publish_failed(self):
         """Assert an exception is raised when message can't be published."""
