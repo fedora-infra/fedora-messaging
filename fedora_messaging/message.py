@@ -27,8 +27,10 @@ this class in a small Python package of its own.
 import datetime
 import json
 import logging
+import re
 import uuid
-from importlib.metadata import entry_points
+from importlib.metadata import distribution as get_distribution
+from importlib.metadata import entry_points, PackageNotFoundError
 
 import jsonschema
 import pika
@@ -65,6 +67,7 @@ _log = logging.getLogger(__name__)
 # Maps string names of message types to classes and back
 _schema_name_to_class = {}
 _class_to_schema_name = {}
+_schema_name_to_package = {}
 
 # Used to load the registry automatically on first use
 _registry_loaded = False
@@ -83,18 +86,32 @@ def get_class(schema_name):
     Returns:
         Message: A sub-class of :class:`Message` to create the message from.
     """
+
+    return _get_class_from_headers(dict(fedora_messaging_schema=schema_name))
+
+
+def _get_class_from_headers(headers):
     global _registry_loaded
     if not _registry_loaded:
         load_message_classes()
 
+    schema_name = headers["fedora_messaging_schema"]
     try:
         return _schema_name_to_class[schema_name]
     except KeyError:
+        schema_package = headers.get("fedora_messaging_schema_package")
+        if schema_package:
+            package_text = f"You can install the missing schema from package {schema_package!r}"
+        else:
+            package_text = (
+                "Either install the package with its schema definition or define a schema"
+            )
+
         _log.warning(
-            'The schema "%s" is not in the schema registry! Either install '
-            "the package with its schema definition or define a schema. "
+            'The schema "%s" is not in the schema registry! %s. '
             "Falling back to the default schema...",
             schema_name,
+            package_text,
         )
         return Message
 
@@ -124,6 +141,24 @@ def get_name(cls):
         ) from e
 
 
+def _get_distribution_from_module(module):
+    if not module:
+        return None
+    module_parts = module.split(".")
+    while module_parts:
+        try:
+            distribution = get_distribution(".".join(module_parts))
+            try:
+                distribution_name = distribution.name
+            except AttributeError:  # pragma: no cover
+                # COMPAT: Python <= 3.9
+                distribution_name = distribution.metadata["Name"]
+        except PackageNotFoundError:
+            return _get_distribution_from_module(".".join(module_parts[:-1]))
+        # Normalize the name: PEP 503 plus dashes as underscores.
+        return re.sub(r"[-_.]+", "-", distribution_name).lower().replace("-", "_")
+
+
 def load_message_classes():
     """Load the 'fedora.messages' entry points and register the message classes."""
     try:
@@ -141,6 +176,12 @@ def load_message_classes():
         )
         _schema_name_to_class[message.name] = cls
         _class_to_schema_name[cls] = message.name
+        try:
+            module = message.module
+        except AttributeError:  # pragma: no cover
+            # COMPAT: Python <= 3.8
+            module = message.pattern.match(message.value).group("module")
+        _schema_name_to_package[message.name] = _get_distribution_from_module(module)
     global _registry_loaded
     _registry_loaded = True
 
@@ -167,7 +208,7 @@ def get_message(routing_key, properties, body):
         properties.headers = {}
 
     try:
-        MessageClass = get_class(properties.headers["fedora_messaging_schema"])
+        MessageClass = _get_class_from_headers(properties.headers)
     except KeyError:
         _log.error(
             "Message (headers=%r, body=%r) arrived without a schema header."
@@ -320,6 +361,7 @@ class Message:
                 "enum": [DEBUG, INFO, WARNING, ERROR],
             },
             "fedora_messaging_schema": {"type": "string"},
+            "fedora_messaging_schema_package": {"type": "string"},
             "sent-at": {"type": "string"},
         },
     }
@@ -347,7 +389,10 @@ class Message:
         # Consumers use this to determine what schema to use and if they're out
         # of date.
         headers = headers.copy()
-        headers["fedora_messaging_schema"] = get_name(self.__class__)
+        headers["fedora_messaging_schema"] = schema_name = get_name(self.__class__)
+        schema_package = _schema_name_to_package.get(schema_name)
+        if schema_package:
+            headers["fedora_messaging_schema_package"] = schema_package
         now = datetime.datetime.now(tz=datetime.timezone.utc).replace(microsecond=0)
         headers["sent-at"] = now.isoformat()
         headers["fedora_messaging_severity"] = self.severity
@@ -723,9 +768,11 @@ def load_message(message_dict):
         jsonschema.validate(message_dict, SERIALIZED_MESSAGE_SCHEMA)
     except jsonschema.exceptions.ValidationError as e:
         raise ValidationError(e) from e
-    MessageClass = get_class(
-        message_dict.get("headers", {}).get("fedora_messaging_schema", "base.message")
-    )
+    try:
+        MessageClass = _get_class_from_headers(message_dict.get("headers", {}))
+    except KeyError:
+        # No "fedora_messaging_schema" header
+        MessageClass = Message
     message = MessageClass(
         body=message_dict["body"],
         topic=message_dict["topic"],

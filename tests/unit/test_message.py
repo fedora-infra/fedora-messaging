@@ -60,6 +60,23 @@ class TestGetMessage:
         )
         assert isinstance(received_msg, message.Message)
 
+    def test_missing_schema(self, caplog):
+        """Assert a missing schema package gives an informative log."""
+        msg = message.Message()
+        msg._headers = {
+            "fedora_messaging_schema": "dummy",
+            "fedora_messaging_schema_package": "dummy-package",
+            "fedora_messaging_severity": message.INFO,
+        }
+        received_msg = message.get_message(
+            msg._encoded_routing_key, msg._properties, msg._encoded_body
+        )
+        assert isinstance(received_msg, message.Message)
+        assert caplog.messages == [
+            'The schema "dummy" is not in the schema registry! You can install the missing schema '
+            "from package 'dummy-package'. Falling back to the default schema..."
+        ]
+
     @mock.patch.dict(message._class_to_schema_name, {DeprecatedMessage: "deprecated_message_id"})
     @mock.patch.dict(message._schema_name_to_class, {"deprecated_message_id": DeprecatedMessage})
     def test_deprecated(self, caplog):
@@ -86,6 +103,7 @@ class TestMessageDumps:
         test_id = "test id"
         test_headers = {
             "fedora_messaging_schema": "base.message",
+            "fedora_messaging_schema_package": "fedora_messaging",
             "fedora_messaging_severity": message.WARNING,
         }
         test_properties = pika.BasicProperties(
@@ -100,9 +118,11 @@ class TestMessageDumps:
 
         test_msg.queue = test_queue
         expected_json = (
-            '{"body": {"test_key": "test_value"}, "headers": {"fedora_messaging_schema": '
-            '"base.message", "fedora_messaging_severity": 30}, "id": "test id", '
-            '"priority": 2, "queue": "test queue", "topic": "test topic"}\n'
+            '{"body": {"test_key": "test_value"}, "headers": {'
+            '"fedora_messaging_schema": "base.message", '
+            '"fedora_messaging_schema_package": "fedora_messaging", '
+            '"fedora_messaging_severity": 30'
+            '}, "id": "test id", "priority": 2, "queue": "test queue", "topic": "test topic"}\n'
         )
         assert expected_json == message.dumps(test_msg)
 
@@ -114,6 +134,7 @@ class TestMessageDumps:
         test_id = "test id"
         test_headers = {
             "fedora_messaging_schema": "base.message",
+            "fedora_messaging_schema_package": "fedora_messaging",
             "fedora_messaging_severity": message.WARNING,
         }
         test_properties = pika.BasicProperties(
@@ -128,11 +149,17 @@ class TestMessageDumps:
         test_msg.queue = test_queue
         test_msg2.queue = test_queue
         expected_json = (
-            '{"body": {"test_key": "test_value"}, "headers": {"fedora_messaging_schema": '
-            '"base.message", "fedora_messaging_severity": 30}, "id": "test id", '
+            '{"body": {"test_key": "test_value"}, "headers": {'
+            '"fedora_messaging_schema": "base.message", '
+            '"fedora_messaging_schema_package": "fedora_messaging", '
+            '"fedora_messaging_severity": 30'
+            '}, "id": "test id", '
             '"priority": 0, "queue": "test queue", "topic": "test topic"}\n'
-            '{"body": {"test_key": "test_value"}, "headers": {"fedora_messaging_schema": '
-            '"base.message", "fedora_messaging_severity": 30}, "id": "test id", '
+            '{"body": {"test_key": "test_value"}, "headers": {'
+            '"fedora_messaging_schema": "base.message", '
+            '"fedora_messaging_schema_package": "fedora_messaging", '
+            '"fedora_messaging_severity": 30'
+            '}, "id": "test id", '
             '"priority": 0, "queue": "test queue", "topic": "test topic"}\n'
         )
 
@@ -152,8 +179,11 @@ class TestMessageLoads:
     def test_proper_json(self):
         """Assert loading single message from json work."""
         message_json = (
-            '{"topic": "test topic", "headers": {"fedora_messaging_schema": "base.message", '
-            '"fedora_messaging_severity": 30}, "id": "test id", "body": '
+            '{"topic": "test topic", "headers": {'
+            '"fedora_messaging_schema": "base.message", '
+            '"fedora_messaging_schema_package": "fedora_messaging", '
+            '"fedora_messaging_severity": 30'
+            '}, "id": "test id", "body": '
             '{"test_key": "test_value"}, "priority": 2, "queue": "test queue"}\n'
         )
         messages = message.loads(message_json)
@@ -167,6 +197,7 @@ class TestMessageLoads:
         assert 2 == test_message.priority
         assert message.WARNING == test_message._headers["fedora_messaging_severity"]
         assert "base.message" == test_message._headers["fedora_messaging_schema"]
+        assert "fedora_messaging" == test_message._headers["fedora_messaging_schema_package"]
 
     def test_improper_json(self):
         """Assert proper exception is raised when improper json is provided."""
@@ -184,10 +215,11 @@ class TestMessageLoads:
         }
         test_message = message.load_message(message_dict)
         assert test_message._headers["fedora_messaging_schema"] == "base.message"
+        assert test_message._headers["fedora_messaging_schema_package"] == "fedora_messaging"
         assert test_message._headers["fedora_messaging_severity"] == message.INFO
         assert "sent-at" in test_message._headers
 
-    def test_missing_messaging_schema(self):
+    def test_missing_messaging_schema_header(self, caplog):
         """Assert the default schema is used when messaging schema is missing."""
         message_dict = {
             "id": "test id",
@@ -198,6 +230,27 @@ class TestMessageLoads:
         }
         test_message = message.load_message(message_dict)
         assert isinstance(test_message, message.Message)
+        assert caplog.messages == []
+
+    def test_missing_messaging_schema(self, caplog):
+        """Assert a helpful message is logged when the schema is missing."""
+        message_dict = {
+            "id": "test id",
+            "topic": "test topic",
+            "headers": {
+                "fedora_messaging_schema": "dummy",
+                "fedora_messaging_schema_package": "dummy-package",
+                "fedora_messaging_severity": 30,
+            },
+            "body": {"test_key": "test_value"},
+            "queue": "test queue",
+        }
+        test_message = message.load_message(message_dict)
+        assert isinstance(test_message, message.Message)
+        assert caplog.messages == [
+            'The schema "dummy" is not in the schema registry! You can install the missing schema '
+            "from package 'dummy-package'. Falling back to the default schema..."
+        ]
 
     def test_missing_body(self):
         """Assert proper exception is raised when body is missing."""
@@ -366,13 +419,16 @@ class TestMessage:
         assert "sent-at" in msg._properties.headers
         assert "fedora_messaging_schema" in msg._properties.headers
         assert msg._properties.headers["fedora_messaging_schema"] == "base.message"
+        assert "fedora_messaging_schema_package" in msg._properties.headers
+        assert msg._properties.headers["fedora_messaging_schema_package"] == "fedora_messaging"
 
     def test_headers(self):
         msg = message.Message(headers={"foo": "bar"})
         assert "foo" in msg._properties.headers
         assert msg._properties.headers["foo"] == "bar"
-        # The fedora_messaging_schema key must also be added when headers are given.
+        # The fedora_messaging_schema keys must also be added when headers are given.
         assert msg._properties.headers["fedora_messaging_schema"] == "base.message"
+        assert msg._properties.headers["fedora_messaging_schema_package"] == "fedora_messaging"
 
     def test_severity_default_header_set(self):
         """Assert the default severity is placed in the header if unspecified."""
@@ -526,8 +582,15 @@ class CustomMessage(message.Message):
 
 
 @mock.patch.dict(message._class_to_schema_name, {CustomMessage: "custom_id"})
+@mock.patch.dict(message._schema_name_to_package, {"custom_id": "custom-package"})
 class TestCustomMessage:
     """Tests for a Message subclass that provides filter headers"""
+
+    def test_schema_headers(self):
+        """Assert schema name and package are placed in the message headers."""
+        msg = CustomMessage(body={})
+        assert msg._headers.get("fedora_messaging_schema") == "custom_id"
+        assert msg._headers.get("fedora_messaging_schema_package") == "custom-package"
 
     def test_usernames(self):
         """Assert usernames are placed in the message headers."""
@@ -656,3 +719,7 @@ class TestClassRegistry:
         with mock.patch.dict(message._class_to_schema_name, {}, clear=True):
             with pytest.raises(TypeError):
                 message.get_name("this.is.not.an.entrypoint")
+
+    def test_get_distribution_from_module(self):
+        """Assert getting the distribution from a non-existing module does not crash."""
+        assert message._get_distribution_from_module("does.not.exist") is None

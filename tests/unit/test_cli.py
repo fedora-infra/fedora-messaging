@@ -703,8 +703,10 @@ class TestRecorderClass:
         test_recorder = cli.Recorder(2, mock_file)
         test_recorder.collect_message(msg1)
         mock_file.write.assert_called_with(
-            '{"body": {"test_key1": "test_value1"}, "headers"'
-            ': {"fedora_messaging_schema": "base.message", "fedora_messaging_severity": 20, '
+            '{"body": {"test_key1": "test_value1"}, "headers": {'
+            '"fedora_messaging_schema": "base.message", '
+            '"fedora_messaging_schema_package": "fedora_messaging", '
+            '"fedora_messaging_severity": 20, '
             '"priority": 0, "sent-at": "2018-11-18T10:11:41+00:00"}, '
             '"id": "273ed91d-b8b5-487a-9576-95b9fbdf3eec", '
             '"priority": 0, "queue": null, "topic": "test_topic1"}\n'
@@ -716,9 +718,11 @@ class TestRecorderClass:
         assert the_exception.exit_code == 0
         assert test_recorder.counter == 2
         mock_file.write.assert_called_with(
-            '{"body": {"test_key2": "test_value2"}, "headers": '
-            '{"fedora_messaging_schema": "base.message", "fedora_messaging_severity": '
-            '20, "priority": 0, "sent-at": "2018-11-18T10:11:41+00:00"}, "id": '
+            '{"body": {"test_key2": "test_value2"}, "headers": {'
+            '"fedora_messaging_schema": "base.message", '
+            '"fedora_messaging_schema_package": "fedora_messaging", '
+            '"fedora_messaging_severity": 20, '
+            '"priority": 0, "sent-at": "2018-11-18T10:11:41+00:00"}, "id": '
             '"273ed91d-b8b5-487a-9576-95b9fbdf3eec", "priority": 0, "queue": null, '
             '"topic": "test_topic2"}\n'
         )
