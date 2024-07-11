@@ -46,6 +46,11 @@ def halt_exit_42(message):
     raise exceptions.HaltConsumer(exit_code=42, reason="Life, the universe, and everything")
 
 
+def fail_processing(message):
+    """Fail processing message"""
+    raise ValueError()
+
+
 @pytest.fixture
 def queue(scope="function"):
     queue = str(uuid.uuid4())
@@ -62,6 +67,7 @@ def queue(scope="function"):
     [
         ("halt_exit_0", 0, b"Consumer indicated it wishes consumption to halt"),
         ("halt_exit_42", 42, b"Life, the universe, and everything"),
+        ("fail_processing", 13, b"Unexpected error occurred in consumer"),
     ],
 )
 @pytest_twisted.inlineCallbacks
@@ -91,5 +97,5 @@ def test_consume_halt_with_exitcode(callback, exit_code, msg, queue, cli_conf):
         process.kill()
         pytest.fail(f"Process never stopped!: {process.stdout.read()}")
 
-    assert process.returncode == exit_code
+    assert process.returncode == exit_code, process.stderr.read()
     assert msg in process.stdout.read()
