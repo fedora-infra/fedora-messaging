@@ -46,7 +46,7 @@ tomli = "^2.0.1"
 twisted = ">=22.4.0"
 
 [tool.poetry.group.dev.dependencies]
-coverage = "^7.3.0"
+coverage = {version = "^7.3.0", extras = ["toml"]}
 liccheck = "^0.9.1"
 mock = "^5.1.0"
 pyopenssl = ">=21.0.0"
@@ -153,6 +153,28 @@ order-by-type = false
 [tool.rstcheck]
 report_level = "warning"
 ignore_directives = ["automodule", "autoclass", "autofunction", "autodata"]
+
+[tool.coverage.run]
+branch = true
+source = ["fedora_messaging"]
+
+[tool.coverage.paths]
+source = ["fedora_messaging"]
+
+[tool.coverage.report]
+fail_under = 85
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    # Don't complain if tests don't hit defensive assertion code
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+    "if typing.TYPE_CHECKING:",
+]
+omit = [
+    "tests/*",
+]
 
 
 [build-system]
