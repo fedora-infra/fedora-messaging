@@ -157,6 +157,23 @@ class TestFactoryV2:
         assert last_log_call_args[1].startswith("Traceback (most recent call last):")
         return connected_d
 
+    def test_publish(self):
+        message = object()
+        exchange = object()
+        self.factory.buildProtocol(None)
+        self.protocol.ready.callback(None)
+        d = self.factory.when_connected()
+
+        def _publish(_):
+            return self.factory.publish(message, exchange)
+
+        def _check(publish_result):
+            self.protocol.publish.assert_called_once_with(message, exchange)
+
+        d.addCallback(_publish)
+        d.addCallback(_check)
+        return d
+
     def test_consume_anonymous(self):
         """Assert consume handles anonymous queues."""
         # Use server-generated queue names
