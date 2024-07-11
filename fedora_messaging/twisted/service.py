@@ -98,6 +98,14 @@ class FedoraMessagingServiceV2(service.MultiService):
         yield self._service.factory.stopFactory()
         yield service.MultiService.stopService(self)
 
+    @property
+    def stats(self):
+        return self._service.factory.stats
+
+    @property
+    def consuming(self):
+        return self._service.factory.consuming
+
 
 def _configure_tls_parameters(parameters):
     """

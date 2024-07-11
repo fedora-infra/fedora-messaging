@@ -197,6 +197,42 @@ consumers to use if they need configuration options. Refer to the
 :ref:`conf-consumer-config` in the Configuration documentation for details.
 
 
+Monitoring
+==========
+
+A Fedora Messaging consumer can start a dedicated HTTP server to let users
+monitor its state. You can configure the port in the configuration file under
+the ``[monitoring]`` section, with ``address`` and ``port``.
+If the section is empty, the monitoring service will be disabled.
+The default value for ``address`` is an empty string, which means that the
+monitoring server will listen on all interfaces.
+There is no default value for ``port``, you will have to choose a port.
+
+When a consumer is running with the monitoring server enabled, you can get the
+following data::
+
+    $ curl http://localhost:8070/live
+    {"status": "OK"}
+
+    $ curl http://localhost:8070/ready
+    {"consuming": true, "published": 0, "consumed": {"received": 0, "processed": 0, "dropped": 0, "rejected": 0, "failed": 0}}
+
+The ``/live`` endpoint always returns the same JSON data.
+The statistics in the ``/ready`` endpoint are gathered from the start of the
+service. They mean:
+
+- ``consuming``: whether the consumer is running or not.
+- ``published``: amount of messages published on the bus.
+- ``consumed.received``: amount of messages received from the bus.
+- ``consumer.processed``: amount of messages successfully processed by the consumer
+- ``consumer.dropped``: amount of messages dropped by the consumer (by raising the
+  :class:`fedora_messaging.exceptions.Drop` exception).
+- ``consumer.rejected``: amount of messages rejected by the consumer (by raising the
+  :class:`fedora_messaging.exceptions.Nack` exception). Those messages were put
+  back in the queue.
+- ``consumer.failed``: amount of message that caused another exception to be raised.
+
+
 systemd Service
 ===============
 

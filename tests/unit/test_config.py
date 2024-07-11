@@ -90,6 +90,9 @@ handlers = ["console"]
 empty_config = b'# publish_exchange = "special_exchange"'
 partial_config = b'publish_exchange = "special_exchange"'
 malformed_config = b'publish_exchange = "special_exchange'  # missing close quote
+empty_monitoring_config = b"[monitoring]\n"
+monitoring_config_with_port = b"[monitoring]\nport = 42\n"
+monitoring_config_without_port = b"[monitoring]\naddress = ''\n"
 
 
 class TestObj:
@@ -256,6 +259,33 @@ class TestLoad:
         )
         assert 0 == mock_log.warning.call_count
 
+    @mock.patch("fedora_messaging.config.open", mock.mock_open(read_data=empty_monitoring_config))
+    @mock.patch("fedora_messaging.config.os.path.exists", return_value=True)
+    def test_empty_monitoring_section(self, mock_exists):
+        """Assert the monitoring port is mandatory"""
+        config = msg_config.LazyConfig().load_config()
+        assert config["monitoring"] == {}
+
+    @mock.patch(
+        "fedora_messaging.config.open", mock.mock_open(read_data=monitoring_config_without_port)
+    )
+    @mock.patch("fedora_messaging.config.os.path.exists", return_value=True)
+    def test_monitoring_section_without_port(self, mock_exists):
+        """Assert the monitoring port is mandatory"""
+        with pytest.raises(ConfigurationException) as cm:
+            msg_config.LazyConfig().load_config()
+        assert cm.value.message == "The port must be defined in [monitoring] to activate it"
+
+    @mock.patch(
+        "fedora_messaging.config.open", mock.mock_open(read_data=monitoring_config_with_port)
+    )
+    @mock.patch("fedora_messaging.config.os.path.exists", return_value=True)
+    def test_monitoring_section_with_port(self, mock_exists):
+        """Assert the monitoring address default is set if absent"""
+        config = msg_config.LazyConfig().load_config()
+        assert config["monitoring"]["port"] == 42
+        assert config["monitoring"]["address"] == ""
+
     @mock.patch("fedora_messaging.config.open", mock.mock_open(read_data=full_config))
     @mock.patch("fedora_messaging.config._log", autospec=True)
     @mock.patch("fedora_messaging.config.os.path.exists", return_value=True)
@@ -291,6 +321,7 @@ class TestLoad:
             },
             bindings=[{"queue": "my_queue", "exchange": "amq.topic", "routing_keys": ["#"]}],
             qos={"prefetch_size": 25, "prefetch_count": 25},
+            monitoring={},
             callback="fedora_messaging.examples:print_msg",
             consumer_config={"example_key": "for my consumer"},
             tls={

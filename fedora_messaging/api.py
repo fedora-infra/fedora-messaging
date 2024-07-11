@@ -15,7 +15,7 @@ from .message import (
     SEVERITIES,
 )
 from .signals import pre_publish_signal, publish_failed_signal, publish_signal
-from .twisted import service
+from .twisted import monitor, service
 from .twisted.consumer import Consumer
 
 
@@ -43,13 +43,22 @@ _twisted_service = None
 
 def _init_twisted_service():
     global _twisted_service
-    if _twisted_service is None:
-        _twisted_service = service.FedoraMessagingServiceV2(config.conf["amqp_url"])
-        reactor.callWhenRunning(_twisted_service.startService)
-        # Twisted is killing the underlying connection before stopService gets
-        # called, so we need to add it as a pre-shutdown event to gracefully
-        # finish up messages in progress.
-        reactor.addSystemEventTrigger("before", "shutdown", _twisted_service.stopService)
+    if _twisted_service is not None:
+        return
+
+    _twisted_service = service.FedoraMessagingServiceV2(config.conf["amqp_url"])
+    if config.conf["monitoring"]:
+        monitor.monitor_service(
+            _twisted_service,
+            address=config.conf["monitoring"]["address"],
+            port=config.conf["monitoring"]["port"],
+        )
+
+    reactor.callWhenRunning(_twisted_service.startService)
+    # Twisted is killing the underlying connection before stopService gets
+    # called, so we need to add it as a pre-shutdown event to gracefully
+    # finish up messages in progress.
+    reactor.addSystemEventTrigger("before", "shutdown", _twisted_service.stopService)
 
 
 def _check_callback(callback):

@@ -129,8 +129,8 @@ SERIALIZED_MESSAGE_SCHEMA
 .. autodata:: fedora_messaging.message.SERIALIZED_MESSAGE_SCHEMA
 
 
-Utilities
-=========
+Schema Utilities
+================
 
 .. automodule:: fedora_messaging.schema_utils
 

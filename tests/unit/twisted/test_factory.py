@@ -169,6 +169,7 @@ class TestFactoryV2:
 
         def _check(publish_result):
             self.protocol.publish.assert_called_once_with(message, exchange)
+            assert self.factory.stats.published == 1
 
         d.addCallback(_publish)
         d.addCallback(_check)
@@ -211,6 +212,20 @@ class TestFactoryV2:
             self.protocol.declare_queue.assert_called_once_with(queue_config)
             self.protocol.bind_queues.assert_called_once_with(expected_bindings)
             self.protocol.consume.assert_called_once_with(callback, declared_queue)
+
+            assert self.factory.consuming is False
+            consumer._running = True
+            assert self.factory.consuming is True
+            assert self.factory.stats.as_dict() == {
+                "published": 0,
+                "consumed": {
+                    "received": 0,
+                    "processed": 0,
+                    "dropped": 0,
+                    "rejected": 0,
+                    "failed": 0,
+                },
+            }
 
         d.addCallback(_consume)
         d.addCallback(_check)

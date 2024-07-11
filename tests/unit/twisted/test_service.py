@@ -26,7 +26,8 @@ from twisted.application.internet import SSLClient, TCPClient
 from twisted.internet import ssl as twisted_ssl
 
 from fedora_messaging import config, exceptions
-from fedora_messaging.twisted.factory import FedoraMessagingFactoryV2
+from fedora_messaging.twisted.consumer import Consumer
+from fedora_messaging.twisted.factory import ConsumerRecord, FedoraMessagingFactoryV2
 from fedora_messaging.twisted.service import (
     _configure_tls_parameters,
     _ssl_context_factory,
@@ -68,6 +69,24 @@ class TestService:
         service.stopService()
         service._service.factory.stopTrying.assert_called_once()
         service._service.factory.stopFactory.assert_called_once()
+
+    def test_stats(self):
+        service = FedoraMessagingServiceV2("amqp://")
+        assert service.stats.as_dict() == {
+            "published": 0,
+            "consumed": {"received": 0, "processed": 0, "dropped": 0, "rejected": 0, "failed": 0},
+        }
+        assert service.consuming is False
+        consumer = Consumer()
+        consumer._running = True
+        consumer.stats.received = 42
+        consumer.stats.processed = 43
+        service._service.factory._consumers.append(ConsumerRecord(consumer, None, None))
+        assert service.stats.as_dict() == {
+            "published": 0,
+            "consumed": {"received": 42, "processed": 43, "dropped": 0, "rejected": 0, "failed": 0},
+        }
+        assert service.consuming is True
 
 
 class ConfigureTlsParameters:

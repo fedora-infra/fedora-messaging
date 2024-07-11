@@ -30,7 +30,7 @@ from fedora_messaging.signals import (
     publish_failed_signal,
     publish_signal,
 )
-from fedora_messaging.twisted import consumer
+from fedora_messaging.twisted import consumer, monitor
 
 
 class TestCheckCallback:
@@ -392,3 +392,28 @@ def test_consume_successful_halt():
             yield d
     except (defer.TimeoutError, defer.CancelledError):
         pytest.fail("Expected the consume call to immediately finish, not time out")
+
+
+@pytest.fixture
+def clear_twisted_service():
+    api._twisted_service = None
+    yield
+    api._twisted_service = None
+
+
+def test_monitoring_enabled(clear_twisted_service, available_port):
+    with mock.patch.dict(config.conf["monitoring"], {"port": available_port, "address": ""}):
+        api._init_twisted_service()
+    try:
+        monitoring_service = api._twisted_service.getServiceNamed("monitoring")
+    except KeyError:
+        pytest.fail("Monitoring service wasn't started.")
+    assert monitoring_service.args[0] == available_port
+    assert isinstance(monitoring_service.args[1], monitor.MonitoringSite)
+
+
+def test_monitoring_disabled(clear_twisted_service):
+    api._init_twisted_service()
+    with pytest.raises(KeyError):
+        api._twisted_service.getServiceNamed("monitoring")
+    assert len(api._twisted_service.services) == 1  # only the consumer
