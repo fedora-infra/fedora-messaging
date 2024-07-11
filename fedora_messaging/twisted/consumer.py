@@ -35,6 +35,7 @@ from ..exceptions import (
     ValidationError,
 )
 from ..message import get_message
+from .stats import ConsumerStatistics
 
 
 _std_log = logging.getLogger(__name__)
@@ -110,16 +111,23 @@ class Consumer:
         # The unique ID for the AMQP consumer.
         self._tag = str(uuid.uuid4())
         # Used in the consumer read loop to know when it's being canceled.
-        self._running = True
+        self._running = False
         # The current read loop
         self._read_loop = None
         # The protocol that currently runs this consumer, used when cancel is
         # called to remove itself from the protocol and its factory so it doesn't
         # restart on the next connection.
         self._protocol = None
+        # Message statistics
+        self.stats = ConsumerStatistics()
 
     def __repr__(self):
         return f"Consumer(queue={self.queue}, callback={self.callback})"
+
+    @property
+    def running(self) -> bool:
+        """Whether the consumer is running."""
+        return self._running
 
     @defer.inlineCallbacks
     def consume(self):
@@ -144,6 +152,7 @@ class Consumer:
         except AttributeError:
             pass  # pika 1.0.0+
 
+        self._running = True
         self._read_loop = self._read(queue_object)
         self._read_loop.addErrback(self._read_loop_errback)
 
@@ -207,6 +216,8 @@ class Consumer:
             yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=False)
             return
 
+        self.stats.received += 1
+
         try:
             _std_log.info(
                 "Consuming message from topic %s (message id %s)",
@@ -221,19 +232,24 @@ class Consumer:
         except Nack:
             _std_log.warning("Returning message id %s to the queue", properties.message_id)
             yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=True)
+            self.stats.rejected += 1
         except Drop:
             _std_log.warning("Consumer requested message id %s be dropped", properties.message_id)
             yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=False)
+            self.stats.dropped += 1
         except HaltConsumer as e:
             _std_log.info("Consumer indicated it wishes consumption to halt, shutting down")
             if e.requeue:
                 yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=True)
+                self.stats.rejected += 1
             else:
                 yield channel.basic_ack(delivery_tag=delivery_frame.delivery_tag)
+                self.stats.processed += 1
             raise e
         except Exception as e:
             _std_log.exception("Received unexpected exception from consumer %r", self)
             yield channel.basic_nack(delivery_tag=0, multiple=True, requeue=True)
+            self.stats.failed += 1
             raise e
         else:
             _std_log.info(
@@ -242,6 +258,7 @@ class Consumer:
                 properties.message_id,
             )
             yield channel.basic_ack(delivery_tag=delivery_frame.delivery_tag)
+            self.stats.processed += 1
 
     def _on_cancel_callback(self, frame):
         """

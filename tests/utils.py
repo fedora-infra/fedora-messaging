@@ -15,29 +15,22 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import os
+from random import randrange
 
-import crochet
-import pytest
-
-from .utils import get_available_port
+from twisted.internet import defer, error, protocol
 
 
-@pytest.fixture(autouse=True, scope="session")
-def crochet_no_setup():
-    crochet.no_setup()
+@defer.inlineCallbacks
+def get_available_port():
+    from twisted.internet import reactor
 
-
-@pytest.fixture
-def fixtures_dir():
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), "fixtures/"))
-
-
-@pytest.fixture
-def available_port():
-    try:
-        import pytest_twisted
-    except ImportError:
-        pytest.skip("pytest-twisted is missing, skipping tests", allow_module_level=True)
-
-    return pytest_twisted.blockon(get_available_port())
+    dummy_server = protocol.ServerFactory()
+    while True:
+        port = randrange(1025, 65534)  # noqa: S311
+        try:
+            twisted_port = reactor.listenTCP(port, dummy_server, interface="127.0.0.1")
+        except error.CannotListenError:
+            continue
+        else:
+            yield twisted_port.stopListening()
+            defer.returnValue(port)

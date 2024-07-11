@@ -160,6 +160,9 @@ class TestConsumer:
             ],
         )
 
+        self.consumer._running = True
+        assert self.consumer.running is True
+
         yield self.consumer._read(queue)
 
         assert get_message.call_args_list == [
@@ -178,11 +181,14 @@ class TestConsumer:
             (tuple(), dict(delivery_tag="dt2")),
             (tuple(), dict(delivery_tag="dt3")),
         ]
+        assert self.consumer.stats.received == 3
+        assert self.consumer.stats.processed == 3
 
     @pytest_twisted.inlineCallbacks
     def test_read_not_running(self):
         # When not running, _read() should do nothing.
         self.consumer._running = False
+        assert self.consumer.running is False
         queue = Mock()
         queue.get.side_effect = lambda: defer.succeed(None)
         yield self.consumer._read(queue)
@@ -196,6 +202,7 @@ class TestConsumer:
         self.consumer._channel.basic_nack.assert_called_with(
             delivery_tag="delivery_tag", requeue=False
         )
+        assert self.consumer.stats.received == 0
 
     @pytest.mark.parametrize("error_class", [HaltConsumer, ValueError])
     @pytest_twisted.inlineCallbacks
@@ -225,12 +232,19 @@ class TestConsumer:
             pytest.fail(f"This should have raised {error_class}")
 
         self.consumer.cancel.assert_called_once_with()
+        assert self.consumer.stats.received == 1
+        assert self.consumer.stats.rejected == 0
+        assert self.consumer.stats.dropped == 0
         if error_class == HaltConsumer:
             self.consumer._channel.basic_ack.assert_called_once_with(delivery_tag="dt1")
+            assert self.consumer.stats.processed == 1
+            assert self.consumer.stats.failed == 0
         else:
             self.consumer._channel.basic_nack.assert_called_once_with(
                 delivery_tag=0, multiple=True, requeue=True
             )
+            assert self.consumer.stats.failed == 1
+            assert self.consumer.stats.processed == 0
 
     # Handling read errors
 
@@ -388,6 +402,8 @@ class TestConsumerCallback:
         yield _call_read_one(consumer, "testing.topic", {}, {"key": "value"})
         callback.assert_called_once()
         consumer._channel.basic_ack.assert_called_once_with(delivery_tag="delivery_tag")
+        assert consumer.stats.received == 1
+        assert consumer.stats.processed == 1
 
     @pytest_twisted.inlineCallbacks
     def test_nack(self, mock_class):
@@ -397,6 +413,8 @@ class TestConsumerCallback:
         yield _call_read_one(consumer, "testing.topic", {}, {"key": "value"})
         callback.assert_called()
         consumer._channel.basic_nack.assert_called_with(delivery_tag="delivery_tag", requeue=True)
+        assert consumer.stats.received == 1
+        assert consumer.stats.rejected == 1
 
     @pytest_twisted.inlineCallbacks
     def test_drop(self, mock_class):
@@ -406,6 +424,8 @@ class TestConsumerCallback:
         yield _call_read_one(consumer, "testing.topic", {}, {"key": "value"})
         callback.assert_called()
         consumer._channel.basic_nack.assert_called_with(delivery_tag="delivery_tag", requeue=False)
+        assert consumer.stats.received == 1
+        assert consumer.stats.dropped == 1
 
     @pytest.mark.parametrize("requeue", [False, True])
     @pytest_twisted.inlineCallbacks
@@ -422,12 +442,15 @@ class TestConsumerCallback:
 
         callback.assert_called()
         channel = consumer._channel
+        assert consumer.stats.received == 1
         if requeue:
             channel.basic_ack.assert_not_called()
             channel.basic_nack.assert_called_with(delivery_tag="delivery_tag", requeue=True)
+            assert consumer.stats.rejected == 1
         else:
             channel.basic_ack.assert_called_with(delivery_tag="delivery_tag")
             channel.basic_nack.assert_not_called()
+            assert consumer.stats.processed == 1
 
     @pytest_twisted.inlineCallbacks
     def test_exception(self, mock_class):
@@ -446,6 +469,8 @@ class TestConsumerCallback:
         callback.assert_called()
         channel = consumer._channel
         channel.basic_nack.assert_called_with(delivery_tag=0, multiple=True, requeue=True)
+        assert consumer.stats.received == 1
+        assert consumer.stats.failed == 1
 
 
 class TestAddTimeout:

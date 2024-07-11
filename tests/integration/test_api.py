@@ -155,9 +155,15 @@ def test_twisted_consume_halt_consumer(queue_and_binding):
             assert expected_headers == m._headers
         server_queue = yield get_queue(queues)
         assert server_queue["consumers"] == 0
+        # Verify stats
+        assert consumers[0].stats.received == 3
+        assert consumers[0].stats.processed == 3
+        assert consumers[0].stats.rejected == 0
     except (defer.TimeoutError, defer.CancelledError):
         yield consumers[0].cancel()
         pytest.fail("Timeout reached without consumer halting!")
+    else:
+        yield consumers[0].cancel()
 
 
 @pytest_twisted.inlineCallbacks
@@ -240,7 +246,6 @@ def test_twisted_consume_halt_consumer_requeue(queue_and_binding):
     )
 
     def callback(message):
-        """Count to 3 and quit."""
         raise exceptions.HaltConsumer(exit_code=1, requeue=True)
 
     # Assert that the number of consumers we think we started is the number the
@@ -259,9 +264,15 @@ def test_twisted_consume_halt_consumer_requeue(queue_and_binding):
         server_queue = yield get_queue(queues)
         assert server_queue["consumers"] == 0
         assert server_queue["messages_ready"] == 1
+        # Verify stats
+        assert consumers[0].stats.received == 1
+        assert consumers[0].stats.processed == 0
+        assert consumers[0].stats.rejected == 1
     except (defer.TimeoutError, defer.CancelledError):
         yield consumers[0].cancel()
         pytest.fail("Timeout reached without consumer halting!")
+    else:
+        yield consumers[0].cancel()
 
 
 @pytest_twisted.inlineCallbacks
@@ -298,9 +309,14 @@ def test_twisted_consume_drop_message(queue_and_binding):
         server_queue = yield get_queue(queues)
         assert server_queue["consumers"] == 0
         assert server_queue["messages"] == 0
+        # Verify stats
+        assert consumers[0].stats.received == 2
+        assert consumers[0].stats.processed == 1  # The message raising HaltConsumer
+        assert consumers[0].stats.dropped == 1
     except (defer.TimeoutError, defer.CancelledError):
+        yield consumers[0].cancel()
         pytest.fail("Timeout reached without consumer halting!")
-    finally:
+    else:
         yield consumers[0].cancel()
 
 
@@ -336,9 +352,14 @@ def test_twisted_consume_nack_message(queue_and_binding):
         server_queue = yield get_queue(queues)
         assert server_queue["consumers"] == 0
         assert server_queue["messages"] == 0
+        # Verify stats
+        assert consumers[0].stats.received == 2
+        assert consumers[0].stats.processed == 1  # The message raising HaltConsumer
+        assert consumers[0].stats.rejected == 1
     except (defer.TimeoutError, defer.CancelledError):
+        yield consumers[0].cancel()
         pytest.fail("Timeout reached without consumer halting!")
-    finally:
+    else:
         yield consumers[0].cancel()
 
 
@@ -370,6 +391,7 @@ def test_twisted_consume_general_exception(queue_and_binding):
         yield consumers[0].result
         pytest.fail("Expected an exception to be raised.")
     except (defer.TimeoutError, defer.CancelledError):
+        yield consumers[0].cancel()
         pytest.fail("Timeout reached without consumer halting!")
     except Exception as e:
         # Assert the message was delivered and re-queued when the consumer crashed.
@@ -377,6 +399,9 @@ def test_twisted_consume_general_exception(queue_and_binding):
         server_queue = yield get_queue(queues)
         assert server_queue["consumers"] == 0
         assert server_queue["messages"] == 1
+        # Verify stats
+        assert consumers[0].stats.received == 1
+        assert consumers[0].stats.failed == 1
     finally:
         yield consumers[0].cancel()
 
@@ -448,6 +473,8 @@ def test_twisted_consume_connection_reset(queue_and_binding):
     except (defer.TimeoutError, defer.CancelledError):
         yield consumers[0].cancel()
         pytest.fail("Timeout reached without consumer halting!")
+    else:
+        yield consumers[0].cancel()
 
 
 @pytest_twisted.inlineCallbacks

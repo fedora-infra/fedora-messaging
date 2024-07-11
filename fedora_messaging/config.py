@@ -287,6 +287,17 @@ meaning there is no limit. The default settings are::
         'prefetch_count': 10,
         'prefetch_size': 0,
     }
+
+.. _conf-monitoring:
+
+monitoring
+----------
+The options for the embedded HTTP server dedicated to monitoring the service.
+This is where you can configure the address and the port to be listened on.
+If the section is empty, monitoring will be disabled.
+The default value for ``address`` is an empty string, which means that the
+service will listen on all interfaces. There is no default value for
+``port``, you will have to choose a port.
 """
 
 
@@ -350,6 +361,7 @@ DEFAULTS = dict(
     bindings=[{"queue": _default_queue_name, "exchange": "amq.topic", "routing_keys": ["#"]}],
     qos={"prefetch_size": 0, "prefetch_count": 10},
     callback=None,
+    monitoring={},
     consumer_config={},
     tls={"ca_cert": None, "certfile": None, "keyfile": None},
     log_config={
@@ -460,6 +472,22 @@ def validate_client_properties(props):
             )
 
 
+def validate_monitoring(monitoring_conf):
+    """
+    Validate the monitoring setting.
+
+    This will add the "address" and "port" keys if they are missing.
+    """
+    if not monitoring_conf:
+        return  # If empty, monitoring will be disabled.
+    if "port" not in monitoring_conf:
+        raise exceptions.ConfigurationException(
+            "The port must be defined in [monitoring] to activate it"
+        )
+    if "address" not in monitoring_conf:
+        monitoring_conf["address"] = ""
+
+
 class LazyConfig(dict):
     """This class lazy-loads the configuration file."""
 
@@ -510,6 +538,7 @@ class LazyConfig(dict):
         validate_queues(self["queues"])
         validate_bindings(self["bindings"])
         validate_client_properties(self["client_properties"])
+        validate_monitoring(self["monitoring"])
 
     def load_config(self, config_path=None):
         """

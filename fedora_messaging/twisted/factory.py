@@ -37,6 +37,7 @@ from twisted.python.failure import Failure
 
 from ..exceptions import ConnectionException
 from .protocol import FedoraMessagingProtocolV2
+from .stats import ConsumerStatistics, FactoryStatistics
 
 
 _std_log = logging.getLogger(__name__)
@@ -86,6 +87,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
         self._client_deferred = defer.Deferred()
         self._client = None
         self._consumers = []
+        self._stats = FactoryStatistics()
 
     def __repr__(self):
         """Return the representation of the factory as a string"""
@@ -232,6 +234,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             protocol = yield self.when_connected()
             try:
                 yield protocol.publish(message, exchange)
+                self._stats.published += 1
                 break
             except ConnectionException:
                 _std_log.info("Publish failed on %r, waiting for new connection", protocol)
@@ -315,3 +318,16 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             queue (str): Forget the consumers that consume from this queue.
         """
         self._consumers = [record for record in self._consumers if record.consumer.queue != queue]
+
+    @property
+    def stats(self) -> ConsumerStatistics:
+        """Statistics about this factory's consumer(s)."""
+        self._stats.consumed = sum(
+            (record.consumer.stats for record in self._consumers), start=ConsumerStatistics()
+        )
+        return self._stats
+
+    @property
+    def consuming(self) -> bool:
+        """Whether the consumer(s) is currently running."""
+        return any(record.consumer.running for record in self._consumers)

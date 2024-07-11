@@ -40,6 +40,10 @@ example_key = "for my consumer"
 prefetch_size = 0
 prefetch_count = 25
 
+# [monitoring]
+# Set this if you want to enable HTTP-based monitoring of the service
+# port = 8070
+
 [log_config]
 version = 1
 disable_existing_loggers = true
