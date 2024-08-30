@@ -469,7 +469,7 @@ def replay(message_id, datagrepper_url):
 
 def _get_message(message_id, datagrepper_url):
     """Fetch a message by ID from Datagreeper"""
-    url = f"{datagrepper_url}/id?id={message_id}&is_raw=true"
+    url = f"{datagrepper_url}/v2/id?id={message_id}&is_raw=true"
     try:
         response = requests.get(url, timeout=5)
         response.raise_for_status()
