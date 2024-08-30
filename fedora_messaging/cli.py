@@ -449,6 +449,17 @@ def record(exchange, queue_name, routing_key, app_name, limit, file):
 DEFAULT_DATAGREPPER_URL = "https://apps.fedoraproject.org/datagrepper"
 
 
+def _get_message(message_id, datagrepper_url):
+    """Fetch a message by ID from Datagreeper"""
+    url = f"{datagrepper_url}/v2/id?id={message_id}&is_raw=true"
+    try:
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        raise click.ClickException(f"Failed to retrieve message from Datagrepper: {e}") from e
+
+
 @cli.command()
 @click.argument("message_id")
 @click.option(
@@ -465,17 +476,6 @@ def replay(message_id, datagrepper_url):
         config.conf["topic_prefix"] = ""
         api.publish(message.load_message(message_data))
         click.echo(f"Message with ID {message_id} has been successfully replayed.")
-
-
-def _get_message(message_id, datagrepper_url):
-    """Fetch a message by ID from Datagreeper"""
-    url = f"{datagrepper_url}/v2/id?id={message_id}&is_raw=true"
-    try:
-        response = requests.get(url, timeout=5)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        raise click.ClickException(f"Failed to retrieve message from Datagrepper: {e}") from e
 
 
 @cli.command()
