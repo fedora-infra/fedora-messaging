@@ -14,6 +14,7 @@ discourse2fedmsg-messages
 fedocal-messages
 fedorainfra-ansible-messages
 fedora-elections-messages
+fedora-image-uploader-messages
 fedora-messaging-git-hook-messages
 fedora-messaging-the-new-hotness-schema
 fedora-planet-messages

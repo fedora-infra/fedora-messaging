@@ -109,6 +109,16 @@ You can view the history of `all elections messages <https://apps.fedoraproject.
 * ``fedora_elections.election.new``: A sub-class of a Fedora message that defines a message schema for messages published by Elections when a new election is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedora_elections.election.new>`__)
 
 
+fedora-image-uploader
+=====================
+
+You can view the history of `all fedora-image-uploader messages <https://apps.fedoraproject.org/datagrepper/raw?category=fedora_image_uploader>`__ in datagrepper.
+
+* ``fedora_image_uploader.published.v1.aws``: Published when an AWS AMI is created from an image. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedora_image_uploader.published.v1.aws>`__)
+* ``fedora_image_uploader.published.v1.azure``: Published when an image is uploaded to the Azure image gallery. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedora_image_uploader.published.v1.azure>`__)
+* ``fedora_image_uploader.published.v1.container``: Published when a new image manifest is pushed. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedora_image_uploader.published.v1.container>`__)
+
+
 Git
 ===
 
