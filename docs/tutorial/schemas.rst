@@ -57,8 +57,10 @@ Schema format
 This dictionary describes the possible keys and types in the JSON object being
 validated, using the following reserved keys:
 
-- ``id`` (or ``$id``): an URI identifing this schema. Change the last part of
-  the example URL to use your app's name.
+- ``id`` (or ``$id``): an URI identifing this schema. This URI is used to
+  differentiate between different schema packages and should ideally remain
+  consistent within a specific schema package. Change the last part of the
+  example URL to use your app’s name.
 - ``$schema``: an URI describing the validator to use, you can leave that one
   as it is. It is only present at the root of the dictionary.
 - ``description``: a fulltext description of the key.
