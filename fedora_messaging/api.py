@@ -2,6 +2,7 @@
 
 import inspect
 import logging
+import warnings
 
 import crochet
 from twisted.internet import defer, reactor, threads
@@ -269,6 +270,16 @@ def twisted_publish(message, exchange=None):
     except Exception as e:
         yield threads.deferToThread(publish_failed_signal.send, publish, message=message, reason=e)
         raise
+
+
+def _twisted_publish(message, exchange):
+    """Deprecated method, use _twisted_publish_wrapper()."""
+    warnings.warn(
+        "_twisted_publish() is deprecated, use _twisted_publish_wrapper(); version 3.6.0",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return _twisted_publish_wrapper(message, exchange)
 
 
 @crochet.run_in_reactor
