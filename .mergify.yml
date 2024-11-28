@@ -1,4 +1,71 @@
 queue_rules:
+  - name: duplicated default from default
+    queue_conditions:
+      - label!=no-mergify
+      - -draft
+      - approved-reviews-by=@fedora-infra/fedora-messaging-maintainers
+      - "#changes-requested-reviews-by=0"
+      - status-success=DCO
+      - status-success=Misc tests (checks)
+      - status-success=Unit tests (py38-unittest)
+      - status-success=Unit tests (py39-unittest)
+      - status-success=Unit tests (py310-unittest)
+      - status-success=Unit tests (py311-unittest)
+      - status-success=Unit tests (py312-unittest)
+      - status-success=Integration tests (py38-integration)
+      - status-success=Integration tests (py39-integration)
+      - status-success=Integration tests (py310-integration)
+      - status-success=Integration tests (py311-integration)
+      - status-success=Integration tests (py312-integration)
+    merge_conditions:
+      # Conditions to get out of the queue (= merged)
+      - status-success=Misc tests (checks)
+      # - status-success=Misc tests (licenses)
+      - status-success=Unit tests (py38-unittest)
+      - status-success=Unit tests (py39-unittest)
+      - status-success=Unit tests (py310-unittest)
+      - status-success=Unit tests (py311-unittest)
+      - status-success=Unit tests (py312-unittest)
+      - status-success=Integration tests (py38-integration)
+      - status-success=Integration tests (py39-integration)
+      - status-success=Integration tests (py310-integration)
+      - status-success=Integration tests (py311-integration)
+      - status-success=Integration tests (py312-integration)
+    merge_method: rebase
+  - name: duplicated default from default-from-fedora-messaging-team
+    queue_conditions:
+      - label!=no-mergify
+      - -draft
+      - author=@fedora-infra/fedora-messaging-maintainers
+      - "#approved-reviews-by>=1"
+      - "#changes-requested-reviews-by=0"
+      - status-success=DCO
+      - status-success=Misc tests (checks)
+      - status-success=Unit tests (py38-unittest)
+      - status-success=Unit tests (py39-unittest)
+      - status-success=Unit tests (py310-unittest)
+      - status-success=Unit tests (py311-unittest)
+      - status-success=Unit tests (py312-unittest)
+      - status-success=Integration tests (py38-integration)
+      - status-success=Integration tests (py39-integration)
+      - status-success=Integration tests (py310-integration)
+      - status-success=Integration tests (py311-integration)
+      - status-success=Integration tests (py312-integration)
+    merge_conditions:
+      # Conditions to get out of the queue (= merged)
+      - status-success=Misc tests (checks)
+      # - status-success=Misc tests (licenses)
+      - status-success=Unit tests (py38-unittest)
+      - status-success=Unit tests (py39-unittest)
+      - status-success=Unit tests (py310-unittest)
+      - status-success=Unit tests (py311-unittest)
+      - status-success=Unit tests (py312-unittest)
+      - status-success=Integration tests (py38-integration)
+      - status-success=Integration tests (py39-integration)
+      - status-success=Integration tests (py310-integration)
+      - status-success=Integration tests (py311-integration)
+      - status-success=Integration tests (py312-integration)
+    merge_method: rebase
   - name: default
     conditions:
       # Conditions to get out of the queue (= merged)
@@ -15,55 +82,9 @@ queue_rules:
       - status-success=Integration tests (py311-integration)
       - status-success=Integration tests (py312-integration)
 
-
 pull_request_rules:
 
-  - name: default
+  - name: default + default-from-fedora-messaging-team
+    conditions: []
     actions:
       queue:
-        name: default
-        method: rebase
-    conditions:
-      - label!=no-mergify
-      - -draft
-      - approved-reviews-by=@fedora-infra/fedora-messaging-maintainers
-      - "#changes-requested-reviews-by=0"
-      - status-success=DCO
-      - status-success=Misc tests (checks)
-      # - status-success=Misc tests (licenses)
-      - status-success=Unit tests (py38-unittest)
-      - status-success=Unit tests (py39-unittest)
-      - status-success=Unit tests (py310-unittest)
-      - status-success=Unit tests (py311-unittest)
-      - status-success=Unit tests (py312-unittest)
-      - status-success=Integration tests (py38-integration)
-      - status-success=Integration tests (py39-integration)
-      - status-success=Integration tests (py310-integration)
-      - status-success=Integration tests (py311-integration)
-      - status-success=Integration tests (py312-integration)
-
-  # Merge contributions from the team as long as they have one approval by anyone
-  - name: default-from-fedora-messaging-team
-    actions:
-      queue:
-        name: default
-        method: rebase
-    conditions:
-      - label!=no-mergify
-      - -draft
-      - author=@fedora-infra/fedora-messaging-maintainers
-      - "#approved-reviews-by>=1"
-      - "#changes-requested-reviews-by=0"
-      - status-success=DCO
-      - status-success=Misc tests (checks)
-      # - status-success=Misc tests (licenses)
-      - status-success=Unit tests (py38-unittest)
-      - status-success=Unit tests (py39-unittest)
-      - status-success=Unit tests (py310-unittest)
-      - status-success=Unit tests (py311-unittest)
-      - status-success=Unit tests (py312-unittest)
-      - status-success=Integration tests (py38-integration)
-      - status-success=Integration tests (py39-integration)
-      - status-success=Integration tests (py310-integration)
-      - status-success=Integration tests (py311-integration)
-      - status-success=Integration tests (py312-integration)
