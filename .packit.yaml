@@ -19,6 +19,11 @@ upstream_tag_template: v{version}
 srpm_build_deps:
   - curl
 
+targets:
+  - fedora-latest-stable
+  - fedora-development
+  - epel-9
+
 actions:
   post-upstream-clone:
     # fetch specfile from src.fp.o
@@ -36,38 +41,18 @@ jobs:
   # upon upstream PRs, perform COPR builds
   - job: copr_build
     trigger: pull_request
-    metadata:
-      targets:
-        - fedora-latest-stable
-        - fedora-development
-        - epel-9
 
   # upon upstream PRs, test builds
   - job: tests
     trigger: pull_request
-    metadata:
-      targets:
-        - fedora-latest-stable
-        - fedora-development
-        - epel-9
 
   # upon upstream releases, perform COPR builds
   - job: copr_build
     trigger: release
-    metadata:
-      targets:
-        - fedora-latest-stable
-        - fedora-development
-        - epel-9
 
   # upon upstream releases, test builds
   - job: tests
     trigger: release
-    metadata:
-      targets:
-        - fedora-latest-stable
-        - fedora-development
-        - epel-9
 
   # upon downstream changes, create a PR upstream with sync'd files from above
   - job: sync_from_downstream
@@ -76,37 +61,21 @@ jobs:
   # land upstream release in fedora dist-git - no builds
   - job: propose_downstream
     trigger: release
-    metadata:
-      dist_git_branches:
-        - fedora-latest-stable
-        - fedora-development
-        - epel-9
 
   # create an srpm from upstream and submit a scratch build to koji
   - job: production_build
     trigger: release
-    metadata:
-      targets:
-        - fedora-latest-stable
-        - fedora-development
-        - epel-9
 
   # downstream automation
 
   # trigger a build in koji for a new dist-git commit
   - job: koji_build
     trigger: commit
-    metadata:
-      dist_git_branches:
-        - fedora-latest-stable
-        - fedora-development
-        - epel-9
 
   # create a new update in bodhi for a successful koji build. directly related to `koji_build`
   - job: bodhi_update
     trigger: commit
-    metadata:
-      dist_git_branches:
-        # Don't create an update on Rawhide.
-        - fedora-latest-stable
-        - epel-9
+    dist_git_branches:
+      # Don't create an update on Rawhide.
+      - fedora-latest-stable
+      - epel-9
