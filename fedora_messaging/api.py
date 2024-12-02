@@ -23,18 +23,18 @@ _log = logging.getLogger(__name__)
 
 
 __all__ = (
-    "Message",
-    "consume",
-    "publish",
-    "twisted_consume",
-    "Consumer",
-    "pre_publish_signal",
-    "publish_signal",
-    "publish_failed_signal",
-    "loads",
-    "dumps",
     "SERIALIZED_MESSAGE_SCHEMA",
     "SEVERITIES",
+    "Consumer",
+    "Message",
+    "consume",
+    "dumps",
+    "loads",
+    "pre_publish_signal",
+    "publish",
+    "publish_failed_signal",
+    "publish_signal",
+    "twisted_consume",
 )
 
 # The Twisted service that consumers are registered with.
