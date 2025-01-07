@@ -1,3 +1,6 @@
+SPDX-FileCopyrightText: 2024 Red Hat, Inc
+SPDX-License-Identifier: GPL-2.0-or-later
+
 [Unit]
 Description=Fedora Messaging consumer
 Documentation=http://fedora-messaging.readthedocs.io/

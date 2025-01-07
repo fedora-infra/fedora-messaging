@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Red Hat, Inc
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 """The API for publishing messages and consuming from message queues."""
 
 import inspect

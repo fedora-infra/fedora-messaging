@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2024 Red Hat, Inc
+
+SPDX-License-Identifier: GPL-2.0-or-later
+-->
+
 {% macro reference(value) -%}
    {%- if value.startswith("PR") -%}
      PR #{{ value[2:] }}

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Red Hat, Inc
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 # A basic configuration for Fedora's staging message broker, using the example
 # callback which simply prints messages to standard output.
 #
