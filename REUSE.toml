@@ -1,0 +1,140 @@
+version = 2
+
+# Test fixtures
+[[annotations]]
+path = ["tests/fixtures/bad_cb"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["tests/fixtures/ca_bundle.pem.license"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["tests/fixtures/cert.pem.license"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["tests/fixtures/good_msg_dump.txt"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["tests/fixtures/invalid_ca.pem.license"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["tests/fixtures/invalid_key.pem.license"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["tests/fixtures/invalid_msg_dump.txt"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["tests/fixtures/key.pem.license"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["tests/fixtures/msg_without_topic_dump.txt"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["tests/fixtures/wrong_json_msg_dump.txt"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["tests/fixtures/ca_bundle.pem"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["tests/fixtures/cert.pem"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["tests/fixtures/key.pem"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+# Project configuration
+[[annotations]]
+path = ["pyproject.toml", "poetry.lock", "codecov.yml", ".*.yml", ".*.yaml", "CODEOWNERS"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+# configs
+[[annotations]]
+path = ["configs/cacert.pem.license"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["configs/fedora-cert.pem.license"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["configs/fedora-key.pem.license"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["configs/fedora.stg-cert.pem.license"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["configs/fedora.stg-key.pem.license"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["configs/stg-cacert.pem.license"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["configs/cacert.pem"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["configs/fedora-cert.pem"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["configs/fedora-key.pem"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["configs/fedora.stg-cert.pem"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["configs/fedora.stg-key.pem"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+[[annotations]]
+path = ["configs/stg-cacert.pem"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+# FMF
+[[annotations]]
+path = [".fmf/version", "packit/installation/*.fmf"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"

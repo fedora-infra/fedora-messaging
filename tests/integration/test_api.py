@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Red Hat, Inc
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 """Test the :mod:`fedora_messaging.api` APIs on a real broker."""
 
 import re

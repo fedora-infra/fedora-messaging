@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024 Red Hat, Inc
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 # This file contains the list of known schema packages
 # When you add a package to this file, also add it as a dependency to:
 # - datanommer
