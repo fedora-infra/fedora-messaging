@@ -137,11 +137,11 @@ jobs:
         uses: sean0x42/markdown-extract@v2
         with:
           file: docs/changelog.md
-          pattern: 'Version\s+\[[[:word:].-]+\]\(.*\)'
+          pattern: '[[:word:].-]+\s+\(.*\)'
           no-print-matched-heading: true
       - name: Show the changelog
         env:
-          CHANGELOG: ${{'{{'}} steps.extract-changelog.outputs.markdown {{'}}'}}
+          CHANGELOG: ${{ steps.extract-changelog.outputs.markdown }}
         run: echo "$CHANGELOG"
 
 
@@ -197,4 +197,4 @@ jobs:
         with:
           files: dist/*
           fail_on_unmatched_files: true
-          body: ${{'{{'}} needs.build.outputs.release-notes {{'}}'}}
+          body: ${{ needs.build.outputs.release-notes }}
