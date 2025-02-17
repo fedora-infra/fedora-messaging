@@ -30,3 +30,4 @@ noggin-messages
 nuancier-messages
 pagure-messages
 tahrir-messages
+webhook-to-fedora-messaging-messages

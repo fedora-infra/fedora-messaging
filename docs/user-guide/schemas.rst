@@ -117,6 +117,7 @@ You can view the history of `all fedora-image-uploader messages <https://apps.fe
 * ``fedora_image_uploader.published.v1.aws``: Published when an AWS AMI is created from an image. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedora_image_uploader.published.v1.aws>`__)
 * ``fedora_image_uploader.published.v1.azure``: Published when an image is uploaded to the Azure image gallery. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedora_image_uploader.published.v1.azure>`__)
 * ``fedora_image_uploader.published.v1.container``: Published when a new image manifest is pushed. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedora_image_uploader.published.v1.container>`__)
+* ``fedora_image_uploader.published.v1.gcp`` (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fedora_image_uploader.published.v1.gcp>`__)
 
 
 Git
@@ -194,8 +195,8 @@ Koschei
 
 You can view the history of `all Koschei messages <https://apps.fedoraproject.org/datagrepper/raw?category=koschei>`__ in datagrepper.
 
-* ``koschei.collection.state.change``: Messages published by Koschei when a collection state changes.     For example when collection buildroot becomes unresolvable     (broken) or when it is fixed. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.koschei.collection.state.change>`__)
-* ``koschei.package.state.change``: Messages published by Koschei when a package state changes.     For example when package starts to fail to build, package     dependencies become unresolved or when package is fixed. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.koschei.package.state.change>`__)
+* ``koschei.collection.state.change``: Messages published by Koschei when a collection state changes. For example when collection buildroot becomes unresolvable (broken) or when it is fixed. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.koschei.collection.state.change>`__)
+* ``koschei.package.state.change``: Messages published by Koschei when a package state changes. For example when package starts to fail to build, package dependencies become unresolved or when package is fixed. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.koschei.package.state.change>`__)
 
 
 Maubot Fedora
@@ -236,6 +237,7 @@ FAS
 
 You can view the history of `all FAS messages <https://apps.fedoraproject.org/datagrepper/raw?category=fas>`__ in datagrepper.
 
+* ``fas.group.member.removed``: The message is sent when a user is removed from a group. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fas.group.member.removed>`__)
 * ``fas.group.member.sponsor``: The message sent when a user is added to a group by a sponsor (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fas.group.member.sponsor>`__)
 * ``fas.user.create``: The message sent when a user is created (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fas.user.create>`__)
 * ``fas.user.update``: The message sent when a user is updated (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fas.user.update>`__)
