@@ -199,6 +199,14 @@ You can view the history of `all Koschei messages <https://apps.fedoraproject.or
 * ``koschei.package.state.change``: Messages published by Koschei when a package state changes. For example when package starts to fail to build, package dependencies become unresolved or when package is fixed. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.koschei.package.state.change>`__)
 
 
+mailman
+=======
+
+You can view the history of `all mailman messages <https://apps.fedoraproject.org/datagrepper/raw?category=mailman>`__ in datagrepper.
+
+* ``mailman.receive``: A sub-class of a Fedora message that defines a message schema for messages published by Mailman when it receives mail to send out. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.mailman.receive>`__)
+
+
 Maubot Fedora
 =============
 

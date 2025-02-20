@@ -22,6 +22,7 @@ fmn-messages
 kerneltest-messages
 koji-fedoramessaging-messages
 koschei-messages
+mailman3-fedmsg-plugin-schemas
 maubot-fedora-messages
 mdapi-messages
 mediawiki-messages
