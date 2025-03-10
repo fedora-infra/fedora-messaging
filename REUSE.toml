@@ -1,0 +1,31 @@
+version = 2
+
+# Test fixtures
+[[annotations]]
+path = ["tests/fixtures/*"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+# Project configuration
+[[annotations]]
+path = ["pyproject.toml", "poetry.lock", "codecov.yml", ".*.yml", ".*.yaml", "CODEOWNERS"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+# configs
+[[annotations]]
+path = ["configs/*"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+# FMF
+[[annotations]]
+path = [".fmf/version", "packit/installation/*.fmf"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+# News fragments
+[[annotations]]
+path = ["news/*"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"

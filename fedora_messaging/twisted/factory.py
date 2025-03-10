@@ -1,19 +1,7 @@
-# This file is part of fedora_messaging.
-# Copyright (C) 2018 Red Hat, Inc.
+# SPDX-FileCopyrightText: 2024 Red Hat, Inc
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 """
 A Twisted Factory for creating and configuring instances of the
 :class:`.FedoraMessagingProtocolV2`.
@@ -37,6 +25,7 @@ from twisted.python.failure import Failure
 
 from ..exceptions import ConnectionException
 from .protocol import FedoraMessagingProtocolV2
+from .stats import ConsumerStatistics, FactoryStatistics
 
 
 _std_log = logging.getLogger(__name__)
@@ -86,12 +75,11 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
         self._client_deferred = defer.Deferred()
         self._client = None
         self._consumers = []
+        self._stats = FactoryStatistics()
 
     def __repr__(self):
         """Return the representation of the factory as a string"""
-        return "FedoraMessagingFactoryV2(parameters={}, confirms={})".format(
-            self._parameters, self.confirms
-        )
+        return f"FedoraMessagingFactoryV2(parameters={self._parameters}, confirms={self.confirms})"
 
     def buildProtocol(self, addr):
         """Create the Protocol instance.
@@ -119,9 +107,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
                 queue_name = yield client.declare_queue(record.queue)
                 _remap_queue_name(record.bindings, queue_name)
                 yield client.bind_queues(record.bindings)
-                yield client.consume(
-                    record.consumer.callback, queue_name, record.consumer
-                )
+                yield client.consume(record.consumer.callback, queue_name, record.consumer)
 
         def on_ready_connection_errback(failure):
             """If opening the connection fails or is lost, this errback is called."""
@@ -196,9 +182,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             _std_log.debug("Already connected with %r", self._client)
         else:
             self._client = None
-            _std_log.debug(
-                "Waiting for %r to fire with new connection", self._client_deferred
-            )
+            _std_log.debug("Waiting for %r to fire with new connection", self._client_deferred)
             try:
                 yield self._client_deferred
             except defer.CancelledError:
@@ -238,11 +222,10 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             protocol = yield self.when_connected()
             try:
                 yield protocol.publish(message, exchange)
+                self._stats.published += 1
                 break
             except ConnectionException:
-                _std_log.info(
-                    "Publish failed on %r, waiting for new connection", protocol
-                )
+                _std_log.info("Publish failed on %r, waiting for new connection", protocol)
 
     @defer.inlineCallbacks
     def consume(self, callback, bindings, queues):
@@ -298,9 +281,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             _remap_queue_name(ebs, queue_name)
             yield protocol.bind_queues(ebs)
             consumer = yield protocol.consume(callback, queue_name)
-            self._consumers.append(
-                ConsumerRecord(consumer=consumer, queue=queue, bindings=ebs)
-            )
+            self._consumers.append(ConsumerRecord(consumer=consumer, queue=queue, bindings=ebs))
             consumers.append(consumer)
 
         defer.returnValue(consumers)
@@ -324,6 +305,17 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
         Args:
             queue (str): Forget the consumers that consume from this queue.
         """
-        self._consumers = [
-            record for record in self._consumers if record.consumer.queue != queue
-        ]
+        self._consumers = [record for record in self._consumers if record.consumer.queue != queue]
+
+    @property
+    def stats(self) -> ConsumerStatistics:
+        """Statistics about this factory's consumer(s)."""
+        self._stats.consumed = sum(
+            (record.consumer.stats for record in self._consumers), start=ConsumerStatistics()
+        )
+        return self._stats
+
+    @property
+    def consuming(self) -> bool:
+        """Whether the consumer(s) is currently running."""
+        return any(record.consumer.running for record in self._consumers)

@@ -1,22 +1,10 @@
-# This file is part of fedora_messaging.
-# Copyright (C) 2018 Red Hat, Inc.
+# SPDX-FileCopyrightText: 2024 Red Hat, Inc
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 """Tests for the :module:`fedora_messaging.api` module."""
 
-
+import logging
 from unittest import mock
 
 import pytest
@@ -30,7 +18,7 @@ from fedora_messaging.signals import (
     publish_failed_signal,
     publish_signal,
 )
-from fedora_messaging.twisted import consumer
+from fedora_messaging.twisted import consumer, monitor
 
 
 class TestCheckCallback:
@@ -111,9 +99,7 @@ class TestTwistedConsume:
 
         api.twisted_consume(callback, bindings, {})
 
-        mock_service._service.factory.consume.assert_called_once_with(
-            callback, [bindings], {}
-        )
+        mock_service._service.factory.consume.assert_called_once_with(callback, [bindings], {})
 
     def test_defaults(self, mock_service):
         """Assert that bindings and queues come from the config if not provided."""
@@ -184,8 +170,80 @@ class TestConsume:
         mock_wrapper.assert_called_once_with(1, 2, 3)
 
 
-@mock.patch("fedora_messaging.api._twisted_publish")
+@mock.patch("fedora_messaging.api._twisted_publish_wrapper")
 class TestPublish:
+
+    def test_publish_to_exchange(self, mock_twisted_publish):
+        """Assert a message can be published to the exchange."""
+        message = "test_message"
+        exchange = "test_exchange"
+
+        api.publish(message, exchange)
+
+        mock_twisted_publish.assert_called_once_with(message, exchange)
+        mock_twisted_publish.return_value.wait.assert_called_once_with(timeout=30)
+
+    def test_publish_failed(self, mock_twisted_publish):
+        """Assert an exception is raised when message can't be published."""
+        message = "test_message"
+        exchange = "test_exchange"
+        expected_exception = PublishException(reason="Unable to publish message")
+        mock_twisted_publish.return_value.wait.side_effect = expected_exception
+
+        with pytest.raises(type(expected_exception)):
+            api.publish(message, exchange=exchange)
+
+        mock_twisted_publish.assert_called_once_with(message, exchange)
+
+
+class TestTwistedPublishWrapper:
+
+    @pytest_twisted.inlineCallbacks
+    def test_publish_to_exchange(self):
+        """Assert a message can be published to the exchange."""
+        message = "test_message"
+        exchange = "test_exchange"
+
+        with mock.patch("fedora_messaging.api.twisted_publish") as mock_twisted_publish:
+            result = api._twisted_publish_wrapper(message, exchange)
+            yield threads.deferToThread(result.wait, timeout=1)
+
+        mock_twisted_publish.assert_called_once_with(message, exchange)
+
+    @pytest_twisted.inlineCallbacks
+    def test_publish_failed(self):
+        """Assert an exception is raised when message can't be published."""
+        message = "test_message"
+        exchange = "test_exchange"
+        expected_exception = PublishException(reason="Unable to publish message")
+
+        with mock.patch("fedora_messaging.api.twisted_publish") as mock_twisted_publish:
+            mock_twisted_publish.side_effect = expected_exception
+            with pytest.raises(type(expected_exception)):
+                result = api._twisted_publish_wrapper(message, exchange=exchange)
+                yield threads.deferToThread(result.wait, timeout=1)
+
+        mock_twisted_publish.assert_called_once_with(message, exchange)
+
+    @pytest_twisted.inlineCallbacks
+    def test_publish_cancelled(self, caplog):
+        """Assert an exception is raised when message can't be published."""
+        message = "test_message"
+        exchange = "test_exchange"
+        expected_exception = defer.CancelledError("dummy error")
+        caplog.set_level(logging.DEBUG)
+
+        with mock.patch("fedora_messaging.api.twisted_publish") as mock_twisted_publish:
+            mock_twisted_publish.side_effect = expected_exception
+            result = api._twisted_publish_wrapper(message, exchange=exchange)
+            yield threads.deferToThread(result.wait, timeout=1)
+
+        mock_twisted_publish.assert_called_once_with(message, exchange)
+        log_records = [r.getMessage() for r in caplog.records if r.name == "fedora_messaging.api"]
+        assert log_records == ["Canceled publish of 'test_message' to test_exchange due to timeout"]
+
+
+class TestTwistedPublish:
     def setup_method(self, method):
         self.pre_publish_signal_data = {"called": False, "sender": None, "args": None}
         self.publish_signal_data = {"called": False, "sender": None, "args": None}
@@ -228,7 +286,8 @@ class TestPublish:
         publish_signal.disconnect(self.publish_signal_handler)
         publish_failed_signal.disconnect(self.publish_failed_signal_handler)
 
-    def test_publish_to_exchange(self, mock_twisted_publish):
+    @pytest_twisted.inlineCallbacks
+    def test_publish_to_exchange(self):
         """Assert a message can be published to the exchange."""
         message = "test_message"
         exchange = "test_exchange"
@@ -248,42 +307,16 @@ class TestPublish:
             "args": None,
         }
 
-        api.publish(message, exchange)
+        with mock.patch("fedora_messaging.api._twisted_service") as mock_service:
+            yield api.twisted_publish(message, exchange)
 
-        mock_twisted_publish.assert_called_once_with(message, exchange)
-        mock_twisted_publish.return_value.wait.assert_called_once_with(timeout=30)
+        mock_service._service.factory.publish.assert_called_once_with(message, exchange=exchange)
         assert self.pre_publish_signal_data == expected_pre_publish_signal_data
         assert self.publish_signal_data == expected_publish_signal_data
         assert self.publish_failed_signal_data == expected_publish_failed_signal_data
 
-    def test_publish_to_config_exchange(self, mock_twisted_publish, monkeypatch):
-        """Assert a message can be published to the exchange from config."""
-        monkeypatch.setitem(config.conf, "publish_exchange", "test_public_exchange")
-        message = "test_message"
-        expected_pre_publish_signal_data = {
-            "called": True,
-            "sender": api.publish,
-            "args": {"message": message},
-        }
-        expected_publish_signal_data = {
-            "called": True,
-            "sender": api.publish,
-            "args": {"message": message},
-        }
-        expected_publish_failed_signal_data = {
-            "called": False,
-            "sender": None,
-            "args": None,
-        }
-
-        api.publish(message)
-
-        mock_twisted_publish.assert_called_once_with(message, "test_public_exchange")
-        assert self.pre_publish_signal_data == expected_pre_publish_signal_data
-        assert self.publish_signal_data == expected_publish_signal_data
-        assert self.publish_failed_signal_data == expected_publish_failed_signal_data
-
-    def test_publish_failed(self, mock_twisted_publish):
+    @pytest_twisted.inlineCallbacks
+    def test_publish_failed(self):
         """Assert an exception is raised when message can't be published."""
         message = "test_message"
         exchange = "test_exchange"
@@ -299,15 +332,27 @@ class TestPublish:
             "sender": api.publish,
             "args": {"message": message, "reason": expected_exception},
         }
-        mock_twisted_publish.return_value.wait.side_effect = expected_exception
 
-        with pytest.raises(type(expected_exception)):
-            api.publish(message, exchange=exchange)
+        with mock.patch("fedora_messaging.api._twisted_service") as mock_service:
+            mock_service._service.factory.publish.side_effect = expected_exception
+            with pytest.raises(type(expected_exception)):
+                yield api.twisted_publish(message, exchange=exchange)
 
-        mock_twisted_publish.assert_called_once_with(message, exchange)
+        mock_service._service.factory.publish.assert_called_once_with(message, exchange=exchange)
         assert self.pre_publish_signal_data == expected_pre_publish_signal_data
         assert self.publish_signal_data == expected_publish_signal_data
         assert self.publish_failed_signal_data == expected_publish_failed_signal_data
+
+    @pytest_twisted.inlineCallbacks
+    def test_publish_to_config_exchange(self):
+        """Assert a message can be published to the exchange from config."""
+        message = "test_message"
+        with mock.patch.dict(config.conf, {"publish_exchange": "test_public_exchange"}):
+            with mock.patch("fedora_messaging.api._twisted_service") as mock_service:
+                yield api.twisted_publish(message)
+        mock_service._service.factory.publish.assert_called_once_with(
+            message, exchange="test_public_exchange"
+        )
 
 
 @pytest_twisted.inlineCallbacks
@@ -335,3 +380,28 @@ def test_consume_successful_halt():
             yield d
     except (defer.TimeoutError, defer.CancelledError):
         pytest.fail("Expected the consume call to immediately finish, not time out")
+
+
+@pytest.fixture
+def clear_twisted_service():
+    api._twisted_service = None
+    yield
+    api._twisted_service = None
+
+
+def test_monitoring_enabled(clear_twisted_service, available_port):
+    with mock.patch.dict(config.conf["monitoring"], {"port": available_port, "address": ""}):
+        api._init_twisted_service()
+    try:
+        monitoring_service = api._twisted_service.getServiceNamed("monitoring")
+    except KeyError:
+        pytest.fail("Monitoring service wasn't started.")
+    assert monitoring_service.args[0] == available_port
+    assert isinstance(monitoring_service.args[1], monitor.MonitoringSite)
+
+
+def test_monitoring_disabled(clear_twisted_service):
+    api._init_twisted_service()
+    with pytest.raises(KeyError):
+        api._twisted_service.getServiceNamed("monitoring")
+    assert len(api._twisted_service.services) == 1  # only the consumer

@@ -1,20 +1,6 @@
-# This file is part of fedora_messaging.
-# Copyright (C) 2018 Red Hat, Inc.
+# SPDX-FileCopyrightText: 2024 Red Hat, Inc
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 from unittest import mock
 
@@ -106,9 +92,7 @@ class TestFactoryV2:
 
         self.factory.protocol = _get_protocol
         connected_d = self.factory.when_connected()
-        connected_d.addCallbacks(
-            lambda r: ValueError(f"This should fail but I got: {r!r}"), _check
-        )
+        connected_d.addCallbacks(lambda r: ValueError(f"This should fail but I got: {r!r}"), _check)
         self.factory.buildProtocol(None)
         return connected_d
 
@@ -148,9 +132,7 @@ class TestFactoryV2:
 
         self.factory.protocol = _get_protocol
         connected_d = self.factory.when_connected()
-        connected_d.addCallbacks(
-            lambda r: ValueError(f"This should fail but I got: {r!r}"), _check
-        )
+        connected_d.addCallbacks(lambda r: ValueError(f"This should fail but I got: {r!r}"), _check)
         with mock.patch("fedora_messaging.twisted.factory._std_log") as mock_log:
             self.factory.buildProtocol(None)
         mock_log.error.assert_called()
@@ -160,6 +142,24 @@ class TestFactoryV2:
         )
         assert last_log_call_args[1].startswith("Traceback (most recent call last):")
         return connected_d
+
+    def test_publish(self):
+        message = object()
+        exchange = object()
+        self.factory.buildProtocol(None)
+        self.protocol.ready.callback(None)
+        d = self.factory.when_connected()
+
+        def _publish(_):
+            return self.factory.publish(message, exchange)
+
+        def _check(publish_result):
+            self.protocol.publish.assert_called_once_with(message, exchange)
+            assert self.factory.stats.published == 1
+
+        d.addCallback(_publish)
+        d.addCallback(_check)
+        return d
 
     def test_consume_anonymous(self):
         """Assert consume handles anonymous queues."""
@@ -178,9 +178,7 @@ class TestFactoryV2:
             Consumer(queue=queue, callback=cb)
         )
         bindings = [{"exchange": "amq.topic", "routing_keys": ["#"]}]
-        expected_bindings = [
-            {"queue": declared_queue, "exchange": "amq.topic", "routing_key": "#"}
-        ]
+        expected_bindings = [{"queue": declared_queue, "exchange": "amq.topic", "routing_key": "#"}]
 
         self.factory.buildProtocol(None)
         self.protocol.ready.callback(None)
@@ -201,6 +199,20 @@ class TestFactoryV2:
             self.protocol.bind_queues.assert_called_once_with(expected_bindings)
             self.protocol.consume.assert_called_once_with(callback, declared_queue)
 
+            assert self.factory.consuming is False
+            consumer._running = True
+            assert self.factory.consuming is True
+            assert self.factory.stats.as_dict() == {
+                "published": 0,
+                "consumed": {
+                    "received": 0,
+                    "processed": 0,
+                    "dropped": 0,
+                    "rejected": 0,
+                    "failed": 0,
+                },
+            }
+
         d.addCallback(_consume)
         d.addCallback(_check)
         return d
@@ -220,9 +232,7 @@ class TestFactoryV2:
         # Prepare the mocked existing consumer
         callback = mock.Mock()
         bindings = [{"exchange": "amq.topic", "routing_key": "#"}]
-        expected_bindings = [
-            {"queue": queue_new, "exchange": "amq.topic", "routing_key": "#"}
-        ]
+        expected_bindings = [{"queue": queue_new, "exchange": "amq.topic", "routing_key": "#"}]
         consumer = Consumer(queue=queue_orig, callback=callback)
         self.factory._consumers = [
             ConsumerRecord(consumer=consumer, queue=queue_config, bindings=bindings)

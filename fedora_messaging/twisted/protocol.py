@@ -1,19 +1,7 @@
-# This file is part of fedora_messaging.
-# Copyright (C) 2018 Red Hat, Inc.
+# SPDX-FileCopyrightText: 2024 Red Hat, Inc
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 """
 The core Twisted interface, a protocol represent a specific connection to the
 AMQP broker.
@@ -89,10 +77,10 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         """
         try:
             channel = yield self.channel()
-        except pika.exceptions.NoFreeChannels:
-            raise NoFreeChannels()
+        except pika.exceptions.NoFreeChannels as e:
+            raise NoFreeChannels() from e
         except pika.exceptions.ConnectionWrongStateError as e:
-            raise ConnectionException(reason=e)
+            raise ConnectionException(reason=e) from e
         _std_log.debug("Created AMQP channel id %d", channel.channel_number)
         if self._confirms:
             yield channel.confirm_delivery()
@@ -147,10 +135,10 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
             )
         except (pika.exceptions.NackError, pika.exceptions.UnroutableError) as e:
             _std_log.error("Message was rejected by the broker (%s)", str(e))
-            raise PublishReturned(reason=e)
+            raise PublishReturned(reason=e) from e
         except pika.exceptions.ProbableAccessDeniedError as e:
             _std_log.error("Message was forbidden by the broker (%s)", str(e))
-            raise PublishForbidden(reason=e)
+            raise PublishForbidden(reason=e) from e
         except (
             pika.exceptions.ChannelClosed,
             pika.exceptions.ChannelWrongStateError,
@@ -163,7 +151,7 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
                     "Message was forbidden by the broker: %s",
                     e.reply_text,
                 )
-                raise PublishForbidden(reason=e)
+                raise PublishForbidden(reason=e) from e
             # In other cases, try to publish again
             yield self.publish(message, exchange)
         except (
@@ -171,7 +159,7 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
             error.ConnectionLost,
             error.ConnectionDone,
         ) as e:
-            raise ConnectionException(reason=e)
+            raise ConnectionException(reason=e) from e
 
     @defer.inlineCallbacks
     def consume(self, callback, queue, previous_consumer=None):
@@ -260,7 +248,7 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
                 try:
                     yield channel.exchange_declare(**args)
                 except pika.exceptions.ChannelClosed as e:
-                    raise BadDeclaration("exchange", args, e)
+                    raise BadDeclaration("exchange", args, e) from e
         finally:
             try:
                 channel.close()
@@ -304,7 +292,7 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
                 try:
                     frame = yield channel.queue_declare(**args)
                 except pika.exceptions.ChannelClosed as e:
-                    raise BadDeclaration("queue", args, e)
+                    raise BadDeclaration("queue", args, e) from e
                 result_queues.append(frame.method.queue)
         finally:
             try:
@@ -349,7 +337,7 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
                 try:
                     yield channel.queue_bind(**binding)
                 except pika.exceptions.ChannelClosed as e:
-                    raise BadDeclaration("binding", binding, e)
+                    raise BadDeclaration("binding", binding, e) from e
         finally:
             try:
                 channel.close()

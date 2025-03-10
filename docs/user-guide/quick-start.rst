@@ -1,3 +1,6 @@
+.. SPDX-FileCopyrightText: 2024 Red Hat, Inc
+..
+.. SPDX-License-Identifier: GPL-2.0-or-later
 
 .. _quick-start:
 
@@ -144,4 +147,9 @@ Fedora's Restricted Broker
 Connecting the Fedora's private virtual host requires working with the Fedora
 infrastructure team. The current process and configuration for this is
 documented in the `infrastructure team's development guide
-<https://fedora-infra-docs.readthedocs.io/en/latest/dev-guide/messaging.html>`_.
+<https://docs.fedoraproject.org/en-US/infra/developer_guide/messaging/>`_.
+
+**Note:** It is essential to configure the ``passive_declares`` option
+correctly in the ``/etc/fedora-messaging/config.toml`` file. This setting is
+is mandatory for users of Fedora's ``/pubsub`` vhost and should be set to
+``true``. It controls the declaration of queues and exchanges.

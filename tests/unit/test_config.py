@@ -1,19 +1,7 @@
-# This file is part of fedora_messaging.
-# Copyright (C) 2018 Red Hat, Inc.
+# SPDX-FileCopyrightText: 2024 Red Hat, Inc
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 """Unit tests for :module:`fedora_messaging.config`."""
 
 from unittest import mock
@@ -90,6 +78,9 @@ handlers = ["console"]
 empty_config = b'# publish_exchange = "special_exchange"'
 partial_config = b'publish_exchange = "special_exchange"'
 malformed_config = b'publish_exchange = "special_exchange'  # missing close quote
+empty_monitoring_config = b"[monitoring]\n"
+monitoring_config_with_port = b"[monitoring]\nport = 42\n"
+monitoring_config_without_port = b"[monitoring]\naddress = ''\n"
 
 
 class TestObj:
@@ -122,9 +113,7 @@ class TestValidateBindings:
         bindings = [{}]
         with pytest.raises(ConfigurationException) as cm:
             msg_config.validate_bindings(bindings)
-        assert "Configuration error: a binding is missing the following keys" in str(
-            cm.value
-        )
+        assert "Configuration error: a binding is missing the following keys" in str(cm.value)
         assert "exchange" in str(cm.value)
         assert "routing_keys" in str(cm.value)
 
@@ -208,9 +197,7 @@ class TestLoad:
             "The configuration file, /etc/fedora-messaging/config.toml, does not exist."
         )
 
-    @mock.patch(
-        "fedora_messaging.config.open", mock.mock_open(read_data=b'bad_key = "val"')
-    )
+    @mock.patch("fedora_messaging.config.open", mock.mock_open(read_data=b'bad_key = "val"'))
     @mock.patch("fedora_messaging.config.os.path.exists", return_value=True)
     def test_override_client_props(self, mock_exists):
         """Assert overriding reserved keys in client properties fails."""
@@ -224,9 +211,7 @@ class TestLoad:
                 with pytest.raises(ConfigurationException):
                     config.load_config()
 
-    @mock.patch(
-        "fedora_messaging.config.open", mock.mock_open(read_data=b'bad_key = "val"')
-    )
+    @mock.patch("fedora_messaging.config.open", mock.mock_open(read_data=b'bad_key = "val"'))
     @mock.patch("fedora_messaging.config.os.path.exists", return_value=True)
     def test_invalid_key(self, mock_exists):
         """Assert an unknown config key raises an exception."""
@@ -248,9 +233,7 @@ class TestLoad:
         error_old = error.replace("'", '"')
         assert cm.value.message in (error, error_old)
 
-    @mock.patch(
-        "fedora_messaging.config.open", mock.mock_open(read_data=partial_config)
-    )
+    @mock.patch("fedora_messaging.config.open", mock.mock_open(read_data=partial_config))
     @mock.patch("fedora_messaging.config._log", autospec=True)
     @mock.patch("fedora_messaging.config.os.path.exists", return_value=True)
     def test_partial_config_file(self, mock_exists, mock_log):
@@ -263,6 +246,33 @@ class TestLoad:
             "Loading configuration from /etc/fedora-messaging/config.toml"
         )
         assert 0 == mock_log.warning.call_count
+
+    @mock.patch("fedora_messaging.config.open", mock.mock_open(read_data=empty_monitoring_config))
+    @mock.patch("fedora_messaging.config.os.path.exists", return_value=True)
+    def test_empty_monitoring_section(self, mock_exists):
+        """Assert the monitoring port is mandatory"""
+        config = msg_config.LazyConfig().load_config()
+        assert config["monitoring"] == {}
+
+    @mock.patch(
+        "fedora_messaging.config.open", mock.mock_open(read_data=monitoring_config_without_port)
+    )
+    @mock.patch("fedora_messaging.config.os.path.exists", return_value=True)
+    def test_monitoring_section_without_port(self, mock_exists):
+        """Assert the monitoring port is mandatory"""
+        with pytest.raises(ConfigurationException) as cm:
+            msg_config.LazyConfig().load_config()
+        assert cm.value.message == "The port must be defined in [monitoring] to activate it"
+
+    @mock.patch(
+        "fedora_messaging.config.open", mock.mock_open(read_data=monitoring_config_with_port)
+    )
+    @mock.patch("fedora_messaging.config.os.path.exists", return_value=True)
+    def test_monitoring_section_with_port(self, mock_exists):
+        """Assert the monitoring address default is set if absent"""
+        config = msg_config.LazyConfig().load_config()
+        assert config["monitoring"]["port"] == 42
+        assert config["monitoring"]["address"] == ""
 
     @mock.patch("fedora_messaging.config.open", mock.mock_open(read_data=full_config))
     @mock.patch("fedora_messaging.config._log", autospec=True)
@@ -297,10 +307,9 @@ class TestLoad:
                     "arguments": {},
                 }
             },
-            bindings=[
-                {"queue": "my_queue", "exchange": "amq.topic", "routing_keys": ["#"]}
-            ],
+            bindings=[{"queue": "my_queue", "exchange": "amq.topic", "routing_keys": ["#"]}],
             qos={"prefetch_size": 25, "prefetch_count": 25},
+            monitoring={},
             callback="fedora_messaging.examples:print_msg",
             consumer_config={"example_key": "for my consumer"},
             tls={
@@ -311,9 +320,7 @@ class TestLoad:
             log_config={
                 "version": 1,
                 "disable_existing_loggers": True,
-                "formatters": {
-                    "simple": {"format": "[%(name)s %(levelname)s] %(message)s"}
-                },
+                "formatters": {"simple": {"format": "[%(name)s %(levelname)s] %(message)s"}},
                 "handlers": {
                     "console": {
                         "class": "logging.StreamHandler",
@@ -341,12 +348,8 @@ class TestLoad:
         )
         assert 0 == mock_log.warning.call_count
 
-    @mock.patch(
-        "fedora_messaging.config.open", mock.mock_open(read_data=partial_config)
-    )
-    @mock.patch.dict(
-        "fedora_messaging.config.os.environ", {"FEDORA_MESSAGING_CONF": "/my/config"}
-    )
+    @mock.patch("fedora_messaging.config.open", mock.mock_open(read_data=partial_config))
+    @mock.patch.dict("fedora_messaging.config.os.environ", {"FEDORA_MESSAGING_CONF": "/my/config"})
     @mock.patch("fedora_messaging.config._log", autospec=True)
     @mock.patch("fedora_messaging.config.os.path.exists", return_value=True)
     def test_custom_config_file(self, mock_exists, mock_log):

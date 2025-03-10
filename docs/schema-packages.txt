@@ -1,18 +1,37 @@
+# SPDX-FileCopyrightText: 2024 Red Hat, Inc
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 # This file contains the list of known schema packages
+# When you add a package to this file, also add it as a dependency to:
+# - datanommer
+# - datagrepper
+# - fmn
+# - fedbadges
 
 anitya-schema
 bodhi-messages
+bugzilla2fedmsg-schema
 ci-messages
 copr-messaging
 discourse2fedmsg-messages
 fedocal-messages
 fedorainfra-ansible-messages
 fedora-elections-messages
+fedora-image-uploader-messages
 fedora-messaging-git-hook-messages
 fedora-messaging-the-new-hotness-schema
 fedora-planet-messages
+fmn-messages
+kerneltest-messages
 koji-fedoramessaging-messages
+koschei-messages
+mailman3-fedmsg-plugin-schemas
+maubot-fedora-messages
 mdapi-messages
+mediawiki-messages
+meetbot-messages
 noggin-messages
 nuancier-messages
 pagure-messages
+tahrir-messages
+webhook-to-fedora-messaging-messages

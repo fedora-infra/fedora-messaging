@@ -1,14 +1,17 @@
-"""The API for publishing messages and consuming from message queues."""
+# SPDX-FileCopyrightText: 2024 Red Hat, Inc
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
 
+"""The API for publishing messages and consuming from message queues."""
 
 import inspect
 import logging
 
 import crochet
-from twisted.internet import defer, reactor
+from twisted.internet import defer, reactor, threads
 
 from . import config, exceptions
-from .message import (  # noqa: F401
+from .message import (
     dumps,
     loads,
     Message,
@@ -16,26 +19,26 @@ from .message import (  # noqa: F401
     SEVERITIES,
 )
 from .signals import pre_publish_signal, publish_failed_signal, publish_signal
-from .twisted import service
-from .twisted.consumer import Consumer  # noqa: F401
+from .twisted import monitor, service
+from .twisted.consumer import Consumer
 
 
 _log = logging.getLogger(__name__)
 
 
 __all__ = (
-    "Message",
-    "consume",
-    "publish",
-    "twisted_consume",
-    "Consumer",
-    "pre_publish_signal",
-    "publish_signal",
-    "publish_failed_signal",
-    "loads",
-    "dumps",
     "SERIALIZED_MESSAGE_SCHEMA",
     "SEVERITIES",
+    "Consumer",
+    "Message",
+    "consume",
+    "dumps",
+    "loads",
+    "pre_publish_signal",
+    "publish",
+    "publish_failed_signal",
+    "publish_signal",
+    "twisted_consume",
 )
 
 # The Twisted service that consumers are registered with.
@@ -44,15 +47,22 @@ _twisted_service = None
 
 def _init_twisted_service():
     global _twisted_service
-    if _twisted_service is None:
-        _twisted_service = service.FedoraMessagingServiceV2(config.conf["amqp_url"])
-        reactor.callWhenRunning(_twisted_service.startService)
-        # Twisted is killing the underlying connection before stopService gets
-        # called, so we need to add it as a pre-shutdown event to gracefully
-        # finish up messages in progress.
-        reactor.addSystemEventTrigger(
-            "before", "shutdown", _twisted_service.stopService
+    if _twisted_service is not None:
+        return
+
+    _twisted_service = service.FedoraMessagingServiceV2(config.conf["amqp_url"])
+    if config.conf["monitoring"]:
+        monitor.monitor_service(
+            _twisted_service,
+            address=config.conf["monitoring"]["address"],
+            port=config.conf["monitoring"]["port"],
         )
+
+    reactor.callWhenRunning(_twisted_service.startService)
+    # Twisted is killing the underlying connection before stopService gets
+    # called, so we need to add it as a pre-shutdown event to gracefully
+    # finish up messages in progress.
+    reactor.addSystemEventTrigger("before", "shutdown", _twisted_service.stopService)
 
 
 def _check_callback(callback):
@@ -74,15 +84,11 @@ def _check_callback(callback):
     if inspect.isclass(callback):
         callback_object = callback()
         if not callable(callback_object):
-            raise ValueError(
-                "Callback must be a class that implements __call__ or a function."
-            )
+            raise ValueError("Callback must be a class that implements __call__ or a function.")
     elif callable(callback):
         callback_object = callback
     else:
-        raise ValueError(
-            "Callback must be a class that implements __call__ or a function."
-        )
+        raise ValueError("Callback must be a class that implements __call__ or a function.")
 
     return callback_object
 
@@ -138,7 +144,7 @@ def twisted_consume(callback, bindings=None, queues=None):
         try:
             config.validate_bindings(bindings)
         except exceptions.ConfigurationException as e:
-            raise ValueError(e.message)
+            raise ValueError(e.message) from e
 
     if queues is None:
         queues = config.conf["queues"]
@@ -146,7 +152,7 @@ def twisted_consume(callback, bindings=None, queues=None):
         try:
             config.validate_queues(queues)
         except exceptions.ConfigurationException as e:
-            raise ValueError(e.message)
+            raise ValueError(e.message) from e
 
     callback = _check_callback(callback)
 
@@ -245,9 +251,33 @@ def consume(callback, bindings=None, queues=None):
         raise
 
 
+@defer.inlineCallbacks
+def twisted_publish(message, exchange=None):
+    """
+    Publish messages via Twisted.
+
+    If you are calling this method from a consumption callback, you should use
+    :func:`twisted.internet.threads.blockingCallFromThread`. See:
+    https://twisted.org/documents/16.3.0/core/howto/threading.html#invoking-twisted-from-other-threads
+
+    Returns:
+        defer.Deferred: A deferred that fires when a message has been published
+            and confirmed by the broker.
+    """
+    if exchange is None:
+        exchange = config.conf["publish_exchange"]
+    yield threads.deferToThread(pre_publish_signal.send, publish, message=message)
+    try:
+        yield _twisted_service._service.factory.publish(message, exchange=exchange)
+        yield threads.deferToThread(publish_signal.send, publish, message=message)
+    except Exception as e:
+        yield threads.deferToThread(publish_failed_signal.send, publish, message=message, reason=e)
+        raise
+
+
 @crochet.run_in_reactor
 @defer.inlineCallbacks
-def _twisted_publish(message, exchange):
+def _twisted_publish_wrapper(message, exchange):
     """
     Wrapper to provide a synchronous API for publishing messages via Twisted.
 
@@ -257,7 +287,7 @@ def _twisted_publish(message, exchange):
     """
     _init_twisted_service()
     try:
-        yield _twisted_service._service.factory.publish(message, exchange=exchange)
+        yield twisted_publish(message, exchange)
     except defer.CancelledError:
         _log.debug("Canceled publish of %r to %s due to timeout", message, exchange)
 
@@ -304,23 +334,16 @@ def publish(message, exchange=None, timeout=30):
             message you are trying to send, the AMQP server is not involved.
     """
     crochet.setup()
-    pre_publish_signal.send(publish, message=message)
 
-    if exchange is None:
-        exchange = config.conf["publish_exchange"]
-
-    eventual_result = _twisted_publish(message, exchange)
+    eventual_result = _twisted_publish_wrapper(message, exchange)
     try:
         eventual_result.wait(timeout=timeout)
-        publish_signal.send(publish, message=message)
-    except crochet.TimeoutError:
+    except crochet.TimeoutError as e:
         eventual_result.cancel()
         wrapper = exceptions.PublishTimeout(
             f"Publishing timed out after waiting {timeout} seconds."
         )
-        publish_failed_signal.send(publish, message=message, reason=wrapper)
-        raise wrapper
-    except Exception as e:
+        raise wrapper from e
+    except Exception:
         _log.error(eventual_result.original_failure().getTraceback())
-        publish_failed_signal.send(publish, message=message, reason=e)
         raise

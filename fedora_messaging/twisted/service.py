@@ -1,19 +1,7 @@
-# This file is part of fedora_messaging.
-# Copyright (C) 2018 Red Hat, Inc.
+# SPDX-FileCopyrightText: 2024 Red Hat, Inc
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 """
 Twisted Service to start and stop the Fedora Messaging Twisted Factory.
 
@@ -27,7 +15,6 @@ See https://twistedmatrix.com/documents/current/core/howto/application.html
 
 import logging
 import ssl
-import sys
 
 import pika
 from pika import SSLOptions
@@ -99,6 +86,14 @@ class FedoraMessagingServiceV2(service.MultiService):
         yield self._service.factory.stopFactory()
         yield service.MultiService.stopService(self)
 
+    @property
+    def stats(self):
+        return self._service.factory.stats
+
+    @property
+    def consuming(self):
+        return self._service.factory.consuming
+
 
 def _configure_tls_parameters(parameters):
     """
@@ -131,14 +126,8 @@ def _configure_tls_parameters(parameters):
         except ssl.SSLError as e:
             raise exceptions.ConfigurationException(
                 f'The "ca_cert" setting in the "tls" section is invalid ({e})'
-            )
-    if sys.version_info >= (3, 7):
-        ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
-    else:
-        ssl_context.options |= ssl.OP_NO_SSLv2
-        ssl_context.options |= ssl.OP_NO_SSLv3
-        ssl_context.options |= ssl.OP_NO_TLSv1
-        ssl_context.options |= ssl.OP_NO_TLSv1_1
+            ) from e
+    ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
     ssl_context.check_hostname = True
     if cert and key:
         try:
@@ -146,7 +135,7 @@ def _configure_tls_parameters(parameters):
         except ssl.SSLError as e:
             raise exceptions.ConfigurationException(
                 f'The "keyfile" setting in the "tls" section is invalid ({e})'
-            )
+            ) from e
     parameters.ssl_options = SSLOptions(ssl_context, server_hostname=parameters.host)
 
 

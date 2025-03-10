@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024 Red Hat, Inc
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 # A sample configuration for fedora-messaging. This file is in the TOML format.
 amqp_url = "amqp://"
 callback = "fedora_messaging.example:printer"
@@ -39,6 +42,10 @@ example_key = "for my consumer"
 [qos]
 prefetch_size = 0
 prefetch_count = 25
+
+# [monitoring]
+# Set this if you want to enable HTTP-based monitoring of the service
+# port = 8070
 
 [log_config]
 version = 1

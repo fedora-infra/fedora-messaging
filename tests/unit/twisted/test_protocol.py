@@ -1,20 +1,6 @@
-# This file is part of fedora_messaging.
-# Copyright (C) 2018 Red Hat, Inc.
+# SPDX-FileCopyrightText: 2024 Red Hat, Inc
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 import json
 from unittest import mock
@@ -72,9 +58,7 @@ class TestProtocol:
         d.addErrback(lambda f: f.trap(ConnectionException))
         return d
 
-    @mock.patch(
-        "fedora_messaging.twisted.consumer.uuid.uuid4", mock.Mock(return_value="tag1")
-    )
+    @mock.patch("fedora_messaging.twisted.consumer.uuid.uuid4", mock.Mock(return_value="tag1"))
     def test_consume_not_running(self):
         """Assert calling consume results in resumeProducing being invoked."""
         func = mock.Mock()
@@ -113,9 +97,7 @@ class TestProtocol:
 
         return d
 
-    @mock.patch(
-        "fedora_messaging.twisted.consumer.uuid.uuid4", mock.Mock(return_value="tag1")
-    )
+    @mock.patch("fedora_messaging.twisted.consumer.uuid.uuid4", mock.Mock(return_value="tag1"))
     def test_consume_running(self):
         """Assert when running, consume sets up the AMQP consumer"""
         func = mock.Mock()
@@ -198,8 +180,8 @@ class TestProtocol:
         body = {"bodykey": "bodyvalue"}
         headers = {"headerkey": "headervalue"}
         message = Message(body, headers, "testing.topic")
-        self.protocol._channel.basic_publish.side_effect = (
-            pika.exceptions.ChannelClosed(403, "Test forbidden message")
+        self.protocol._channel.basic_publish.side_effect = pika.exceptions.ChannelClosed(
+            403, "Test forbidden message"
         )
         d = self.protocol.publish(message, "test-exchange")
 
@@ -244,8 +226,8 @@ class TestProtocol:
         body = {"bodykey": "bodyvalue"}
         headers = {"headerkey": "headervalue"}
         message = Message(body, headers, "testing.topic")
-        self.protocol._channel.basic_publish.side_effect = (
-            pika.exceptions.ConnectionClosed(42, "testing")
+        self.protocol._channel.basic_publish.side_effect = pika.exceptions.ConnectionClosed(
+            42, "testing"
         )
         d = self.protocol.publish(message, "test-exchange")
 
@@ -258,9 +240,7 @@ class TestProtocol:
         """If consuming fails due to a non-permission error, a ConnectionException happens."""
         proto = FedoraMessagingProtocolV2(None)
         mock_channel = mock.Mock()
-        mock_channel.basic_consume.side_effect = pika.exceptions.ChannelClosed(
-            400, "Bad Request!"
-        )
+        mock_channel.basic_consume.side_effect = pika.exceptions.ChannelClosed(400, "Bad Request!")
         deferred_channel = defer.succeed(mock_channel)
         proto._allocate_channel = mock.Mock(return_value=deferred_channel)
 

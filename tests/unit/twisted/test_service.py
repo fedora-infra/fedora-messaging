@@ -1,20 +1,6 @@
-# This file is part of fedora_messaging.
-# Copyright (C) 2018 Red Hat, Inc.
+# SPDX-FileCopyrightText: 2024 Red Hat, Inc
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 import os
 from unittest import mock
@@ -26,7 +12,8 @@ from twisted.application.internet import SSLClient, TCPClient
 from twisted.internet import ssl as twisted_ssl
 
 from fedora_messaging import config, exceptions
-from fedora_messaging.twisted.factory import FedoraMessagingFactoryV2
+from fedora_messaging.twisted.consumer import Consumer
+from fedora_messaging.twisted.factory import ConsumerRecord, FedoraMessagingFactoryV2
 from fedora_messaging.twisted.service import (
     _configure_tls_parameters,
     _ssl_context_factory,
@@ -68,6 +55,24 @@ class TestService:
         service.stopService()
         service._service.factory.stopTrying.assert_called_once()
         service._service.factory.stopFactory.assert_called_once()
+
+    def test_stats(self):
+        service = FedoraMessagingServiceV2("amqp://")
+        assert service.stats.as_dict() == {
+            "published": 0,
+            "consumed": {"received": 0, "processed": 0, "dropped": 0, "rejected": 0, "failed": 0},
+        }
+        assert service.consuming is False
+        consumer = Consumer()
+        consumer._running = True
+        consumer.stats.received = 42
+        consumer.stats.processed = 43
+        service._service.factory._consumers.append(ConsumerRecord(consumer, None, None))
+        assert service.stats.as_dict() == {
+            "published": 0,
+            "consumed": {"received": 42, "processed": 43, "dropped": 0, "rejected": 0, "failed": 0},
+        }
+        assert service.consuming is True
 
 
 class ConfigureTlsParameters:
@@ -161,14 +166,10 @@ class TestSslContextFactory:
         )
         assert factory == mock_opts.return_value
 
-    @mock.patch(
-        "fedora_messaging.twisted.service.twisted_ssl.PrivateCertificate.loadPEM"
-    )
+    @mock.patch("fedora_messaging.twisted.service.twisted_ssl.PrivateCertificate.loadPEM")
     @mock.patch("fedora_messaging.twisted.service.twisted_ssl.Certificate.loadPEM")
     @mock.patch("fedora_messaging.twisted.service.twisted_ssl.optionsForClientTLS")
-    def test_key_and_cert(
-        self, mock_opts, mock_load_pem, mock_priv_load_pem, fixtures_dir
-    ):
+    def test_key_and_cert(self, mock_opts, mock_load_pem, mock_priv_load_pem, fixtures_dir):
         """Assert if there's a client key and cert, the factory has both."""
         tls_conf = {
             "keyfile": os.path.join(fixtures_dir, "key.pem"),

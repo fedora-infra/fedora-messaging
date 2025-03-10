@@ -1,3 +1,7 @@
+.. SPDX-FileCopyrightText: 2024 Red Hat, Inc
+..
+.. SPDX-License-Identifier: GPL-2.0-or-later
+
 ===================
 Developer Interface
 ===================
@@ -129,8 +133,8 @@ SERIALIZED_MESSAGE_SCHEMA
 .. autodata:: fedora_messaging.message.SERIALIZED_MESSAGE_SCHEMA
 
 
-Utilities
-=========
+Schema Utilities
+================
 
 .. automodule:: fedora_messaging.schema_utils
 

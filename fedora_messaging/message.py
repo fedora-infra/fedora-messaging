@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Red Hat, Inc
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 """
 This module defines the base class of message objects and keeps a registry of
 known message implementations. This registry is populated from Python entry
@@ -27,12 +31,13 @@ this class in a small Python package of its own.
 import datetime
 import json
 import logging
+import re
 import uuid
+from importlib.metadata import distribution as get_distribution
+from importlib.metadata import entry_points, PackageNotFoundError
 
 import jsonschema
 import pika
-import pkg_resources
-import pytz
 
 from . import config
 from .exceptions import ValidationError
@@ -66,6 +71,7 @@ _log = logging.getLogger(__name__)
 # Maps string names of message types to classes and back
 _schema_name_to_class = {}
 _class_to_schema_name = {}
+_schema_name_to_package = {}
 
 # Used to load the registry automatically on first use
 _registry_loaded = False
@@ -84,18 +90,32 @@ def get_class(schema_name):
     Returns:
         Message: A sub-class of :class:`Message` to create the message from.
     """
+
+    return _get_class_from_headers(dict(fedora_messaging_schema=schema_name))
+
+
+def _get_class_from_headers(headers):
     global _registry_loaded
     if not _registry_loaded:
         load_message_classes()
 
+    schema_name = headers["fedora_messaging_schema"]
     try:
         return _schema_name_to_class[schema_name]
     except KeyError:
+        schema_package = headers.get("fedora_messaging_schema_package")
+        if schema_package:
+            package_text = f"You can install the missing schema from package {schema_package!r}"
+        else:
+            package_text = (
+                "Either install the package with its schema definition or define a schema"
+            )
+
         _log.warning(
-            'The schema "%s" is not in the schema registry! Either install '
-            "the package with its schema definition or define a schema. "
+            'The schema "%s" is not in the schema registry! %s. '
             "Falling back to the default schema...",
             schema_name,
+            package_text,
         )
         return Message
 
@@ -117,27 +137,55 @@ def get_name(cls):
 
     try:
         return _class_to_schema_name[cls]
-    except KeyError:
+    except KeyError as e:
         raise TypeError(
-            "The class {} is not in the message registry, which indicates it is"
+            f"The class {cls!r} is not in the message registry, which indicates it is"
             ' not in the current list of entry points for "fedora_messaging".'
-            " Please check that the class has been added to your package's"
-            " entry points.".format(repr(cls))
-        )
+            " Please check that the class has been added to your package's entry points."
+        ) from e
+
+
+def _get_distribution_from_module(module):
+    if not module:
+        return None
+    module_parts = module.split(".")
+    while module_parts:
+        try:
+            distribution = get_distribution(".".join(module_parts))
+            try:
+                distribution_name = distribution.name
+            except AttributeError:  # pragma: no cover
+                # COMPAT: Python <= 3.9
+                distribution_name = distribution.metadata["Name"]
+        except PackageNotFoundError:
+            return _get_distribution_from_module(".".join(module_parts[:-1]))
+        # Normalize the name: PEP 503 plus dashes as underscores.
+        return re.sub(r"[-_.]+", "-", distribution_name).lower().replace("-", "_")
 
 
 def load_message_classes():
     """Load the 'fedora.messages' entry points and register the message classes."""
-    for message in pkg_resources.iter_entry_points("fedora.messages"):
+    try:
+        eps = entry_points(group="fedora.messages")
+    except TypeError:
+        # Python < 3.10
+        # https://docs.python.org/3.10/library/importlib.metadata.html#entry-points
+        eps = entry_points().get("fedora.messages", [])
+    for message in eps:
         cls = message.load()
-        _log.info(
-            "Registering the '%s' key as the '%r' class in the Message "
-            "class registry",
+        _log.debug(
+            "Registering the '%s' key as the '%r' class in the Message " "class registry",
             message.name,
             cls,
         )
         _schema_name_to_class[message.name] = cls
         _class_to_schema_name[cls] = message.name
+        try:
+            module = message.module
+        except AttributeError:  # pragma: no cover
+            # COMPAT: Python <= 3.8
+            module = message.pattern.match(message.value).group("module")
+        _schema_name_to_package[message.name] = _get_distribution_from_module(module)
     global _registry_loaded
     _registry_loaded = True
 
@@ -164,7 +212,7 @@ def get_message(routing_key, properties, body):
         properties.headers = {}
 
     try:
-        MessageClass = get_class(properties.headers["fedora_messaging_schema"])
+        MessageClass = _get_class_from_headers(properties.headers)
     except KeyError:
         _log.error(
             "Message (headers=%r, body=%r) arrived without a schema header."
@@ -196,23 +244,21 @@ def get_message(routing_key, properties, body):
             body,
             properties.content_encoding,
         )
-        raise ValidationError(e)
+        raise ValidationError(e) from e
 
     try:
         body = json.loads(body)
     except ValueError as e:
         _log.error("Failed to load message body %r, %r", body, e)
-        raise ValidationError(e)
+        raise ValidationError(e) from e
 
-    message = MessageClass(
-        body=body, topic=routing_key, properties=properties, severity=severity
-    )
+    message = MessageClass(body=body, topic=routing_key, properties=properties, severity=severity)
     try:
         message.validate()
         _log.debug("Successfully validated message %r", message)
     except jsonschema.exceptions.ValidationError as e:
         _log.error("Message validation of %r failed: %r", message, e)
-        raise ValidationError(e)
+        raise ValidationError(e) from e
 
     if MessageClass.deprecated:
         _log.warning(
@@ -319,6 +365,7 @@ class Message:
                 "enum": [DEBUG, INFO, WARNING, ERROR],
             },
             "fedora_messaging_schema": {"type": "string"},
+            "fedora_messaging_schema_package": {"type": "string"},
             "sent-at": {"type": "string"},
         },
     }
@@ -329,9 +376,7 @@ class Message:
     }
     deprecated = False
 
-    def __init__(
-        self, body=None, headers=None, topic=None, properties=None, severity=None
-    ):
+    def __init__(self, body=None, headers=None, topic=None, properties=None, severity=None):
         self.body = body or {}
 
         if topic:
@@ -348,8 +393,11 @@ class Message:
         # Consumers use this to determine what schema to use and if they're out
         # of date.
         headers = headers.copy()
-        headers["fedora_messaging_schema"] = get_name(self.__class__)
-        now = datetime.datetime.utcnow().replace(microsecond=0, tzinfo=pytz.utc)
+        headers["fedora_messaging_schema"] = schema_name = get_name(self.__class__)
+        schema_package = _schema_name_to_package.get(schema_name)
+        if schema_package:
+            headers["fedora_messaging_schema_package"] = schema_package
+        now = datetime.datetime.now(tz=datetime.timezone.utc).replace(microsecond=0)
         headers["sent-at"] = now.isoformat()
         headers["fedora_messaging_severity"] = self.severity
         # Mirror the priority in the headers for debugging purposes
@@ -386,6 +434,7 @@ class Message:
                 items = getattr(self, prop_name)
             except Exception:
                 # The message is probably invalid, don't add the header
+                _log.warning("Header %s not found in message", prop_name)
                 continue
             for item in items:
                 headers[f"fedora_messaging_{header_name}_{item}"] = True
@@ -441,8 +490,8 @@ class Message:
         """
         Provide a printable representation of the object that can be passed to func:`eval`.
         """
-        return "{}(id={}, topic={}, body={})".format(
-            self.__class__.__name__, repr(self.id), repr(self.topic), repr(self.body)
+        return (
+            f"{self.__class__.__name__}(id={self.id!r}, topic={self.topic!r}, body={self.body!r})"
         )
 
     def __eq__(self, other):
@@ -472,11 +521,7 @@ class Message:
         except KeyError:
             pass
 
-        return (
-            self.topic == other.topic
-            and self.body == other.body
-            and headers == other_headers
-        )
+        return self.topic == other.topic and self.body == other.body and headers == other_headers
 
     def validate(self):
         """
@@ -502,9 +547,7 @@ class Message:
             )
             jsonschema.validate(self._headers, schema)
         for schema in (self.body_schema, Message.body_schema):
-            _log.debug(
-                'Validating message body "%r" with schema "%r"', self.body, schema
-            )
+            _log.debug('Validating message body "%r" with schema "%r"', self.body, schema)
             jsonschema.validate(self.body, schema)
 
     @property
@@ -538,9 +581,7 @@ class Message:
         return "Id: {i}\nTopic: {t}\nHeaders: {h}\nBody: {b}".format(
             i=self.id,
             t=self.topic,
-            h=json.dumps(
-                self._headers, sort_keys=True, indent=4, separators=(",", ": ")
-            ),
+            h=json.dumps(self._headers, sort_keys=True, indent=4, separators=(",", ": ")),
             b=json.dumps(self.body, sort_keys=True, indent=4, separators=(",", ": ")),
         )
 
@@ -730,10 +771,12 @@ def load_message(message_dict):
     try:
         jsonschema.validate(message_dict, SERIALIZED_MESSAGE_SCHEMA)
     except jsonschema.exceptions.ValidationError as e:
-        raise ValidationError(e)
-    MessageClass = get_class(
-        message_dict.get("headers", {}).get("fedora_messaging_schema", "base.message")
-    )
+        raise ValidationError(e) from e
+    try:
+        MessageClass = _get_class_from_headers(message_dict.get("headers", {}))
+    except KeyError:
+        # No "fedora_messaging_schema" header
+        MessageClass = Message
     message = MessageClass(
         body=message_dict["body"],
         topic=message_dict["topic"],
@@ -777,7 +820,7 @@ def dumps(messages):
         try:
             message.validate()
         except (jsonschema.exceptions.ValidationError, AttributeError) as e:
-            raise ValidationError(e)
+            raise ValidationError(e) from e
         m = {
             "topic": message.topic,
             "headers": message._headers,
@@ -812,7 +855,7 @@ def loads(serialized_messages):
         try:
             message_dict = json.loads(serialized_message)
         except ValueError as e:
-            raise ValidationError(e)
+            raise ValidationError(e) from e
         message = load_message(message_dict)
         messages.append(message)
 

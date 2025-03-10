@@ -1,20 +1,6 @@
-# This file is part of fedora_messaging.
-# Copyright (C) 2019 Red Hat, Inc.
+# SPDX-FileCopyrightText: 2024 Red Hat, Inc
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 import asyncio
 import logging
@@ -35,6 +21,7 @@ from ..exceptions import (
     ValidationError,
 )
 from ..message import get_message
+from .stats import ConsumerStatistics
 
 
 _std_log = logging.getLogger(__name__)
@@ -110,16 +97,23 @@ class Consumer:
         # The unique ID for the AMQP consumer.
         self._tag = str(uuid.uuid4())
         # Used in the consumer read loop to know when it's being canceled.
-        self._running = True
+        self._running = False
         # The current read loop
         self._read_loop = None
         # The protocol that currently runs this consumer, used when cancel is
         # called to remove itself from the protocol and its factory so it doesn't
         # restart on the next connection.
         self._protocol = None
+        # Message statistics
+        self.stats = ConsumerStatistics()
 
     def __repr__(self):
         return f"Consumer(queue={self.queue}, callback={self.callback})"
+
+    @property
+    def running(self) -> bool:
+        """Whether the consumer is running."""
+        return self._running
 
     @defer.inlineCallbacks
     def consume(self):
@@ -135,15 +129,16 @@ class Consumer:
             if exc.args[0] == 403:
                 raise PermissionException(
                     obj_type="queue", description=self.queue, reason=exc.args[1]
-                )
+                ) from exc
             else:
-                raise ConnectionException(reason=exc)
+                raise ConnectionException(reason=exc) from exc
 
         try:
             self._channel.add_on_cancel_callback(self._on_cancel_callback)
         except AttributeError:
             pass  # pika 1.0.0+
 
+        self._running = True
         self._read_loop = self._read(queue_object)
         self._read_loop.addErrback(self._read_loop_errback)
 
@@ -204,10 +199,10 @@ class Consumer:
                 "Message id %s did not pass validation; ignoring message",
                 properties.message_id,
             )
-            yield channel.basic_nack(
-                delivery_tag=delivery_frame.delivery_tag, requeue=False
-            )
+            yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=False)
             return
+
+        self.stats.received += 1
 
         try:
             _std_log.info(
@@ -216,40 +211,31 @@ class Consumer:
                 properties.message_id,
             )
             if is_coro(self.callback):
-                d = defer.Deferred.fromFuture(
-                    asyncio.ensure_future(self.callback(message))
-                )
+                d = defer.Deferred.fromFuture(asyncio.ensure_future(self.callback(message)))
             else:
                 d = threads.deferToThread(self.callback, message)
             yield d
         except Nack:
-            _std_log.warning(
-                "Returning message id %s to the queue", properties.message_id
-            )
-            yield channel.basic_nack(
-                delivery_tag=delivery_frame.delivery_tag, requeue=True
-            )
+            _std_log.warning("Returning message id %s to the queue", properties.message_id)
+            yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=True)
+            self.stats.rejected += 1
         except Drop:
-            _std_log.warning(
-                "Consumer requested message id %s be dropped", properties.message_id
-            )
-            yield channel.basic_nack(
-                delivery_tag=delivery_frame.delivery_tag, requeue=False
-            )
+            _std_log.warning("Consumer requested message id %s be dropped", properties.message_id)
+            yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=False)
+            self.stats.dropped += 1
         except HaltConsumer as e:
-            _std_log.info(
-                "Consumer indicated it wishes consumption to halt, shutting down"
-            )
+            _std_log.info("Consumer indicated it wishes consumption to halt, shutting down")
             if e.requeue:
-                yield channel.basic_nack(
-                    delivery_tag=delivery_frame.delivery_tag, requeue=True
-                )
+                yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=True)
+                self.stats.rejected += 1
             else:
                 yield channel.basic_ack(delivery_tag=delivery_frame.delivery_tag)
+                self.stats.processed += 1
             raise e
         except Exception as e:
             _std_log.exception("Received unexpected exception from consumer %r", self)
             yield channel.basic_nack(delivery_tag=0, multiple=True, requeue=True)
+            self.stats.failed += 1
             raise e
         else:
             _std_log.info(
@@ -258,6 +244,7 @@ class Consumer:
                 properties.message_id,
             )
             yield channel.basic_ack(delivery_tag=delivery_frame.delivery_tag)
+            self.stats.processed += 1
 
     def _on_cancel_callback(self, frame):
         """
@@ -312,8 +299,7 @@ class Consumer:
                 self.cancel()
             else:
                 _std_log.exception(
-                    "Consumer halted (%r) unexpectedly; "
-                    "the connection should restart.",
+                    "Consumer halted (%r) unexpectedly; " "the connection should restart.",
                     failure,
                 )
         elif failure.check(error.ConnectionDone, error.ConnectionLost):

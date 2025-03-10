@@ -1,19 +1,7 @@
-# This file is part of fedora_messaging.
-# Copyright (C) 2018 Red Hat, Inc.
+# SPDX-FileCopyrightText: 2024 Red Hat, Inc
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 """
 Once you've written code to publish or consume messages, you'll probably want
 to test it. The :mod:`fedora_messaging.testing` module has utilities for common
@@ -65,24 +53,20 @@ def mock_sends(*expected_messages):
 
     sent = []
     with mock.patch("fedora_messaging.api.crochet"):
-        with mock.patch("fedora_messaging.api._twisted_publish") as mock_pub:
+        with mock.patch("fedora_messaging.api._twisted_publish_wrapper") as mock_pub:
             yield sent
 
     messages = [call[0][0] for call in mock_pub.call_args_list]
     sent.extend(messages)
     if len(expected_messages) != len(messages):
         raise AssertionError(
-            "Expected {} messages to be sent, but {} were sent".format(
-                len(expected_messages), len(messages)
-            )
+            f"Expected {len(expected_messages)} messages to be sent, but {len(messages)} were sent"
         )
     for msg, expected in zip(messages, expected_messages):
         if inspect.isclass(expected):
             if not isinstance(msg, expected):
                 raise AssertionError(
-                    "Expected message of type {}, but {} was sent".format(
-                        expected, msg.__class__
-                    )
+                    f"Expected message of type {expected}, but {msg.__class__} was sent"
                 )
         else:
             assert msg.topic == expected.topic

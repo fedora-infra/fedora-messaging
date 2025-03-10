@@ -1,19 +1,7 @@
-# This file is part of fedora_messaging.
-# Copyright (C) 2018 Red Hat, Inc.
+# SPDX-FileCopyrightText: 2024 Red Hat, Inc
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 """
 fedora-messaging can be configured with the
 ``/etc/fedora-messaging/config.toml`` file or by setting the
@@ -287,6 +275,17 @@ meaning there is no limit. The default settings are::
         'prefetch_count': 10,
         'prefetch_size': 0,
     }
+
+.. _conf-monitoring:
+
+monitoring
+----------
+The options for the embedded HTTP server dedicated to monitoring the service.
+This is where you can configure the address and the port to be listened on.
+If the section is empty, monitoring will be disabled.
+The default value for ``address`` is an empty string, which means that the
+service will listen on all interfaces. There is no default value for
+``port``, you will have to choose a port.
 """
 
 
@@ -294,8 +293,7 @@ import copy
 import logging
 import logging.config
 import os
-
-import pkg_resources
+from importlib.metadata import version
 
 
 try:
@@ -308,8 +306,8 @@ from . import exceptions
 
 _log = logging.getLogger(__name__)
 
-_fedora_version = pkg_resources.get_distribution("fedora_messaging").version
-_pika_version = pkg_resources.get_distribution("pika").version
+_fedora_version = version("fedora_messaging")
+_pika_version = version("pika")
 
 # By default, use a server-generated queue name
 _default_queue_name = ""
@@ -326,9 +324,7 @@ DEFAULTS = dict(
         "app": "Unknown",
         "product": "Fedora Messaging with Pika",
         "information": "https://fedora-messaging.readthedocs.io/en/stable/",
-        "version": "fedora_messaging-{} with pika-{}".format(
-            _fedora_version, _pika_version
-        ),
+        "version": f"fedora_messaging-{_fedora_version} with pika-{_pika_version}",
     },
     publish_exchange="amq.topic",
     topic_prefix="",
@@ -350,11 +346,10 @@ DEFAULTS = dict(
             "arguments": {},
         }
     },
-    bindings=[
-        {"queue": _default_queue_name, "exchange": "amq.topic", "routing_keys": ["#"]}
-    ],
+    bindings=[{"queue": _default_queue_name, "exchange": "amq.topic", "routing_keys": ["#"]}],
     qos={"prefetch_size": 0, "prefetch_count": 10},
     callback=None,
+    monitoring={},
     consumer_config={},
     tls={"ca_cert": None, "certfile": None, "keyfile": None},
     log_config={
@@ -392,9 +387,7 @@ def validate_bindings(bindings):
     """
     if not isinstance(bindings, (list, tuple)):
         raise exceptions.ConfigurationException(
-            "bindings must be a list or tuple of dictionaries, but was a {}".format(
-                type(bindings)
-            )
+            f"bindings must be a list or tuple of dictionaries, but was a {type(bindings)}"
         )
 
     for binding in bindings:
@@ -405,7 +398,7 @@ def validate_bindings(bindings):
         if missing_keys:
             raise exceptions.ConfigurationException(
                 "a binding is missing the following keys from its settings "
-                "value: {}".format(missing_keys)
+                f"value: {missing_keys}"
             )
 
         if not isinstance(binding["routing_keys"], (list, tuple)):
@@ -432,8 +425,8 @@ def validate_queues(queues):
     for queue, settings in queues.items():
         if not isinstance(settings, dict):
             raise exceptions.ConfigurationException(
-                "the {} queue in the 'queues' setting has a value of type {}, but it "
-                "should be a dictionary of settings.".format(queue, type(settings))
+                f"the {queue} queue in the 'queues' setting has a value of type {type(settings)}, "
+                "but it should be a dictionary of settings."
             )
         missing_keys = []
         for key in ("durable", "auto_delete", "exclusive", "arguments"):
@@ -441,8 +434,8 @@ def validate_queues(queues):
                 missing_keys.append(key)
         if missing_keys:
             raise exceptions.ConfigurationException(
-                "the {} queue is missing the following keys from its settings "
-                "value: {}".format(queue, missing_keys)
+                f"the {queue} queue is missing the following keys from its settings "
+                f"value: {missing_keys}"
             )
 
 
@@ -465,6 +458,22 @@ def validate_client_properties(props):
             raise exceptions.ConfigurationException(
                 f'"{key}" is a reserved keyword in client_properties'
             )
+
+
+def validate_monitoring(monitoring_conf):
+    """
+    Validate the monitoring setting.
+
+    This will add the "address" and "port" keys if they are missing.
+    """
+    if not monitoring_conf:
+        return  # If empty, monitoring will be disabled.
+    if "port" not in monitoring_conf:
+        raise exceptions.ConfigurationException(
+            "The port must be defined in [monitoring] to activate it"
+        )
+    if "address" not in monitoring_conf:
+        monitoring_conf["address"] = ""
 
 
 class LazyConfig(dict):
@@ -510,13 +519,14 @@ class LazyConfig(dict):
         for key in self:
             if key not in DEFAULTS:
                 raise exceptions.ConfigurationException(
-                    'Unknown configuration key "{}"! Valid configuration keys are'
-                    " {}".format(key, list(DEFAULTS.keys()))
+                    f"Unknown configuration key {key!r}! Valid configuration keys are"
+                    f" {list(DEFAULTS.keys())}"
                 )
 
         validate_queues(self["queues"])
         validate_bindings(self["bindings"])
         validate_client_properties(self["client_properties"])
+        validate_monitoring(self["monitoring"])
 
     def load_config(self, config_path=None):
         """
@@ -545,7 +555,7 @@ class LazyConfig(dict):
                         config[key.lower()] = file_config[key]
                 except tomllib.TOMLDecodeError as e:
                     msg = f"Failed to parse {config_path}: {e}"
-                    raise exceptions.ConfigurationException(msg)
+                    raise exceptions.ConfigurationException(msg) from e
         else:
             _log.info(f"The configuration file, {config_path}, does not exist.")
 
