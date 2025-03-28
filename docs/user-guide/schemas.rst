@@ -168,6 +168,16 @@ You can view the history of `all FMN messages <https://apps.fedoraproject.org/da
 * ``fmn.rule.update.v1`` (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.fmn.rule.update.v1>`__)
 
 
+ipa
+===
+
+You can view the history of `all ipa messages <https://apps.fedoraproject.org/datagrepper/raw?category=ipa>`__ in datagrepper.
+
+* ``ipa.group_add_member.v1``: A sub-class of a Fedora message that defines a message schema for messages published by IPA when new users are added to a group. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.ipa.group_add_member.v1>`__)
+* ``ipa.group_remove_member.v1``: A sub-class of a Fedora message that defines a message schema for messages published by IPA when new users are removed from a group. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.ipa.group_remove_member.v1>`__)
+* ``ipa.user_add.v1``: A sub-class of a Fedora message that defines a message schema for messages published by IPA when a new user is created. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.ipa.user_add.v1>`__)
+
+
 kerneltest
 ==========
 

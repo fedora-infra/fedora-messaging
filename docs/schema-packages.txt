@@ -3,7 +3,7 @@
 
 # This file contains the list of known schema packages
 # When you add a package to this file, also add it as a dependency to:
-# - datanommer
+# - datanommer.models
 # - datagrepper
 # - fmn
 # - fedbadges
@@ -22,6 +22,7 @@ fedora-messaging-git-hook-messages
 fedora-messaging-the-new-hotness-schema
 fedora-planet-messages
 fmn-messages
+journal-to-fedora-messaging-messages
 kerneltest-messages
 koji-fedoramessaging-messages
 koschei-messages
