@@ -12,7 +12,7 @@ import tempfile
 import venv
 from collections import defaultdict
 from dataclasses import dataclass
-from importlib.metadata import entry_points
+from importlib.metadata import entry_points, metadata
 from subprocess import run
 from textwrap import dedent
 from urllib.parse import urljoin
@@ -22,8 +22,7 @@ from sphinx.ext.napoleon.docstring import GoogleDocstring
 
 SCHEMAS_FILE = "schema-packages.txt"
 DOC_FILE = "user-guide/schemas.rst"
-HEADER = """
-.. SPDX-FileCopyrightText: 2024 Red Hat, Inc
+HEADER = """.. SPDX-FileCopyrightText: 2024 Red Hat, Inc
 ..
 .. SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -64,6 +63,7 @@ class Schema:
     app_name: str
     category: str
     doc: str
+    docs_url: str | None
 
 
 def create_venv(dirname):
@@ -110,7 +110,15 @@ def extract_docstring(cls):
     return " ".join(doc)
 
 
+def _get_docs_url(package_name):
+    for project_url in metadata(package_name).json.get("project_url", []):
+        url_type, url = project_url.split(", ")
+        if url_type == "Documentation":
+            return url
+
+
 def get_schemas():
+    docs_urls = {}
     schemas = defaultdict(list)
     for entry_point in entry_points(group="fedora.messages"):
         msg_cls = entry_point.load()
@@ -124,6 +132,7 @@ def get_schemas():
         package_name = entry_point.dist.name
         doc = extract_docstring(msg_cls)
         category = _get_category(msg_cls.topic)
+        docs_urls[package_name] = _get_docs_url(package_name)
         try:
             app_name = msg_cls().app_name
         except Exception:
@@ -136,6 +145,7 @@ def get_schemas():
                 doc=doc,
                 category=category,
                 app_name=app_name,
+                docs_url=docs_urls[package_name],
             )
         )
     return schemas
@@ -167,10 +177,13 @@ def write_doc(schemas, doc_filepath):
             package_schemas = schemas[package_name]
             app_name = _get_app_name(package_schemas)
             category = package_schemas[0].category
+            docs_url = package_schemas[0].docs_url
             title = app_name or category
             print(f"\n\n{title}", file=doc_file)
             print("=" * len(title), end="\n\n", file=doc_file)
             history_url = urljoin(DATAGREPPER_URL, f"raw?category={category}")
+            if docs_url:
+                print(f"This schema has `documentation <{docs_url}>`__.\n", file=doc_file)
             print(
                 f"You can view the history of `all {title} messages <{history_url}>`__ "
                 "in datagrepper.\n",

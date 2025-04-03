@@ -20,6 +20,8 @@ In the Fedora Infrastructure, some of those topics will be prefixed by
 anitya
 ======
 
+This schema has `documentation <https://anitya-messages.readthedocs.io/en/latest>`__.
+
 You can view the history of `all anitya messages <https://apps.fedoraproject.org/datagrepper/raw?category=anitya>`__ in datagrepper.
 
 * ``org.release-monitoring.prod.anitya.distro.add``: Message sent by Anitya to the "anitya.distro.add" topic when a new distribution is added. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.release-monitoring.prod.anitya.distro.add>`__)
@@ -134,6 +136,8 @@ You can view the history of `all Git messages <https://apps.fedoraproject.org/da
 The New Hotness
 ===============
 
+This schema has `documentation <https://the-new-hotness-messaging-schema.readthedocs.io/en/latest>`__.
+
 You can view the history of `all The New Hotness messages <https://apps.fedoraproject.org/datagrepper/raw?category=hotness>`__ in datagrepper.
 
 * ``org.fedoraproject.prod.hotness.update.bug.file``: Message sent by the-new-hotness to "hotness.update.bug.file" topic when bugzilla issue is filled. (`history <https://apps.fedoraproject.org/datagrepper/raw?topic=org.fedoraproject.prod.hotness.update.bug.file>`__)
@@ -170,6 +174,8 @@ You can view the history of `all FMN messages <https://apps.fedoraproject.org/da
 
 ipa
 ===
+
+This schema has `documentation <https://journal-to-fedora-messaging-messages.readthedocs.io>`__.
 
 You can view the history of `all ipa messages <https://apps.fedoraproject.org/datagrepper/raw?category=ipa>`__ in datagrepper.
 
