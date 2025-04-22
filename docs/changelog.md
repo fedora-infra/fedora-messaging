@@ -14,6 +14,35 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## 3.7.1 (2025-04-22)
+
+### Documentation Improvements
+
+- Use Reuse for the license text and license header (#383)
+- Update installation.rst (#338)
+- Add links to the documentation in the schema list if there's any ([d7f7394](https://github.com/fedora-infra/fedora-messaging/commit/d7f7394))
+- Add schema packages:
+  - webhook-to-fedora-messaging-messages ([e980001](https://github.com/fedora-infra/fedora-messaging/commit/e980001))
+  - mailman3-fedmsg-plugin-schemas ([552f823](https://github.com/fedora-infra/fedora-messaging/commit/552f823))
+  - journal-to-fedora-messaging-messages ([f89df00](https://github.com/fedora-infra/fedora-messaging/commit/f89df00))
+
+### Development Changes
+
+- Fix release github action ([59a3f36](https://github.com/fedora-infra/fedora-messaging/commit/59a3f36))
+
+### Other Changes
+
+- Add the new CAs to the trusted CA certs ([6facb16](https://github.com/fedora-infra/fedora-messaging/commit/6facb16))
+
+### Contributors
+
+Many thanks to the contributors of bug reports, pull requests, and pull request reviews for this release:
+
+- Aurélien Bompard
+- Olamide Ojo
+- nwekealex65
+
+
 ## 3.7.0 (2025-01-03)
 
 ### Features
@@ -61,7 +90,7 @@ reviews for this release:
 
 ### Documentation Improvements
 
-- Add the maubot-fedora-messages schema package (#4b3c8d0)
+- Add the maubot-fedora-messages schema package (4b3c8d0)
 
 ### Development Changes
 
