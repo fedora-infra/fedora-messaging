@@ -24,12 +24,12 @@ repos:
   # Ruff
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     # Ruff version.
-    rev: v0.11.11
+    rev: v0.11.12
     hooks:
       - id: ruff
 
   - repo: https://github.com/myint/rstcheck
-    rev: v6.2.4
+    rev: v6.2.5
     hooks:
       - id: rstcheck
         additional_dependencies: [sphinx, tomli]
