@@ -180,11 +180,7 @@ def load_message_classes():
         )
         _schema_name_to_class[message.name] = cls
         _class_to_schema_name[cls] = message.name
-        try:
-            module = message.module
-        except AttributeError:  # pragma: no cover
-            # COMPAT: Python <= 3.8
-            module = message.pattern.match(message.value).group("module")
+        module = message.module
         _schema_name_to_package[message.name] = _get_distribution_from_module(module)
     global _registry_loaded
     _registry_loaded = True

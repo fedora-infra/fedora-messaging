@@ -63,7 +63,6 @@ jobs:
     strategy:
       matrix:
         tox_env:
-          - py38-unittest
           - py39-unittest
           - py310-unittest
           - py311-unittest
@@ -98,7 +97,6 @@ jobs:
     strategy:
       matrix:
         tox_env:
-          - py38-integration
           - py39-integration
           - py310-integration
           - py311-integration

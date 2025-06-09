@@ -18,7 +18,6 @@ import treq
 from twisted.internet import defer, reactor, task, threads
 
 from fedora_messaging import api, config, exceptions, message
-from fedora_messaging.twisted.consumer import _add_timeout
 
 from .utils import RABBITMQ_HOST
 
@@ -145,7 +144,7 @@ def test_twisted_consume_halt_consumer(queue_and_binding):
     for _ in range(0, 3):
         yield threads.deferToThread(api.publish, msg, "amq.topic")
 
-    _add_timeout(consumers[0].result, 10)
+    consumers[0].result.addTimeout(10, reactor)
     try:
         yield consumers[0].result
     except exceptions.HaltConsumer as e:
@@ -188,8 +187,8 @@ def test_twisted_stop_service(queue_and_binding):
     consumers = yield api.twisted_consume(callback, bindings, queues)
     yield threads.deferToThread(api.publish, message.Message(), "amq.topic")
 
-    _add_timeout(consumers[0].result, 10)
-    _add_timeout(message_received, 10)
+    consumers[0].result.addTimeout(10, reactor)
+    message_received.addTimeout(10, reactor)
     try:
         yield message_received
     except (defer.TimeoutError, defer.CancelledError):
@@ -199,7 +198,7 @@ def test_twisted_stop_service(queue_and_binding):
     assert not message_processed.called
     deferred_stop = api._twisted_service.stopService()
 
-    _add_timeout(message_processed, 10)
+    message_processed.addTimeout(10, reactor)
     try:
         yield message_processed
         # The request to stop should wait on the message to be processed
@@ -225,7 +224,7 @@ def test_twisted_consume_cancel(queue_and_binding):
 
     try:
         d = consumers[0].cancel()
-        _add_timeout(d, 5)
+        d.addTimeout(5, reactor)
         yield d
 
         # Assert the consumer.result deferred has called back when the cancel
@@ -258,7 +257,7 @@ def test_twisted_consume_halt_consumer_requeue(queue_and_binding):
     consumers = yield api.twisted_consume(callback, bindings, queues)
     yield threads.deferToThread(api.publish, msg, "amq.topic")
 
-    _add_timeout(consumers[0].result, 10)
+    consumers[0].result.addTimeout(10, reactor)
     try:
         yield consumers[0].result
     except exceptions.HaltConsumer as e:
@@ -304,7 +303,7 @@ def test_twisted_consume_drop_message(queue_and_binding):
     yield threads.deferToThread(api.publish, msg, "amq.topic")
     yield threads.deferToThread(api.publish, msg, "amq.topic")
 
-    _add_timeout(consumers[0].result, 10)
+    consumers[0].result.addTimeout(10, reactor)
     try:
         yield consumers[0].result
     except exceptions.HaltConsumer:
@@ -348,7 +347,7 @@ def test_twisted_consume_nack_message(queue_and_binding):
     consumers = yield api.twisted_consume(callback, bindings, queues)
     yield threads.deferToThread(api.publish, msg, "amq.topic")
 
-    _add_timeout(consumers[0].result, 10)
+    consumers[0].result.addTimeout(10, reactor)
     try:
         yield consumers[0].result
     except exceptions.HaltConsumer:
@@ -390,7 +389,7 @@ def test_twisted_consume_general_exception(queue_and_binding):
     consumers = yield api.twisted_consume(callback, bindings, queues)
     yield threads.deferToThread(api.publish, msg, "amq.topic")
 
-    _add_timeout(consumers[0].result, 10)
+    consumers[0].result.addTimeout(10, reactor)
     try:
         yield consumers[0].result
         pytest.fail("Expected an exception to be raised.")
@@ -442,7 +441,7 @@ def test_twisted_consume_connection_reset(queue_and_binding):
     # the third and wait for the consumer to finish
     yield threads.deferToThread(api.publish, msg, "amq.topic")
     yield threads.deferToThread(api.publish, msg, "amq.topic")
-    _add_timeout(two_received, 10)
+    two_received.addTimeout(10, reactor)
     try:
         yield two_received
     except (defer.TimeoutError, defer.CancelledError):
@@ -469,7 +468,7 @@ def test_twisted_consume_connection_reset(queue_and_binding):
     # The consumer should receive this third message after restarting its connection
     # and then it should exit gracefully.
     yield threads.deferToThread(api.publish, msg, "amq.topic")
-    _add_timeout(consumers[0].result, 10)
+    consumers[0].result.addTimeout(10, reactor)
     try:
         yield consumers[0].result
     except exceptions.HaltConsumer:
@@ -495,7 +494,7 @@ def test_twisted_consume_serverside_cancel(queue_and_binding):
     url = f"{HTTP_API}queues/%2F/{next(iter(queues.keys()))}"
     yield treq.delete(url, auth=HTTP_AUTH, timeout=3)
 
-    _add_timeout(consumers[0].result, 10)
+    consumers[0].result.addTimeout(10, reactor)
     try:
         yield consumers[0].result
         pytest.fail("Consumer did not errback!")
@@ -545,7 +544,7 @@ def test_no_read_permissions_queue_read_failure_pika1(admin_user, queue_and_bind
     with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
         try:
             consumers = api.twisted_consume(lambda x: x, [], queues)
-            _add_timeout(consumers, 5)
+            consumers.addTimeout(5, reactor)
             yield consumers
             pytest.fail("Call failed to raise an exception")
         except exceptions.PermissionException as e:
@@ -642,7 +641,7 @@ def test_twisted_consume_update_callback(queue_and_binding):
         lambda m: reactor.callFromThread(callback1.callback, m), bindings, queues
     )
     yield threads.deferToThread(api.publish, message.Message(), "amq.topic")
-    _add_timeout(callback1, 10)
+    callback1.addTimeout(10, reactor)
     try:
         yield callback1
     except (defer.TimeoutError, defer.CancelledError):
@@ -652,7 +651,7 @@ def test_twisted_consume_update_callback(queue_and_binding):
         lambda m: reactor.callFromThread(callback2.callback, m), bindings, queues
     )
     yield threads.deferToThread(api.publish, message.Message(), "amq.topic")
-    _add_timeout(callback2, 10)
+    callback2.addTimeout(10, reactor)
     try:
         yield callback2
     except (defer.TimeoutError, defer.CancelledError):

@@ -9,7 +9,7 @@ from unittest import mock
 
 import pytest
 import pytest_twisted
-from twisted.internet import defer, threads
+from twisted.internet import defer, reactor, threads
 
 from fedora_messaging import api, config
 from fedora_messaging.exceptions import PublishException
@@ -376,7 +376,7 @@ def test_consume_successful_halt():
         with mock.patch("fedora_messaging.api.twisted_consume") as mock_consume:
             mock_consume.return_value = defer.succeed(consumers)
             d = threads.deferToThread(api.consume, None)
-            consumer._add_timeout(d, 0.1)
+            d.addTimeout(0.1, reactor)
             yield d
     except (defer.TimeoutError, defer.CancelledError):
         pytest.fail("Expected the consume call to immediately finish, not time out")
