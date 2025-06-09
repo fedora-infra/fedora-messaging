@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import json
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pika
 import pytest
@@ -17,7 +17,7 @@ from fedora_messaging.exceptions import (
     Nack,
     PermissionException,
 )
-from fedora_messaging.twisted.consumer import _add_timeout, Consumer
+from fedora_messaging.twisted.consumer import Consumer
 
 from .utils import MockProtocol
 
@@ -457,33 +457,3 @@ class TestConsumerCallback:
         channel.basic_nack.assert_called_with(delivery_tag=0, multiple=True, requeue=True)
         assert consumer.stats.received == 1
         assert consumer.stats.failed == 1
-
-
-class TestAddTimeout:
-    """Unit tests for the _add_timeout helper function."""
-
-    def test_twisted12_timeout(self):
-        """Assert timeouts work for Twisted 12.2 (EL7)"""
-        d = defer.Deferred()
-        d.addTimeout = Mock(side_effect=AttributeError())
-        _add_timeout(d, 0.1)
-
-        d.addCallback(pytest.fail, "Expected errback to be called")
-
-        def _check_failure(failure):
-            assert isinstance(failure.value, defer.CancelledError)
-
-        d.addErrback(_check_failure)
-
-        return d
-
-    def test_twisted12_cancel_cancel_callback(self):
-        """Assert canceling the cancel call for Twisted 12.2 (EL7) works."""
-        d = defer.Deferred()
-        d.addTimeout = Mock(side_effect=AttributeError())
-        d.cancel = Mock()
-        with patch("fedora_messaging.twisted.consumer.reactor") as mock_reactor:
-            _add_timeout(d, 1)
-            delayed_cancel = mock_reactor.callLater.return_value
-            d.callback(None)
-            delayed_cancel.cancel.assert_called_once_with()

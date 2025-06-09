@@ -27,34 +27,6 @@ from .stats import ConsumerStatistics
 _std_log = logging.getLogger(__name__)
 
 
-def _add_timeout(deferred, timeout):
-    """
-    Add a timeout to the given deferred. This is designed to work with both old
-    Twisted and versions of Twisted with the addTimeout API. This is
-    exclusively to support EL7.
-
-    The deferred will errback with a :class:`defer.CancelledError` if the
-    version of Twisted being used doesn't have the
-    ``defer.Deferred.addTimeout`` API, otherwise it will errback with the
-    normal ``error.TimeoutError``
-    """
-    try:
-        deferred.addTimeout(timeout, reactor)
-    except AttributeError:
-        # Twisted 12.2 (in EL7) does not have the addTimeout API, so make do with
-        # the slightly more annoying approach of scheduling a call to cancel which
-        # is then canceled if the deferred succeeds before the timeout is up.
-        delayed_cancel = reactor.callLater(timeout, deferred.cancel)
-
-        def cancel_cancel_call(result):
-            """Halt the delayed call to cancel if the deferred fires before the timeout."""
-            if not delayed_cancel.called:
-                delayed_cancel.cancel()
-            return result
-
-        deferred.addBoth(cancel_cancel_call)
-
-
 def is_coro(func_or_obj):
     """Tests if a function is a coroutine function or a callable coroutine object."""
     # Until Python 3.10, inspect.iscoroutinefunction() will fail to identify AsyncMocks
@@ -181,7 +153,7 @@ class Consumer:
     def _read_one(self, queue_object):
         try:
             deferred_get = queue_object.get()
-            _add_timeout(deferred_get, 1)
+            deferred_get.addTimeout(1, reactor)
             channel, delivery_frame, properties, body = yield deferred_get
         except (defer.TimeoutError, defer.CancelledError):
             return

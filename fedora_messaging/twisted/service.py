@@ -169,23 +169,10 @@ def _ssl_context_factory(parameters):
         client_cert = twisted_ssl.PrivateCertificate.loadPEM(client_keypair)
 
     hostname = parameters.host
-    try:
-        context_factory = twisted_ssl.optionsForClientTLS(
-            hostname,
-            trustRoot=ca_cert or twisted_ssl.platformTrust(),
-            clientCertificate=client_cert,
-            extraCertificateOptions={"raiseMinimumTo": twisted_ssl.TLSVersion.TLSv1_2},
-        )
-    except AttributeError:
-        # Twisted 12.2 path for EL7 :(
-        context_factory = twisted_ssl.CertificateOptions(
-            certificate=client_cert.original,
-            privateKey=client_cert.privateKey.original,
-            caCerts=[ca_cert.original] or twisted_ssl.platformTrust(),
-            verify=True,
-            requireCertificate=True,
-            verifyOnce=False,
-            enableSessions=False,
-        )
-
+    context_factory = twisted_ssl.optionsForClientTLS(
+        hostname,
+        trustRoot=ca_cert or twisted_ssl.platformTrust(),
+        clientCertificate=client_cert,
+        extraCertificateOptions={"raiseMinimumTo": twisted_ssl.TLSVersion.TLSv1_2},
+    )
     return context_factory
