@@ -6,26 +6,13 @@
 Datastructures to store consumer and producer statistics.
 """
 
-
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 
+@dataclass
 class Statistics:
     """A datastructure to manager integers as attributes."""
-
-    names = []
-
-    def __init__(self):
-        for name in self.names:
-            setattr(self, name, 0)
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        if name not in self.names:
-            raise AttributeError(
-                f"{self.__class__.__name__} does not have a {name} attribute. "
-                f"Available attributes: {', '.join(sorted(self.names))}."
-            )
-        return super().__setattr__(name, value)
 
     def __add__(self, other):
         if not isinstance(other, self.__class__):
@@ -34,39 +21,28 @@ class Statistics:
                 f"{self.__class__.__name__} instances."
             )
         new_stats = self.__class__()
-        for name in self.names:
+        for name in self.as_dict():
             setattr(new_stats, name, getattr(self, name) + getattr(other, name))
         return new_stats
 
-    def as_dict(self):
-        return {name: getattr(self, name) for name in self.names}
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {self.as_dict()}>"
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
 
 
+@dataclass
 class ConsumerStatistics(Statistics):
     """Statistics for a :class:`Consumer`."""
 
-    names = (
-        "received",
-        "processed",
-        "dropped",
-        "rejected",
-        "failed",
-    )
+    received: int = 0
+    processed: int = 0
+    dropped: int = 0
+    rejected: int = 0
+    failed: int = 0
 
 
+@dataclass
 class FactoryStatistics(Statistics):
     """Statistics for a :class:`FedoraMessagingFactoryV2`."""
 
-    names = ("published", "consumed")
-
-    def __init__(self):
-        super().__init__()
-        self.consumed = ConsumerStatistics()
-
-    def as_dict(self):
-        d = super().as_dict()
-        d["consumed"] = self.consumed.as_dict()
-        return d
+    published: int = 0
+    consumed: ConsumerStatistics = field(default_factory=ConsumerStatistics)
