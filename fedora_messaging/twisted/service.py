@@ -52,19 +52,19 @@ class FedoraMessagingServiceV2(service.MultiService):
         if self._parameters.client_properties is None:
             self._parameters.client_properties = config.conf["client_properties"]
 
-        factory = FedoraMessagingFactoryV2(self._parameters, self._confirms)
+        self.factory = FedoraMessagingFactoryV2(self._parameters, self._confirms)
         if self._parameters.ssl_options:
             self._service = SSLClient(
                 host=self._parameters.host,
                 port=self._parameters.port,
-                factory=factory,
+                factory=self.factory,
                 contextFactory=_ssl_context_factory(self._parameters),
             )
         else:
             self._service = TCPClient(
-                host=self._parameters.host, port=self._parameters.port, factory=factory
+                host=self._parameters.host, port=self._parameters.port, factory=self.factory
             )
-        self._service.factory = factory
+        self._service.factory = self.factory  # for compatibility
         name = "{}{}:{}".format(
             "ssl:" if self._parameters.ssl_options else "",
             self._parameters.host,
@@ -82,17 +82,17 @@ class FedoraMessagingServiceV2(service.MultiService):
             defer.Deferred: a Deferred which is triggered when the service has
                 finished shutting down.
         """
-        self._service.factory.stopTrying()
-        yield self._service.factory.stopFactory()
+        self.factory.stopTrying()
+        yield self.factory.stopFactory()
         yield service.MultiService.stopService(self)
 
     @property
     def stats(self):
-        return self._service.factory.stats
+        return self.factory.stats
 
     @property
     def consuming(self):
-        return self._service.factory.consuming
+        return self.factory.consuming
 
 
 def _configure_tls_parameters(parameters):
