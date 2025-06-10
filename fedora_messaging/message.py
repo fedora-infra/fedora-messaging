@@ -475,7 +475,7 @@ class Message:
         topic = self.topic
         if config.conf["topic_prefix"]:
             topic = ".".join((config.conf["topic_prefix"].rstrip("."), topic))
-        return topic.encode("utf-8")
+        return topic
 
     @property
     def _encoded_body(self):

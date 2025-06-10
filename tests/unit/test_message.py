@@ -462,7 +462,7 @@ class TestMessage:
     def test_encoded_routing_key(self):
         """Assert encoded routing key is correct."""
         msg = message.Message(topic="test.topic")
-        assert msg._encoded_routing_key == b"test.topic"
+        assert msg._encoded_routing_key == "test.topic"
 
     def test_encoded_body(self):
         """Assert encoded body is correct."""
@@ -518,7 +518,7 @@ class TestMessage:
         """Assert the topic prefix is used in the encoded routing key."""
         with mock.patch.dict(message.config.conf, {"topic_prefix": "prefix"}):
             msg = message.Message(topic="test.topic")
-            assert msg._encoded_routing_key == b"prefix.test.topic"
+            assert msg._encoded_routing_key == "prefix.test.topic"
 
 
 class CustomMessage(message.Message):
