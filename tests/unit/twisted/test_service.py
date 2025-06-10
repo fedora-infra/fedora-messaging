@@ -30,7 +30,7 @@ class TestService:
         assert service._parameters.port == 4242
         assert getattr(service._parameters, "ssl", False) is False
         assert service._parameters.client_properties == config.conf["client_properties"]
-        assert isinstance(service._service.factory, FedoraMessagingFactoryV2)
+        assert isinstance(service.factory, FedoraMessagingFactoryV2)
         assert len(service.services) == 1
         assert service.services[0] is service._service
         assert service._service.parent is service
@@ -53,8 +53,8 @@ class TestService:
         service = FedoraMessagingServiceV2("amqps://")
         service._service = mock.Mock()
         service.stopService()
-        service._service.factory.stopTrying.assert_called_once()
-        service._service.factory.stopFactory.assert_called_once()
+        service.factory.stopTrying.assert_called_once()
+        service.factory.stopFactory.assert_called_once()
 
     def test_stats(self):
         service = FedoraMessagingServiceV2("amqp://")
@@ -67,7 +67,7 @@ class TestService:
         consumer._running = True
         consumer.stats.received = 42
         consumer.stats.processed = 43
-        service._service.factory._consumers.append(ConsumerRecord(consumer, None, None))
+        service.factory._consumers.append(ConsumerRecord(consumer, None, None))
         assert service.stats.as_dict() == {
             "published": 0,
             "consumed": {"received": 42, "processed": 43, "dropped": 0, "rejected": 0, "failed": 0},

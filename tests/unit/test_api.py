@@ -99,14 +99,14 @@ class TestTwistedConsume:
 
         api.twisted_consume(callback, bindings, {})
 
-        mock_service._service.factory.consume.assert_called_once_with(callback, [bindings], {})
+        mock_service.factory.consume.assert_called_once_with(callback, [bindings], {})
 
     def test_defaults(self, mock_service):
         """Assert that bindings and queues come from the config if not provided."""
 
         api.twisted_consume(self.dummy_callback)
 
-        mock_service._service.factory.consume.assert_called_once_with(
+        mock_service.factory.consume.assert_called_once_with(
             self.dummy_callback,
             config.conf["bindings"],
             config.conf["queues"],
@@ -118,7 +118,7 @@ class TestTwistedConsume:
 
         api.twisted_consume(self.dummy_callback, bindings)
 
-        mock_service._service.factory.consume.assert_called_once_with(
+        mock_service.factory.consume.assert_called_once_with(
             self.dummy_callback, [bindings], config.conf["queues"]
         )
 
@@ -133,7 +133,7 @@ class TestTwistedConsume:
 
         api.twisted_consume(self.dummy_callback, bindings)
 
-        mock_service._service.factory.consume.assert_called_once_with(
+        mock_service.factory.consume.assert_called_once_with(
             self.dummy_callback, bindings, config.conf["queues"]
         )
 
@@ -154,9 +154,7 @@ class TestTwistedConsume:
         }
 
         api.twisted_consume(self.dummy_callback, bindings=[], queues=queues)
-        mock_service._service.factory.consume.assert_called_once_with(
-            self.dummy_callback, [], queues
-        )
+        mock_service.factory.consume.assert_called_once_with(self.dummy_callback, [], queues)
 
 
 class TestConsume:
@@ -310,7 +308,7 @@ class TestTwistedPublish:
         with mock.patch("fedora_messaging.api._twisted_service") as mock_service:
             yield api.twisted_publish(message, exchange)
 
-        mock_service._service.factory.publish.assert_called_once_with(message, exchange=exchange)
+        mock_service.factory.publish.assert_called_once_with(message, exchange=exchange)
         assert self.pre_publish_signal_data == expected_pre_publish_signal_data
         assert self.publish_signal_data == expected_publish_signal_data
         assert self.publish_failed_signal_data == expected_publish_failed_signal_data
@@ -334,11 +332,11 @@ class TestTwistedPublish:
         }
 
         with mock.patch("fedora_messaging.api._twisted_service") as mock_service:
-            mock_service._service.factory.publish.side_effect = expected_exception
+            mock_service.factory.publish.side_effect = expected_exception
             with pytest.raises(type(expected_exception)):
                 yield api.twisted_publish(message, exchange=exchange)
 
-        mock_service._service.factory.publish.assert_called_once_with(message, exchange=exchange)
+        mock_service.factory.publish.assert_called_once_with(message, exchange=exchange)
         assert self.pre_publish_signal_data == expected_pre_publish_signal_data
         assert self.publish_signal_data == expected_publish_signal_data
         assert self.publish_failed_signal_data == expected_publish_failed_signal_data
@@ -350,7 +348,7 @@ class TestTwistedPublish:
         with mock.patch.dict(config.conf, {"publish_exchange": "test_public_exchange"}):
             with mock.patch("fedora_messaging.api._twisted_service") as mock_service:
                 yield api.twisted_publish(message)
-        mock_service._service.factory.publish.assert_called_once_with(
+        mock_service.factory.publish.assert_called_once_with(
             message, exchange="test_public_exchange"
         )
 

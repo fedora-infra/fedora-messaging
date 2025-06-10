@@ -157,7 +157,7 @@ def twisted_consume(callback, bindings=None, queues=None):
     callback = _check_callback(callback)
 
     _init_twisted_service()
-    return _twisted_service._service.factory.consume(callback, bindings, queues)
+    return _twisted_service.factory.consume(callback, bindings, queues)
 
 
 @crochet.run_in_reactor
@@ -268,7 +268,7 @@ def twisted_publish(message, exchange=None):
         exchange = config.conf["publish_exchange"]
     yield threads.deferToThread(pre_publish_signal.send, publish, message=message)
     try:
-        yield _twisted_service._service.factory.publish(message, exchange=exchange)
+        yield _twisted_service.factory.publish(message, exchange=exchange)
         yield threads.deferToThread(publish_signal.send, publish, message=message)
     except Exception as e:
         yield threads.deferToThread(publish_failed_signal.send, publish, message=message, reason=e)

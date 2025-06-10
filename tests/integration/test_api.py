@@ -677,7 +677,7 @@ def test_publish_channel_error(queue_and_binding):
     def delayed_publish():
         """Publish, break the channel, and publish again."""
         yield threads.deferToThread(api.publish, message.Message(), "amq.topic")
-        protocol = yield api._twisted_service._service.factory.when_connected()
+        protocol = yield api._twisted_service.factory.when_connected()
         yield protocol._publish_channel.close()
         yield threads.deferToThread(api.publish, message.Message(), "amq.topic")
 
@@ -698,7 +698,7 @@ def test_publish_channel_error(queue_and_binding):
 def test_protocol_publish_connection_error(queue_and_binding):
     """Assert individual protocols raise connection exceptions if closed."""
     api._init_twisted_service()
-    protocol = yield api._twisted_service._service.factory.when_connected()
+    protocol = yield api._twisted_service.factory.when_connected()
     yield protocol.close()
     try:
         yield protocol.publish(message.Message(), "amq.topic")
@@ -719,7 +719,7 @@ def test_protocol_publish_forbidden(admin_user):
     with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
         try:
             api._init_twisted_service()
-            protocol = yield api._twisted_service._service.factory.when_connected()
+            protocol = yield api._twisted_service.factory.when_connected()
             d = protocol.publish(message.Message(topic="not-allowed"), "amq.topic")
             d.addTimeout(5, reactor)
             yield d
@@ -751,7 +751,7 @@ def test_protocol_publish_forbidden_in_vhost(admin_user):
     with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
         try:
             api._init_twisted_service()
-            protocol = yield api._twisted_service._service.factory.when_connected()
+            protocol = yield api._twisted_service.factory.when_connected()
             d = protocol.publish(message.Message(topic="not-allowed"), "amq.topic")
             d.addTimeout(5, reactor)
             yield d
@@ -785,7 +785,7 @@ def test_publish_from_callback(queue_and_binding):
     def delayed_publish():
         """Publish, break the channel, and publish again."""
         yield threads.deferToThread(api.publish, message.Message(topic="source"), "amq.topic")
-        yield api._twisted_service._service.factory.when_connected()
+        yield api._twisted_service.factory.when_connected()
 
     reactor.callLater(5, delayed_publish)
 
@@ -868,4 +868,4 @@ def test_pub_timeout(bad_amqp_url):
         if not isinstance(e, exceptions.PublishTimeout):
             pytest.fail(f"Expected a timeout exception, not {e}")
     # Ensure the deferred has been renewed
-    assert api._twisted_service._service.factory.when_connected().called is False
+    assert api._twisted_service.factory.when_connected().called is False
