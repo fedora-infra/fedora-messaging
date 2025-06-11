@@ -707,6 +707,16 @@ class TestClassRegistry:
             with pytest.raises(TypeError):
                 message.get_name("this.is.not.an.entrypoint")
 
-    def test_get_distribution_from_module(self):
+    @pytest.mark.parametrize(
+        ("module", "result"),
+        (
+            ("", None),
+            ("does.not.exist", None),
+            ("fedora-messaging", "fedora_messaging"),
+            ("fedora_messaging", "fedora_messaging"),
+            ("fedora-messaging.message", "fedora_messaging"),
+        ),
+    )
+    def test_get_distribution_from_module(self, module, result):
         """Assert getting the distribution from a non-existing module does not crash."""
-        assert message._get_distribution_from_module("does.not.exist") is None
+        assert message._get_distribution_from_module(module) == result
