@@ -5,8 +5,12 @@
 import asyncio
 import logging
 import uuid
+from collections.abc import Coroutine, Generator
+from typing import Any, Callable, cast, Optional, TYPE_CHECKING, Union
 
 import pika
+import pika.exceptions
+from pika.adapters.twisted_connection import ClosableDeferredQueue, TwistedChannel
 from twisted.internet import defer, error, reactor, threads
 from twisted.python.failure import Failure
 
@@ -24,16 +28,24 @@ from ..message import get_message
 from .stats import ConsumerStatistics
 
 
+if TYPE_CHECKING:
+    import pika.frame
+    from typing_extensions import TypeGuard
+
+    from .protocol import FedoraMessagingProtocolV2
+
 _std_log = logging.getLogger(__name__)
 
 
-def is_coro(func_or_obj):
+def is_coro(
+    func_or_obj: config.CallbackType,
+) -> "TypeGuard[Callable[..., Coroutine[Any, Any, Any]]]":
     """Tests if a function is a coroutine function or a callable coroutine object."""
     # Until Python 3.10, inspect.iscoroutinefunction() will fail to identify AsyncMocks
     # as coroutines: https://github.com/python/cpython/issues/84753
     # Use asyncio.iscoroutinefunction() instead.
     return asyncio.iscoroutinefunction(func_or_obj) or (
-        callable(func_or_obj) and asyncio.iscoroutinefunction(func_or_obj.__call__)
+        callable(func_or_obj) and asyncio.iscoroutinefunction(func_or_obj.__call__)  # type: ignore
     )
 
 
@@ -45,12 +57,11 @@ class Consumer:
     Attributes:
         queue (str): The AMQP queue this consumer is subscribed to.
         callback (callable): The callback to run when a message arrives.
-        result (twisted.internet.defer.Deferred):
+        result (twisted.internet.defer.Deferred[Consumer]):
             A deferred that runs the callbacks if the consumer exits gracefully
             after being canceled by a call to :meth:`Consumer.cancel` and
             errbacks if the consumer stops for any other reason. The reasons a
-            consumer could stop are: a
-            :class:`fedora_messaging.exceptions.PermissionExecption` if the
+            consumer could stop are: a :class:`.PermissionException` if the
             consumer does not have permissions to read from the queue it is
             subscribed to, a :class:`.HaltConsumer` is raised by the consumer
             indicating it wishes to halt, an unexpected :class:`Exception` is
@@ -59,27 +70,27 @@ class Consumer:
             if the node the queue lives on fails.
     """
 
-    def __init__(self, queue=None, callback=None):
+    def __init__(self, queue: Optional[str] = None, callback: Optional[config.CallbackType] = None):
         self.queue = queue
         self.callback = callback
-        self.result = defer.Deferred()
+        self.result: defer.Deferred[Consumer] = defer.Deferred()
 
         # The current channel used by this consumer.
-        self._channel = None
+        self._channel: Optional[TwistedChannel] = None
         # The unique ID for the AMQP consumer.
         self._tag = str(uuid.uuid4())
         # Used in the consumer read loop to know when it's being canceled.
         self._running = False
         # The current read loop
-        self._read_loop = None
+        self._read_loop = defer.succeed(None)
         # The protocol that currently runs this consumer, used when cancel is
         # called to remove itself from the protocol and its factory so it doesn't
         # restart on the next connection.
-        self._protocol = None
+        self._protocol: Union[FedoraMessagingProtocolV2, None] = None
         # Message statistics
         self.stats = ConsumerStatistics()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Consumer(queue={self.queue}, callback={self.callback})"
 
     @property
@@ -88,12 +99,17 @@ class Consumer:
         return self._running
 
     @defer.inlineCallbacks
-    def consume(self):
+    def consume(self) -> Generator[defer.Deferred[Any], Any]:
+        if self._channel is None:
+            raise RuntimeError("No channel, open one first")
+        if self.queue is None:
+            raise RuntimeError("No queue name defined")
         yield self._channel.basic_qos(
             prefetch_count=config.conf["qos"]["prefetch_count"],
             prefetch_size=config.conf["qos"]["prefetch_size"],
         )
         try:
+            queue_object: ClosableDeferredQueue
             queue_object, _ = yield self._channel.basic_consume(
                 queue=self.queue, consumer_tag=self._tag
             )
@@ -104,18 +120,12 @@ class Consumer:
                 ) from exc
             else:
                 raise ConnectionException(reason=exc) from exc
-
-        try:
-            self._channel.add_on_cancel_callback(self._on_cancel_callback)
-        except AttributeError:
-            pass  # pika 1.0.0+
-
         self._running = True
         self._read_loop = self._read(queue_object)
         self._read_loop.addErrback(self._read_loop_errback)
 
     @defer.inlineCallbacks
-    def _read(self, queue_object):
+    def _read(self, queue_object: ClosableDeferredQueue) -> Generator[defer.Deferred[None]]:
         """
         The loop that reads from the message queue and calls the callback
         wrapper.
@@ -143,17 +153,22 @@ class Consumer:
         to periodically check the status of ``self._running``. That's why
         there's a short timeout on the call to ``queue_object.get``.
 
-        queue_object (pika.adapters.twisted_connection.ClosableDeferredQueue):
-            The AMQP queue the consumer is bound to.
+        Args:
+            queue_object: The AMQP queue the consumer is bound to.
         """
         while self._running:
             yield self._read_one(queue_object)
 
     @defer.inlineCallbacks
-    def _read_one(self, queue_object):
+    def _read_one(self, queue_object: ClosableDeferredQueue) -> Generator[
+        defer.Deferred[None],
+        tuple[TwistedChannel, pika.spec.Basic.Deliver, pika.BasicProperties, bytes],
+        None,
+    ]:
         try:
             deferred_get = queue_object.get()
-            deferred_get.addTimeout(1, reactor)
+            # Type ignored because of https://github.com/twisted/twisted/issues/9909
+            deferred_get.addTimeout(1, reactor)  # type: ignore
             channel, delivery_frame, properties, body = yield deferred_get
         except (defer.TimeoutError, defer.CancelledError):
             return
@@ -164,14 +179,15 @@ class Consumer:
             self._tag,
         )
         try:
-            message = get_message(delivery_frame.routing_key, properties, body)
+            topic: str = delivery_frame.routing_key or ""
+            message = get_message(topic, properties, body)
             message.queue = self.queue
         except ValidationError:
             _std_log.warning(
                 "Message id %s did not pass validation; ignoring message",
                 properties.message_id,
             )
-            yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=False)
+            channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=False)
             return
 
         self.stats.received += 1
@@ -182,31 +198,31 @@ class Consumer:
                 message.topic,
                 properties.message_id,
             )
-            if is_coro(self.callback):
+            if self.callback is not None and is_coro(self.callback):
                 d = defer.Deferred.fromFuture(asyncio.ensure_future(self.callback(message)))
             else:
                 d = threads.deferToThread(self.callback, message)
             yield d
         except Nack:
             _std_log.warning("Returning message id %s to the queue", properties.message_id)
-            yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=True)
+            channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=True)
             self.stats.rejected += 1
         except Drop:
             _std_log.warning("Consumer requested message id %s be dropped", properties.message_id)
-            yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=False)
+            channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=False)
             self.stats.dropped += 1
         except HaltConsumer as e:
             _std_log.info("Consumer indicated it wishes consumption to halt, shutting down")
             if e.requeue:
-                yield channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=True)
+                channel.basic_nack(delivery_tag=delivery_frame.delivery_tag, requeue=True)
                 self.stats.rejected += 1
             else:
-                yield channel.basic_ack(delivery_tag=delivery_frame.delivery_tag)
+                channel.basic_ack(delivery_tag=delivery_frame.delivery_tag or 0)
                 self.stats.processed += 1
             raise e
         except Exception as e:
             _std_log.exception("Received unexpected exception from consumer %r", self)
-            yield channel.basic_nack(delivery_tag=0, multiple=True, requeue=True)
+            channel.basic_nack(delivery_tag=0, multiple=True, requeue=True)
             self.stats.failed += 1
             raise e
         else:
@@ -215,10 +231,10 @@ class Consumer:
                 message.topic,
                 properties.message_id,
             )
-            yield channel.basic_ack(delivery_tag=delivery_frame.delivery_tag)
+            channel.basic_ack(delivery_tag=delivery_frame.delivery_tag or 0)
             self.stats.processed += 1
 
-    def _on_cancel_callback(self, frame):
+    def _on_cancel_callback(self, frame: Optional["pika.frame.Method"]) -> None:
         """
         Called when the consumer is canceled server-side.
 
@@ -228,17 +244,16 @@ class Consumer:
         :func:`fedora_messaging.api.consume` can decide what to do.
 
         Args:
-            frame (pika.frame.Method): The cancel method from the server,
-                unused here because we already know what consumer is being
-                canceled.
+            frame: The cancel method from the server, unused here because we already know what
+                consumer is being canceled.
         """
         _std_log.error("%r was canceled by the AMQP broker!", self)
-
-        self._protocol._forget_consumer(self.queue)
+        if self._protocol is not None:
+            self._protocol._forget_consumer(self.queue)
         self._running = False
         self.result.errback(fail=ConsumerCanceled())
 
-    def _read_loop_errback(self, failure):
+    def _read_loop_errback(self, failure: Failure) -> None:
         """
         Handle errors coming out of the read loop.
 
@@ -249,16 +264,15 @@ class Consumer:
         administrator).
 
         Args:
-            failure (twisted.python.failure.Failure): The exception raised by
-                the read loop encapsulated in a Failure.
+            failure: The exception raised by the read loop encapsulated in a Failure.
         """
-        exc = failure.value
         if failure.check(pika.exceptions.ConsumerCancelled):
             # Pika 1.0.0+ raises this exception. To support previous versions
             # we register a callback (called below) ourselves with the channel.
             self._on_cancel_callback(None)
         elif failure.check(pika.exceptions.ChannelClosed):
-            if exc.args[0] == 403:
+            failure.value = cast(pika.exceptions.ChannelClosed, failure.value)
+            if failure.value.args[0] == 403:
                 # This is a mis-configuration, the consumer can register itself,
                 # but it doesn't have permissions to read from the queue,
                 # so no amount of restarting will help.
@@ -278,7 +292,7 @@ class Consumer:
             _std_log.warning(
                 "The connection to the broker was lost (%r), consumer halted; "
                 "the connection should restart and consuming will resume.",
-                exc,
+                failure.value,
             )
         elif failure.check(pika.exceptions.AMQPError):
             _std_log.exception(
@@ -290,17 +304,18 @@ class Consumer:
             self.cancel()
 
     @defer.inlineCallbacks
-    def cancel(self):
+    def cancel(self) -> Generator[defer.Deferred[Any], Any]:
         """
         Cancel the consumer and clean up resources associated with it.
         Consumers that are canceled are allowed to finish processing any
         messages before halting.
 
         Returns:
-            defer.Deferred: A deferred that fires when the consumer has finished
-            processing any message it was in the middle of and has been successfully
-            canceled.
+            A deferred that fires when the consumer has finished processing any message it was
+            in the middle of and has been successfully canceled.
         """
+        if self._protocol is None or self._channel is None:
+            return
         # Remove it from protocol and factory so it doesn't restart later.
         try:
             self._protocol._forget_consumer(self.queue)
@@ -312,13 +327,19 @@ class Consumer:
         self._running = False
         yield self._read_loop
         try:
-            yield self._channel.basic_cancel(consumer_tag=self._tag)
+            # TODO: bug in types-pika
+            yield cast(
+                defer.Deferred["pika.frame.Method[pika.spec.Basic.CancelOk]"],
+                self._channel.basic_cancel(consumer_tag=self._tag),
+            )
         except pika.exceptions.AMQPChannelError:
             # Consumers are tied to channels, so if this channel is dead the
             # consumer should already be canceled (and we can't get to it anyway)
             pass
         try:
-            yield self._channel.close()
+            # TODO: bug in pika, TwistedChannel.close() should return a Deferred
+            # (TwistedChannel.on_closed)
+            yield defer.maybeDeferred(self._channel.close)
         except pika.exceptions.AMQPChannelError:
             pass
         if not self.result.called:

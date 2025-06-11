@@ -6,9 +6,11 @@
 
 import inspect
 import logging
+from collections.abc import Generator
+from typing import Any, cast, Optional, Union
 
 import crochet
-from twisted.internet import defer, reactor, threads
+from twisted.internet import defer, interfaces, reactor, threads
 
 from . import config, exceptions
 from .message import (
@@ -41,14 +43,15 @@ __all__ = (
     "twisted_consume",
 )
 
+
 # The Twisted service that consumers are registered with.
-_twisted_service = None
+_twisted_service: Union[service.FedoraMessagingServiceV2, None] = None
 
 
-def _init_twisted_service():
+def _init_twisted_service() -> service.FedoraMessagingServiceV2:
     global _twisted_service
     if _twisted_service is not None:
-        return
+        return _twisted_service
 
     _twisted_service = service.FedoraMessagingServiceV2(config.conf["amqp_url"])
     if config.conf["monitoring"]:
@@ -58,19 +61,24 @@ def _init_twisted_service():
             port=config.conf["monitoring"]["port"],
         )
 
-    reactor.callWhenRunning(_twisted_service.startService)
+    # https://github.com/twisted/twisted/issues/9909
+    cast(interfaces.IReactorCore, reactor).callWhenRunning(_twisted_service.startService)
     # Twisted is killing the underlying connection before stopService gets
     # called, so we need to add it as a pre-shutdown event to gracefully
     # finish up messages in progress.
-    reactor.addSystemEventTrigger("before", "shutdown", _twisted_service.stopService)
+    cast(interfaces.IReactorCore, reactor).addSystemEventTrigger(
+        phase="before", eventType="shutdown", callable=_twisted_service.stopService
+    )
+
+    return _twisted_service
 
 
-def _check_callback(callback):
+def _check_callback(callback: Union[type[object], config.CallbackType]) -> config.CallbackType:
     """
     Turns a callback that is potentially a class into a callable object.
 
     Args:
-        callback (object): An object that might be a class, method, or function.
+        callback: An object that might be a class, method, or function.
         if the object is a class, this creates an instance of it.
 
     Raises:
@@ -78,10 +86,10 @@ def _check_callback(callback):
         TypeError: If the class requires arguments to be instantiated.
 
     Returns:
-        callable: A callable object suitable for use as the consumer callback.
+        A callable object suitable for use as the consumer callback.
     """
-    # If the callback is a class, create an instance of it first
     if inspect.isclass(callback):
+        # If the callback is a class, create an instance of it first
         callback_object = callback()
         if not callable(callback_object):
             raise ValueError("Callback must be a class that implements __call__ or a function.")
@@ -90,10 +98,14 @@ def _check_callback(callback):
     else:
         raise ValueError("Callback must be a class that implements __call__ or a function.")
 
-    return callback_object
+    return cast(config.CallbackType, callback_object)
 
 
-def twisted_consume(callback, bindings=None, queues=None):
+def twisted_consume(
+    callback: config.CallbackType,
+    bindings: Optional[config.BindingsType] = None,
+    queues: Optional[dict[str, config.QueueConfig]] = None,
+) -> defer.Deferred[list[Consumer]]:
     """
     Start a consumer using the provided callback and run it using the Twisted
     event loop (reactor).
@@ -107,12 +119,12 @@ def twisted_consume(callback, bindings=None, queues=None):
     This API expects the caller to start the reactor.
 
     Args:
-        callback (callable): A callable object that accepts one positional argument,
+        callback: A callable object that accepts one positional argument,
             a :class:`.Message` or a class object that implements the ``__call__``
             method. The class will be instantiated before use.
-        bindings (dict or list of dict): Bindings to declare before consuming. This
+        bindings: Bindings to declare before consuming. This
             should be the same format as the :ref:`conf-bindings` configuration.
-        queues (dict): The queue to declare and consume from. Each key in this
+        queues: The queue to declare and consume from. Each key in this
             dictionary should be a queue name to declare, and each value should
             be a dictionary with the "durable", "auto_delete", "exclusive", and
             "arguments" keys.
@@ -121,25 +133,24 @@ def twisted_consume(callback, bindings=None, queues=None):
         ValueError: If the callback, bindings, or queues are invalid.
 
     Returns:
-        twisted.internet.defer.Deferred:
-            A deferred that fires with the list of one or more
-            :class:`.Consumer` objects. Each consumer object has a
-            :attr:`.Consumer.result` instance variable that is a Deferred that
-            fires or errors when the consumer halts. Note that this API is
-            meant to survive network problems, so consuming will continue until
-            :meth:`.Consumer.cancel` is called or a fatal server error occurs.
-            The deferred returned by this function may error back with a
-            :class:`fedora_messaging.exceptions.BadDeclaration` if queues or
-            bindings cannot be declared on the broker, a
-            :class:`fedora_messaging.exceptions.PermissionException` if the user
-            doesn't have access to the queue, or
-            :class:`fedora_messaging.exceptions.ConnectionException` if the TLS
-            or AMQP handshake fails.
+        A deferred that fires with the list of one or more
+        :class:`.Consumer` objects. Each consumer object has a
+        :attr:`.Consumer.result` instance variable that is a Deferred that
+        fires or errors when the consumer halts. Note that this API is
+        meant to survive network problems, so consuming will continue until
+        :meth:`.Consumer.cancel` is called or a fatal server error occurs.
+        The deferred returned by this function may error back with a
+        :class:`fedora_messaging.exceptions.BadDeclaration` if queues or
+        bindings cannot be declared on the broker, a
+        :class:`fedora_messaging.exceptions.PermissionException` if the user
+        doesn't have access to the queue, or
+        :class:`fedora_messaging.exceptions.ConnectionException` if the TLS
+        or AMQP handshake fails.
     """
     if isinstance(bindings, dict):
         bindings = [bindings]
     if bindings is None:
-        bindings = config.conf["bindings"]
+        bindings = cast(config.BindingConfig, config.conf["bindings"] or [])
     else:
         try:
             config.validate_bindings(bindings)
@@ -147,7 +158,7 @@ def twisted_consume(callback, bindings=None, queues=None):
             raise ValueError(e.message) from e
 
     if queues is None:
-        queues = config.conf["queues"]
+        queues = cast(dict[str, config.QueueConfig], config.conf["queues"])
     else:
         try:
             config.validate_queues(queues)
@@ -156,21 +167,25 @@ def twisted_consume(callback, bindings=None, queues=None):
 
     callback = _check_callback(callback)
 
-    _init_twisted_service()
+    _twisted_service = _init_twisted_service()
     return _twisted_service.factory.consume(callback, bindings, queues)
 
 
 @crochet.run_in_reactor
 @defer.inlineCallbacks
-def _twisted_consume_wrapper(callback, bindings, queues):
+def _twisted_consume_wrapper(
+    callback: config.CallbackType,
+    bindings: Optional[config.BindingsType],
+    queues: Optional[dict[str, config.QueueConfig]],
+) -> Generator[defer.Deferred[Any], Any, list[Consumer]]:
     """
     Wrap the :func:`twisted_consume` function for a synchronous API.
 
     Returns:
-        defer.Deferred: Fires with the consumers once all consumers have halted
+        Fires with the consumers once all consumers have halted
             or a consumer encounters an error.
     """
-    consumers = yield twisted_consume(callback, bindings=bindings, queues=queues)
+    consumers: list[Consumer] = yield twisted_consume(callback, bindings=bindings, queues=queues)
     try:
         yield defer.gatherResults([c.result for c in consumers])
     except defer.FirstError as e:
@@ -178,7 +193,11 @@ def _twisted_consume_wrapper(callback, bindings, queues):
     defer.returnValue(consumers)
 
 
-def consume(callback, bindings=None, queues=None):
+def consume(
+    callback: config.CallbackType,
+    bindings: Optional[config.BindingsType] = None,
+    queues: Optional[dict[str, config.QueueConfig]] = None,
+) -> None:
     """
     Start a message consumer that executes the provided callback when messages are
     received.
@@ -213,12 +232,12 @@ def consume(callback, bindings=None, queues=None):
     documentation.
 
     Args:
-        callback (callable): A callable object that accepts one positional argument,
+        callback: A callable object that accepts one positional argument,
             a :class:`Message` or a class object that implements the ``__call__``
             method. The class will be instantiated before use.
-        bindings (dict or list of dict): Bindings to declare before consuming. This
+        bindings: Bindings to declare before consuming. This
             should be the same format as the :ref:`conf-bindings` configuration.
-        queues (dict): The queue or queues to declare and consume from. This should be
+        queues: The queue or queues to declare and consume from. This should be
             in the same format as the :ref:`conf-queues` configuration dictionary where
             each key is a queue name and each value is a dictionary of settings for that
             queue.
@@ -244,15 +263,21 @@ def consume(callback, bindings=None, queues=None):
         raise
     except Exception:
         # https://crochet.readthedocs.io/en/stable/workarounds.html#missing-tracebacks
-        _log.error(
-            "Consuming raised an unexpected error, please report a bug:\n%s",
-            eventual_result.original_failure().getTraceback(),
-        )
+        failure = eventual_result.original_failure()
+        if failure is not None:
+            _log.error(
+                "Consuming raised an unexpected error, please report a bug:\n%s",
+                failure.getTraceback(),
+            )
+        else:  # pragma: no cover
+            _log.exception("Unexpected exception type")
         raise
 
 
 @defer.inlineCallbacks
-def twisted_publish(message, exchange=None):
+def twisted_publish(
+    message: Message, exchange: Optional[str] = None
+) -> Generator[defer.Deferred[None]]:
     """
     Publish messages via Twisted.
 
@@ -261,11 +286,13 @@ def twisted_publish(message, exchange=None):
     https://twisted.org/documents/16.3.0/core/howto/threading.html#invoking-twisted-from-other-threads
 
     Returns:
-        defer.Deferred: A deferred that fires when a message has been published
+        A deferred that fires when a message has been published
             and confirmed by the broker.
     """
+    if _twisted_service is None:
+        raise RuntimeError("You must first initialize the Twisted service")
     if exchange is None:
-        exchange = config.conf["publish_exchange"]
+        exchange = cast(str, config.conf["publish_exchange"])
     yield threads.deferToThread(pre_publish_signal.send, publish, message=message)
     try:
         yield _twisted_service.factory.publish(message, exchange=exchange)
@@ -277,12 +304,14 @@ def twisted_publish(message, exchange=None):
 
 @crochet.run_in_reactor
 @defer.inlineCallbacks
-def _twisted_publish_wrapper(message, exchange):
+def _twisted_publish_wrapper(
+    message: Message, exchange: Optional[str]
+) -> Generator[defer.Deferred[None]]:
     """
     Wrapper to provide a synchronous API for publishing messages via Twisted.
 
     Returns:
-        defer.Deferred: A deferred that fires when a message has been published
+        A deferred that fires when a message has been published
             and confirmed by the broker.
     """
     _init_twisted_service()
@@ -292,7 +321,7 @@ def _twisted_publish_wrapper(message, exchange):
         _log.debug("Canceled publish of %r to %s due to timeout", message, exchange)
 
 
-def publish(message, exchange=None, timeout=30):
+def publish(message: Message, exchange: Optional[str] = None, timeout: int = 30) -> None:
     """
     Publish a message to an exchange.
 
@@ -315,10 +344,10 @@ def publish(message, exchange=None, timeout=30):
     :class:`pika.connection.URLParameters` for details.
 
     Args:
-        message (message.Message): The message to publish.
-        exchange (str): The name of the AMQP exchange to publish to; defaults to
+        message: The message to publish.
+        exchange: The name of the AMQP exchange to publish to; defaults to
             :ref:`conf-publish-exchange`
-        timeout (int): The maximum time in seconds to wait before giving up attempting
+        timeout: The maximum time in seconds to wait before giving up attempting
             to publish the message. If the timeout is reached, a PublishTimeout exception
             is raised.
 
@@ -345,5 +374,9 @@ def publish(message, exchange=None, timeout=30):
         )
         raise wrapper from e
     except Exception:
-        _log.error(eventual_result.original_failure().getTraceback())
+        failure = eventual_result.original_failure()
+        if failure is not None:
+            _log.error(failure.getTraceback())
+        else:  # pragma: no cover
+            _log.exception("Unexpected exception type")
         raise

@@ -8,27 +8,34 @@ the Python API of your message schemas.
 """
 
 import collections
+from collections.abc import Mapping
 from hashlib import sha256
+from typing import Optional
 from urllib import parse
 
 
-def user_avatar_url(username, size=64, default="retro"):
+def user_avatar_url(username: str, size: int = 64, default: str = "retro") -> str:
     """Get the avatar URL of the provided Fedora username.
 
     The URL is returned from the Libravatar service.
 
     Args:
-        username (str): The username to get the avatar of.
-        size (int): Size of the avatar in pixels (it's a square).
-        default (str): Default avatar to return if not found.
+        username: The username to get the avatar of.
+        size: Size of the avatar in pixels (it's a square).
+        default: Default avatar to return if not found.
     Returns:
-        str: The URL to the avatar image.
+        The URL to the avatar image.
     """
     openid = f"http://{username}.id.fedoraproject.org/"
     return libravatar_url(openid=openid, size=size, default=default)
 
 
-def libravatar_url(email=None, openid=None, size=64, default="retro"):
+def libravatar_url(
+    email: Optional[str] = None,
+    openid: Optional[str] = None,
+    size: int = 64,
+    default: str = "retro",
+) -> str:
     """Get the URL to an avatar from libravatar.
 
     Either the user's email or openid must be provided.
@@ -38,18 +45,18 @@ def libravatar_url(email=None, openid=None, size=64, default="retro"):
     ``libravatar.libravatar_url()`` function.
 
     Args:
-        email (str): The user's email
-        openid (str): The user's OpenID
-        size (int): Size of the avatar in pixels (it's a square).
-        default (str): Default avatar to return if not found.
+        email: The user's email
+        openid: The user's OpenID
+        size: Size of the avatar in pixels (it's a square).
+        default: Default avatar to return if not found.
     Returns:
-        str: The URL to the avatar image.
+        The URL to the avatar image.
     Raises:
         ValueError: If neither email nor openid are provided.
     """
     # We use an OrderedDict here to make testing easier (URL strings become
     # predictable).
-    params = collections.OrderedDict([("s", size), ("d", default)])
+    params: Mapping[str, object] = collections.OrderedDict([("s", size), ("d", default)])
     query = parse.urlencode(params)
     if email:
         value = email

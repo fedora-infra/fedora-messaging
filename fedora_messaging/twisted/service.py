@@ -15,6 +15,8 @@ See https://twistedmatrix.com/documents/current/core/howto/application.html
 
 import logging
 import ssl
+from collections.abc import Generator
+from typing import Any, cast, Optional, TYPE_CHECKING, Union
 
 import pika
 from pika import SSLOptions
@@ -27,6 +29,12 @@ from .. import config, exceptions
 from .factory import FedoraMessagingFactoryV2
 
 
+if TYPE_CHECKING:
+    from twisted.internet._sslverify import ClientTLSOptions
+
+    from .stats import FactoryStatistics
+
+
 _log = logging.getLogger(__name__)
 
 
@@ -35,17 +43,19 @@ class FedoraMessagingServiceV2(service.MultiService):
     A Twisted service to connect to the Fedora Messaging broker.
 
     Args:
-        amqp_url (str): URL to use for the AMQP server.
-        publish_confirms (bool): If true, use the RabbitMQ publisher confirms
+        amqp_url: URL to use for the AMQP server.
+        publish_confirms: If true, use the RabbitMQ publisher confirms
             AMQP extension.
     """
 
-    name = "fedora-messaging-servicev2"
+    # TODO: bug in twisted: this can be a string (currently untyped and defaults to None)
+    name: str = "fedora-messaging-servicev2"  # type: ignore
 
-    def __init__(self, amqp_url=None, publish_confirms=True):
+    def __init__(self, amqp_url: Optional[str] = None, publish_confirms: bool = True):
         """Initialize the service."""
         service.MultiService.__init__(self)
-        self._parameters = pika.URLParameters(amqp_url or config.conf["amqp_url"])
+        amqp_url = amqp_url or cast(str, config.conf["amqp_url"])
+        self._parameters = pika.URLParameters(amqp_url)
         self._confirms = publish_confirms
         if amqp_url.startswith("amqps"):
             _configure_tls_parameters(self._parameters)
@@ -53,6 +63,7 @@ class FedoraMessagingServiceV2(service.MultiService):
             self._parameters.client_properties = config.conf["client_properties"]
 
         self.factory = FedoraMessagingFactoryV2(self._parameters, self._confirms)
+        self._service: Union[SSLClient, TCPClient]
         if self._parameters.ssl_options:
             self._service = SSLClient(
                 host=self._parameters.host,
@@ -64,7 +75,8 @@ class FedoraMessagingServiceV2(service.MultiService):
             self._service = TCPClient(
                 host=self._parameters.host, port=self._parameters.port, factory=self.factory
             )
-        self._service.factory = self.factory  # for compatibility
+        # There's self.factory now, but keep this for compatibility
+        self._service.factory = self.factory  # type: ignore
         name = "{}{}:{}".format(
             "ssl:" if self._parameters.ssl_options else "",
             self._parameters.host,
@@ -74,28 +86,32 @@ class FedoraMessagingServiceV2(service.MultiService):
         self._service.setServiceParent(self)
 
     @defer.inlineCallbacks
-    def stopService(self):
+    def stopService(  # pyright: ignore [reportIncompatibleMethodOverride]
+        self,
+    ) -> Generator[defer.Deferred[Any], None, defer.Deferred[Any]]:
         """
         Gracefully stop the service.
 
         Returns:
-            defer.Deferred: a Deferred which is triggered when the service has
-                finished shutting down.
+            a Deferred which is triggered when the service has finished shutting down.
         """
         self.factory.stopTrying()
         yield self.factory.stopFactory()
-        yield service.MultiService.stopService(self)
+        result = yield service.MultiService.stopService(self)
+        defer.returnValue(result)
 
     @property
-    def stats(self):
+    def stats(self) -> "FactoryStatistics":
+        """The statistics for this service."""
         return self.factory.stats
 
     @property
-    def consuming(self):
+    def consuming(self) -> bool:
+        """Whether the service is currently consuming messages."""
         return self.factory.consuming
 
 
-def _configure_tls_parameters(parameters):
+def _configure_tls_parameters(parameters: pika.connection.Parameters) -> None:
     """
     Configure the pika connection parameters for TLS based on the configuration.
 
@@ -104,8 +120,7 @@ def _configure_tls_parameters(parameters):
     pika.
 
     Args:
-        parameters (pika.ConnectionParameters): The connection parameters to apply
-            TLS connection settings to.
+        parameters: The connection parameters to apply TLS connection settings to.
     """
     cert = config.conf["tls"]["certfile"]
     key = config.conf["tls"]["keyfile"]
@@ -139,14 +154,13 @@ def _configure_tls_parameters(parameters):
     parameters.ssl_options = SSLOptions(ssl_context, server_hostname=parameters.host)
 
 
-def _ssl_context_factory(parameters):
+def _ssl_context_factory(parameters: pika.connection.Parameters) -> "ClientTLSOptions":
     """
     Produce a Twisted SSL context object from a pika connection parameter object.
     This is necessary as Twisted manages the connection, not Pika.
 
     Args:
-        parameters (pika.ConnectionParameters): The connection parameters built
-            from the fedora_messaging configuration.
+        parameters: The connection parameters built from the fedora_messaging configuration.
     """
     client_cert = None
     ca_cert = None
@@ -169,7 +183,7 @@ def _ssl_context_factory(parameters):
         client_cert = twisted_ssl.PrivateCertificate.loadPEM(client_keypair)
 
     hostname = parameters.host
-    context_factory = twisted_ssl.optionsForClientTLS(
+    context_factory: ClientTLSOptions = twisted_ssl.optionsForClientTLS(
         hostname,
         trustRoot=ca_cert or twisted_ssl.platformTrust(),
         clientCertificate=client_cert,

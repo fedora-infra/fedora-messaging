@@ -4,7 +4,11 @@
 
 """Exceptions raised by Fedora Messaging."""
 
+from typing import Any, Optional, Union
+
 import jsonschema
+import jsonschema.exceptions
+from pika.exceptions import AMQPError
 
 
 class BaseException(Exception):
@@ -20,23 +24,28 @@ class PermissionException(BaseException):
     Generic permissions exception.
 
     Args:
-        obj_type (str): The type of object being accessed that caused the
+        obj_type: The type of object being accessed that caused the
             permission error. May be None if the cause is unknown.
-        description (object): The description of the object, if any. May be None.
-        reason (str): The reason the server gave for the permission error, if
+        description: The description of the object, if any. May be None.
+        reason: The reason the server gave for the permission error, if
             any. If no reason is supplied by the server, this should be the best
             guess for what caused the error.
     """
 
-    def __init__(self, obj_type=None, description=None, reason=None):
+    def __init__(
+        self,
+        obj_type: Optional[str] = None,
+        description: Optional[object] = None,
+        reason: Optional[Union[str, AMQPError]] = None,
+    ):
         self.obj_type = obj_type
         self.description = description
         self.reason = reason
 
-    def __str__(self):
-        return self.description
+    def __str__(self) -> str:
+        return str(self.description)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"PermissionException(obj_type={self.obj_type}, description={self.description}, "
             f"reason={self.reason})"
@@ -48,19 +57,19 @@ class BadDeclaration(PermissionException):
     Raised when declaring an object in AMQP fails.
 
     Args:
-        obj_type (str): The type of object being declared. One of "binding",
+        obj_type: The type of object being declared. One of "binding",
             "queue", or "exchange".
-        description (dict): The description of the object.
-        reason (str): The reason the server gave for rejecting the declaration.
+        description: The description of the object.
+        reason: The reason the server gave for rejecting the declaration.
     """
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"Unable to declare the {self.obj_type} object ({self.description}) "
             f"because {self.reason}"
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"BadDeclaration(obj_type={self.obj_type}, description={self.description}, "
             f"reason={self.reason})"
@@ -72,25 +81,25 @@ class ConfigurationException(BaseException):
     Raised when there's an invalid configuration setting
 
     Args:
-        message (str): A detailed description of the configuration problem
+        message: A detailed description of the configuration problem
                        which is presented to the user.
     """
 
-    def __init__(self, message):
+    def __init__(self, message: str):
         self.message = message
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "Configuration error: " + self.message
 
 
 class PublishException(BaseException):
     """Base class for exceptions related to publishing."""
 
-    def __init__(self, reason=None, **kwargs):
+    def __init__(self, reason: Optional[Union[AMQPError, str]] = None, **kwargs: Any):
         super().__init__(**kwargs)
         self.reason = reason
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.reason)
 
 
@@ -129,7 +138,7 @@ class ConnectionException(BaseException):
     message.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args)
         self.reason = kwargs.get("reason")
 
@@ -167,12 +176,18 @@ class HaltConsumer(ConsumeException):
     be shut down.
 
     Args:
-        exit_code (int): The exit code to use when halting.
-        reason (str): A reason for halting, presented to the user.
-        requeue (bool): If true, the message is re-queued for later processing.
+        exit_code: The exit code to use when halting.
+        reason: A reason for halting, presented to the user.
+        requeue: If true, the message is re-queued for later processing.
     """
 
-    def __init__(self, exit_code=0, reason=None, requeue=False, **kwargs):
+    def __init__(
+        self,
+        exit_code: int = 0,
+        reason: Optional[str] = None,
+        requeue: bool = False,
+        **kwargs: Any,
+    ):
         super().__init__(**kwargs)
         self.exit_code = exit_code
         self.reason = reason
@@ -190,7 +205,7 @@ class ValidationError(BaseException):
     """
 
     @property
-    def summary(self):
+    def summary(self) -> str:
         """A short summary of the error."""
         original_exception = self.args[0]
         if isinstance(original_exception, jsonschema.exceptions.ValidationError):

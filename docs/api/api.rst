@@ -152,7 +152,7 @@ Exceptions
    :members:
 
 
-.. _twisted-api:
+.. _config-api:
 
 
 Configuration
@@ -168,3 +168,15 @@ DEFAULTS
 --------
 
 .. autodata:: fedora_messaging.config.DEFAULTS
+
+
+Types
+-----
+
+.. autoclass:: fedora_messaging.config.QueueConfig
+   :members:
+   :undoc-members:
+
+.. autoclass:: fedora_messaging.config.BindingConfig
+   :members:
+   :undoc-members:

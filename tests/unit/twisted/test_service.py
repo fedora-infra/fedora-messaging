@@ -22,6 +22,15 @@ from fedora_messaging.twisted.service import (
 )
 
 
+QUEUE_DEF: config.NamedQueueDefinition = {
+    "queue": "dummy",
+    "durable": False,
+    "auto_delete": False,
+    "exclusive": False,
+    "arguments": {},
+}
+
+
 class TestService:
     def test_init(self):
         service = FedoraMessagingServiceV2("amqp://example.com:4242")
@@ -51,7 +60,7 @@ class TestService:
 
     def test_stopService(self):
         service = FedoraMessagingServiceV2("amqps://")
-        service._service = mock.Mock()
+        service.factory = mock.Mock()
         service.stopService()
         service.factory.stopTrying.assert_called_once()
         service.factory.stopFactory.assert_called_once()
@@ -67,7 +76,7 @@ class TestService:
         consumer._running = True
         consumer.stats.received = 42
         consumer.stats.processed = 43
-        service.factory._consumers.append(ConsumerRecord(consumer, None, None))
+        service.factory._consumers.append(ConsumerRecord(consumer, QUEUE_DEF, []))
         assert service.stats.as_dict() == {
             "published": 0,
             "consumed": {"received": 42, "processed": 43, "dropped": 0, "rejected": 0, "failed": 0},

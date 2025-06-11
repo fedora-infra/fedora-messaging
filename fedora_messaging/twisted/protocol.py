@@ -19,9 +19,13 @@ For an overview of Twisted clients, see the `Twisted client documentation
 
 
 import logging
+from collections.abc import Generator
+from typing import Any, Optional, TYPE_CHECKING, Union
 
 import pika
-from pika.adapters.twisted_connection import TwistedProtocolConnection
+import pika.exceptions
+import pika.frame
+from pika.adapters.twisted_connection import TwistedChannel, TwistedProtocolConnection
 from twisted.internet import defer, error
 
 from .. import config
@@ -35,7 +39,18 @@ from ..exceptions import (
 from .consumer import Consumer
 
 
+if TYPE_CHECKING:
+    from ..message import Message
+    from .factory import FedoraMessagingFactoryV2
+
+
 _std_log = logging.getLogger(__name__)
+
+
+class BindingArgument(config.BaseBinding):
+    """The definition of a binding when used to bind queues."""
+
+    routing_key: str
 
 
 class FedoraMessagingProtocolV2(TwistedProtocolConnection):
@@ -49,25 +64,24 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         is set by the factory that creates this protocol.
 
     Args:
-        parameters (pika.ConnectionParameters): The connection parameters.
-        confirms (bool): If True, all outgoing messages will require a
-            confirmation from the server, and the Deferred returned from
-            the publish call will wait for that confirmation.
+        parameters: The connection parameters.
+        confirms: If True, all outgoing messages will require a confirmation from the server,
+            and the Deferred returned from the publish call will wait for that confirmation.
     """
 
     name = "FedoraMessaging:Protocol"
 
-    def __init__(self, parameters, confirms=True):
+    def __init__(self, parameters: pika.connection.Parameters, confirms: bool = True):
         TwistedProtocolConnection.__init__(self, parameters)
         self._confirms = confirms
-        self._channel = None
-        self._publish_channel = None
+        self._channel: Union[TwistedChannel, None] = None
+        self._publish_channel: Union[TwistedChannel, None] = None
         # Map queue names to fedora_messaging.twisted.consumer.Consumer objects
-        self._consumers = {}
-        self.factory = None
+        self._consumers: dict[str, Consumer] = {}
+        self.factory: Union[FedoraMessagingFactoryV2, None] = None  # pyright: ignore
 
     @defer.inlineCallbacks
-    def _allocate_channel(self):
+    def _allocate_channel(self) -> Generator[defer.Deferred[Any], TwistedChannel, TwistedChannel]:
         """
         Allocate a new AMQP channel.
 
@@ -76,7 +90,7 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
             ConncetionException: If this connection is already closed.
         """
         try:
-            channel = yield self.channel()
+            channel: TwistedChannel = yield self.channel()
         except pika.exceptions.NoFreeChannels as e:
             raise NoFreeChannels() from e
         except pika.exceptions.ConnectionWrongStateError as e:
@@ -87,7 +101,11 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         defer.returnValue(channel)
 
     @defer.inlineCallbacks
-    def connectionReady(self, res=None):
+    # TODO: bug in types-pika: this can also return a Deferred[TwistedProtocolConnection]
+    # TODO: check what version of Pika is in EL7, we may not need the "res" argument
+    def connectionReady(  # type: ignore
+        self, res: Any = None
+    ) -> Generator[defer.Deferred[Any], TwistedChannel, TwistedProtocolConnection]:
         """
         Callback invoked when the AMQP connection is ready (when self.ready fires).
 
@@ -98,16 +116,19 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
                 versions lower than 1.0.0.
         """
         self._channel = yield self._allocate_channel()
+        defer.returnValue(self)
 
     @defer.inlineCallbacks
-    def publish(self, message, exchange):
+    def publish(
+        self, message: "Message", exchange: str
+    ) -> Generator[defer.Deferred[Any], TwistedChannel, None]:
         """
         Publish a :class:`fedora_messaging.message.Message` to an `exchange`_
         on the message broker.
 
         Args:
-            message (message.Message): The message to publish.
-            exchange (str): The name of the AMQP exchange to publish to
+            message: The message to publish.
+            exchange: The name of the AMQP exchange to publish to
 
         Raises:
             NoFreeChannels: If there are no available channels on this connection.
@@ -162,7 +183,12 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
             raise ConnectionException(reason=e) from e
 
     @defer.inlineCallbacks
-    def consume(self, callback, queue, previous_consumer=None):
+    def consume(
+        self,
+        callback: config.CallbackType,
+        queue: str,
+        previous_consumer: Optional[Consumer] = None,
+    ) -> Generator[defer.Deferred[Any], TwistedChannel, Consumer]:
         """
         Register a message consumer that executes the provided callback when
         messages are received.
@@ -172,25 +198,26 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         any new messages for that consumer use the new callback.
 
         Args:
-            callback (callable): The callback to invoke when a message is received.
-            queue (str): The name of the queue to consume from.
-            previous_consumer (Consumer): If this is the resumption of a prior
+            callback: The callback to invoke when a message is received.
+            queue: The name of the queue to consume from.
+            previous_consumer: If this is the resumption of a prior
                 consumer, you can provide the previous consumer so its result
                 deferred can be re-used.
 
         Returns:
-            Deferred: A Deferred that fires when the consumer is successfully
-                registered with the message broker. The callback receives a
-                :class:`.Consumer` object that represents the AMQP consumer.
-                The Deferred may error back with a :class:`PermissionException`
-                if the user cannot read from the queue, a
-                :class:`NoFreeChannels` if this connection has hit its channel
-                limit, or a :class:`ConnectionException` if the connection dies
-                before the consumer is successfully registered.
+            A Deferred that fires when the consumer is successfully
+            registered with the message broker. The callback receives a
+            :class:`.Consumer` object that represents the AMQP consumer.
+            The Deferred may error back with a :class:`PermissionException`
+            if the user cannot read from the queue, a
+            :class:`NoFreeChannels` if this connection has hit its channel
+            limit, or a :class:`ConnectionException` if the connection dies
+            before the consumer is successfully registered.
 
-        NoFreeChannels: If there are no available channels on this connection.
-            If this occurs, you can either reduce the number of consumers on this
-            connection or create an additional connection.
+        Raises:
+            NoFreeChannels: If there are no available channels on this connection.
+                If this occurs, you can either reduce the number of consumers on this
+                connection or create an additional connection.
         """
         if queue in self._consumers:
             self._consumers[queue].callback = callback
@@ -212,7 +239,9 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         defer.returnValue(consumer)
 
     @defer.inlineCallbacks
-    def declare_exchanges(self, exchanges):
+    def declare_exchanges(
+        self, exchanges: list[config.ExchangeDefinition]
+    ) -> Generator[defer.Deferred[Any], Any]:
         """
         Declare a number of exchanges at once.
 
@@ -220,8 +249,8 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         method and deals with error handling and channel allocation.
 
         Args:
-            exchanges (list of dict): A list of dictionaries, where each dictionary
-                represents an exchange. Each dictionary can have the following keys:
+            exchanges: A list of dictionaries, where each dictionary represents an exchange.
+                Each dictionary can have the following keys:
 
                   * exchange (str): The exchange's name
                   * exchange_type (str): The type of the exchange ("direct", "topic", etc)
@@ -240,13 +269,14 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
                 exchange). It can also occur if it does not exist, but the current
                 user does not have permissions to create the object.
         """
-        channel = yield self._allocate_channel()
+        channel: TwistedChannel = yield self._allocate_channel()
         try:
             for exchange in exchanges:
                 args = exchange.copy()
                 args.setdefault("passive", config.conf["passive_declares"])
                 try:
-                    yield channel.exchange_declare(**args)
+                    # TODO: Bug in types-pika: this actually takes a string for exchange_type
+                    yield channel.exchange_declare(**args)  # type: ignore
                 except pika.exceptions.ChannelClosed as e:
                     raise BadDeclaration("exchange", args, e) from e
         finally:
@@ -256,13 +286,15 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
                 pass  # pika doesn't handle repeated closes gracefully
 
     @defer.inlineCallbacks
-    def declare_queues(self, queues):
+    def declare_queues(
+        self, queues: list[config.NamedQueueDefinition]
+    ) -> Generator[defer.Deferred[Any], Any, list[str]]:
         """
         Declare a list of queues.
 
         Args:
-            queues (list of dict): A list of dictionaries, where each dictionary
-                represents an exchange. Each dictionary can have the following keys:
+            queues: A list of dictionaries, where each dictionary represents a queue.
+                Each dictionary can have the following keys:
 
                   * queue (str): The name of the queue
                   * passive (bool): If true, this will just assert that the queue exists,
@@ -283,14 +315,16 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
                 queue). It can also occur if it does not exist, but the current
                 user does not have permissions to create the object.
         """
-        channel = yield self._allocate_channel()
+        channel: TwistedChannel = yield self._allocate_channel()
         result_queues = []
         try:
             for queue in queues:
                 args = queue.copy()
                 args.setdefault("passive", config.conf["passive_declares"])
                 try:
-                    frame = yield channel.queue_declare(**args)
+                    frame: pika.frame.Method[pika.spec.Queue.DeclareOk] = (
+                        yield channel.queue_declare(**args)
+                    )
                 except pika.exceptions.ChannelClosed as e:
                     raise BadDeclaration("queue", args, e) from e
                 result_queues.append(frame.method.queue)
@@ -302,7 +336,9 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         defer.returnValue(result_queues)
 
     @defer.inlineCallbacks
-    def declare_queue(self, queue):
+    def declare_queue(
+        self, queue: config.NamedQueueDefinition
+    ) -> Generator[defer.Deferred[Any], list[str], str]:
         """
         Declare a queue. This is a convenience method to call :meth:`declare_queues` with a single
         argument.
@@ -311,16 +347,15 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         defer.returnValue(names[0])
 
     @defer.inlineCallbacks
-    def bind_queues(self, bindings):
+    def bind_queues(self, bindings: list[BindingArgument]) -> Generator[defer.Deferred[Any], Any]:
         """
         Declare a set of bindings between queues and exchanges.
 
         Args:
-            bindings (list of dict): A list of binding definitions. Each dictionary
-                must contain the "queue" key whose value is the name of the queue
-                to create the binding on, as well as the "exchange" key whose value
-                should be the name of the exchange to bind to. Additional acceptable
-                keys are any keyword arguments accepted by
+            bindings: A list of binding definitions. Each dictionary must contain the "queue" key
+                whose value is the name of the queue to create the binding on, as well as the
+                "exchange" key whose value should be the name of the exchange to bind to.
+                Additional acceptable keys are any keyword arguments accepted by
                 :meth:`pika.channel.Channel.queue_bind`.
 
         Raises:
@@ -331,7 +366,7 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
                 queue or exchange don't exist, or if they do, but the current user does
                 not have permissions to create bindings.
         """
-        channel = yield self._allocate_channel()
+        channel: TwistedChannel = yield self._allocate_channel()
         try:
             for binding in bindings:
                 try:
@@ -345,13 +380,13 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
                 pass  # pika doesn't handle repeated closes gracefully
 
     @defer.inlineCallbacks
-    def halt(self):
+    def halt(self) -> Generator[defer.Deferred[Any]]:
         """
         Signal to consumers they should stop after finishing any messages
         currently being processed, then close the connection.
 
         Returns:
-            defer.Deferred: fired when all consumers have successfully stopped
+            A deferred fired when all consumers have successfully stopped
             and the connection is closed.
         """
         if self.is_closed:
@@ -379,16 +414,19 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         self._consumers = {}
         self._channel = None
 
-    def _forget_consumer(self, queue):
+    def _forget_consumer(self, queue: Optional[str]) -> None:
         """Forget about a consumer so it does not restart later.
 
         Args:
-            queue (str): Forget consumers consuming from this queue.
+            queue: Forget consumers consuming from this queue.
         """
+        if queue is None:
+            return
         # If client and server are racing to cancel it might already be gone which
         # is why both are marked as no cover.
         try:
             del self._consumers[queue]
         except KeyError:  # pragma: no cover
             pass
-        self.factory._forget_consumer(queue)
+        if self.factory is not None:
+            self.factory._forget_consumer(queue)

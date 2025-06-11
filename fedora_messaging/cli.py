@@ -14,10 +14,13 @@ import logging
 import logging.config
 import os
 import sys
+from collections.abc import Sequence
+from typing import Any, cast, IO, TYPE_CHECKING
 
 import click
 import requests
 from twisted.internet import asyncioreactor, error
+from twisted.python.failure import Failure
 
 from fedora_messaging import message
 
@@ -36,6 +39,12 @@ from twisted.python import log as legacy_twisted_log
 
 from . import api, config, exceptions
 from .message import dumps, loads
+
+
+if TYPE_CHECKING:
+    from click._termui_impl import ProgressBar
+
+    from .twisted.consumer import Consumer
 
 
 _log = logging.getLogger(__name__)
@@ -93,7 +102,7 @@ _exit_code = 0
 
 @click.group()
 @click.option("--conf", envvar="FEDORA_MESSAGING_CONF", help=_conf_help)
-def cli(conf):
+def cli(conf: str) -> None:
     """The fedora-messaging command line interface."""
     if conf:
         if not os.path.isfile(conf):
@@ -114,32 +123,45 @@ def cli(conf):
 @click.option("--routing-key", help=_routing_key_help, multiple=True)
 @click.option("--queue-name", help=_queue_name_help)
 @click.option("--exchange", help=_exchange_help)
-def consume(exchange, queue_name, routing_key, callback, callback_file, app_name):
+def consume(
+    exchange: str,
+    queue_name: str,
+    routing_key: list[str],
+    callback: str,
+    callback_file: str,
+    app_name: str,
+) -> None:
     """Consume messages from an AMQP queue using a Python callback."""
     # The configuration validates these are not null and contain all required keys
     # when it is loaded.
     if callback_file:
-        callback = _callback_from_filesystem(callback_file)
+        python_callback = _callback_from_filesystem(callback_file)
     else:
-        callback = _callback_from_python_path(callback)
-    _consume(exchange, queue_name, routing_key, callback, app_name)
+        python_callback = _callback_from_python_path(callback)
+    _consume(exchange, queue_name, routing_key, python_callback, app_name)
 
 
-def _consume(exchange, queue_name, routing_key, callback, app_name):
+def _consume(
+    exchange: str,
+    queue_name: str,
+    routing_key: list[str],
+    callback: config.CallbackType,
+    app_name: str,
+) -> None:
     """
     The actual consume code, which expects an actual callable object.
     This lets various consume-based commands share the setup code. Anything
     that accepts None loads the defaults from the configuration.
 
     Args:
-        exchange (str): The AMQP message exchange to bind to, or None.
-        queue_name (str): The queue name to use, or None.
-        routing_key (str): The routing key to use, or None.
-        callback (callable): A callable object to use for the callback.
-        app_name (str): The application name to use, or None.
+        exchange: The AMQP message exchange to bind to, or None.
+        queue_name: The queue name to use, or None.
+        routing_key: The routing key to use, or None.
+        callback: A callable object to use for the callback.
+        app_name: The application name to use, or None.
     """
-    bindings = config.conf["bindings"]
-    queues = config.conf["queues"]
+    bindings: list[config.BindingConfig] = config.conf["bindings"]
+    queues: dict[str, config.QueueConfig] = config.conf["queues"]
 
     if queue_name:
         queues = {queue_name: config.conf["queues"][config._default_queue_name]}
@@ -164,23 +186,24 @@ def _consume(exchange, queue_name, routing_key, callback, app_name):
     except ValueError as e:
         raise click.exceptions.BadOptionUsage("callback", str(e)) from e
 
-    reactor.run()
+    # https://github.com/twisted/twisted/issues/9909
+    cast(asyncioreactor.AsyncioSelectorReactor, reactor).run()
     sys.exit(_exit_code)
 
 
-def _callback_from_filesystem(callback_file):
+def _callback_from_filesystem(callback_file: str) -> config.CallbackType:
     """
     Load a callable from a Python script on the file system.
 
     Args:
-        callback_file (str): The callback as a filesystem path and callable name
+        callback_file: The callback as a filesystem path and callable name
             separated by a ":". For example, "my/python/file.py:printer".
 
     Raises:
         click.ClickException: If the object cannot be loaded.
 
     Returns:
-        callable: The callable object.
+        The callable object.
     """
     try:
         file_path, callable_name = callback_file.strip().split(":")
@@ -193,7 +216,7 @@ def _callback_from_filesystem(callback_file):
         ) from e
 
     try:
-        file_namespace = {}
+        file_namespace: dict[str, Any] = {}
         with open(file_path, "rb") as fd:
             try:
                 # Using "exec" is generally a Bad Idea (TM), so bandit is upset at
@@ -209,24 +232,25 @@ def _callback_from_filesystem(callback_file):
             err = f"The '{callable_name}' object was not found in the '{file_path}' file."
             raise click.ClickException(err)
         else:
-            return file_namespace[callable_name]
+            callback_obj: config.CallbackType = file_namespace[callable_name]
+            return callback_obj
     except OSError as e:
         raise click.ClickException(f"An IO error occurred: {e}") from e
 
 
-def _callback_from_python_path(callback):
+def _callback_from_python_path(callback: str) -> config.CallbackType:
     """
     Load a callable from a Python path.
 
     Args:
-        callback_file (str): The callback as a Python path and callable name
+        callback_file: The callback as a Python path and callable name
             separated by a ":". For example, "my_package.my_module:printer".
 
     Raises:
         click.ClickException: If the object cannot be loaded.
 
     Returns:
-        callable: The callable object.
+        The callable object.
     """
     callback_path = callback or config.conf["callback"]
     if not callback_path:
@@ -251,7 +275,7 @@ def _callback_from_python_path(callback):
         ) from e
 
     try:
-        callback_object = getattr(module, cls)
+        callback_object: config.CallbackType = getattr(module, cls)
     except AttributeError as e:
         raise click.ClickException(
             f"Unable to import {callback_path} ({e}); is the package installed? The python "
@@ -261,10 +285,12 @@ def _callback_from_python_path(callback):
     return callback_object
 
 
-def _consume_errback(failure):
+def _consume_errback(failure: Failure) -> None:
     """Handle any errors that occur during consumer registration."""
     global _exit_code
+    # Wouldn't it be nice if failure.check() was a TypeGuard, don't you think Twisted?
     if failure.check(exceptions.BadDeclaration):
+        failure.value = cast(exceptions.BadDeclaration, failure.value)
         _log.error(
             "Unable to declare the %s object on the AMQP broker. The "
             "broker responded with %s. Check permissions for your user.",
@@ -273,12 +299,14 @@ def _consume_errback(failure):
         )
         _exit_code = 10
     elif failure.check(exceptions.PermissionException):
+        failure.value = cast(exceptions.PermissionException, failure.value)
         _exit_code = 15
         _log.error(
             "The consumer could not proceed because of a permissions problem: %s",
             str(failure.value),
         )
     elif failure.check(exceptions.ConnectionException):
+        failure.value = cast(exceptions.ConnectionException, failure.value)
         _exit_code = 14
         _log.error(failure.value.reason)
     else:
@@ -289,12 +317,12 @@ def _consume_errback(failure):
             failure.value,
         )
     try:
-        reactor.stop()
+        cast(asyncioreactor.AsyncioSelectorReactor, reactor).stop()
     except error.ReactorNotRunning:
         pass
 
 
-def _consume_callback(consumers):
+def _consume_callback(consumers: Sequence["Consumer"]) -> None:
     """
     Callback when consumers are successfully registered.
 
@@ -302,14 +330,14 @@ def _consume_callback(consumers):
     fires when the consumer stops.
 
     Args
-        consumers (list of fedora_messaging.api.Consumer):
-            The list of consumers that were successfully created.
+        consumers: The list of consumers that were successfully created.
     """
     for consumer in consumers:
 
-        def errback(failure, consumer=consumer):
+        def errback(failure: Failure, consumer: "Consumer" = consumer) -> None:
             global _exit_code
             if failure.check(exceptions.HaltConsumer):
+                failure.value = cast(exceptions.HaltConsumer, failure.value)
                 _exit_code = failure.value.exit_code
                 if _exit_code:
                     _log.error(
@@ -318,11 +346,13 @@ def _consume_callback(consumers):
                         str(failure.value.reason),
                     )
             elif failure.check(exceptions.ConsumerCanceled):
+                failure.value = cast(exceptions.ConsumerCanceled, failure.value)
                 _exit_code = 12
                 _log.error(
                     "The consumer was canceled server-side, check with system administrators."
                 )
             elif failure.check(exceptions.PermissionException):
+                failure.value = cast(exceptions.PermissionException, failure.value)
                 _exit_code = 15
                 _log.error(
                     "The consumer could not proceed because of a permissions problem: %s",
@@ -332,17 +362,17 @@ def _consume_callback(consumers):
                 _exit_code = 13
                 _log.error("Unexpected error occurred in consumer %r: %r", consumer, failure)
             try:
-                reactor.stop()
+                cast(asyncioreactor.AsyncioSelectorReactor, reactor).stop()
             except error.ReactorNotRunning:
                 pass
 
-        def callback(consumer):
+        def callback(consumer: "Consumer") -> None:
             _log.info("The %r consumer halted.", consumer)
             if all([c.result.called for c in consumers]):
                 _log.info("All consumers have stopped; shutting down.")
                 try:
                     # Last consumer out shuts off the lights
-                    reactor.stop()
+                    cast(asyncioreactor.AsyncioSelectorReactor, reactor).stop()
                 except error.ReactorNotRunning:
                     pass
 
@@ -352,7 +382,7 @@ def _consume_callback(consumers):
 @cli.command()
 @click.option("--exchange", help=_publish_exchange_help)
 @click.argument("file", type=click.File("r"))
-def publish(exchange, file):
+def publish(exchange: str, file: IO[str]) -> None:
     """Publish messages to an AMQP exchange from a file."""
     for msgs_json_str in file:
         try:
@@ -381,26 +411,25 @@ class Recorder:
 
     Attributes:
         counter (int): The number of messages this callback has recorded.
-        messages (list): The list of messages received.
 
     Args:
-        limit (int): The maximum number of messages to record.
-        file (file): The file object with write rights.
+        limit: The maximum number of messages to record.
+        file: The file object with write rights to store the messages.
     """
 
-    def __init__(self, limit, file):
+    def __init__(self, limit: int, file: IO[str]):
         self.counter = 0
         self._limit = limit
         self._file = file
         if limit:
-            self._bar = click.progressbar(length=limit)
+            self._bar: ProgressBar = click.progressbar(length=limit)
 
-    def collect_message(self, message):
+    def collect_message(self, message: message.Message) -> None:
         """
         Collect received messages.
 
         Args:
-            message (message.Message): The received message.
+            message: The received message.
 
         Raises:
             fedora_messaging.exceptions.HaltConsumer: Raised if the number of received
@@ -428,7 +457,9 @@ class Recorder:
 @click.option("--routing-key", help=_routing_key_help, multiple=True)
 @click.option("--queue-name", help=_queue_name_help)
 @click.option("--exchange", help=_exchange_help)
-def record(exchange, queue_name, routing_key, app_name, limit, file):
+def record(
+    exchange: str, queue_name: str, routing_key: list[str], app_name: str, limit: int, file: IO[str]
+) -> None:
     """Record messages from an AMQP queue to provided file."""
     messages_recorder = Recorder(limit, file)
     _consume(exchange, queue_name, routing_key, messages_recorder.collect_message, app_name)
@@ -437,13 +468,13 @@ def record(exchange, queue_name, routing_key, app_name, limit, file):
 DEFAULT_DATAGREPPER_URL = "https://apps.fedoraproject.org/datagrepper"
 
 
-def _get_message(message_id, datagrepper_url):
+def _get_message(message_id: str, datagrepper_url: str) -> dict[str, Any]:
     """Fetch a message by ID from Datagreeper"""
     url = f"{datagrepper_url}/v2/id?id={message_id}&is_raw=true"
     try:
         response = requests.get(url, timeout=5)
         response.raise_for_status()
-        return response.json()
+        return cast(dict[str, Any], response.json())
     except requests.exceptions.RequestException as e:
         raise click.ClickException(f"Failed to retrieve message from Datagrepper: {e}") from e
 
@@ -456,7 +487,7 @@ def _get_message(message_id, datagrepper_url):
     default=DEFAULT_DATAGREPPER_URL,
     show_default=True,
 )
-def replay(message_id, datagrepper_url):
+def replay(message_id: str, datagrepper_url: str) -> None:
     """Replay a message from Datagrepper by its message ID"""
     message_data = _get_message(message_id, datagrepper_url)
     if message_data:
@@ -467,8 +498,8 @@ def replay(message_id, datagrepper_url):
 
 
 @cli.command()
-@click.argument("message_id")
-@click.option("--callback-file", help=_callback_file_help)
+@click.argument("message_id", type=click.types.UUIDParameterType())
+@click.option("--callback-file", help=_callback_file_help, type=click.Path())
 @click.option("--callback", help=_callback_help)
 @click.option(
     "--datagrepper-url",
@@ -479,9 +510,9 @@ def replay(message_id, datagrepper_url):
 def reconsume(
     datagrepper_url: str,
     callback: str,
-    callback_file: click.Path,
-    message_id: click.types.UUIDParameterType,
-):
+    callback_file: str,
+    message_id: str,
+) -> None:
     """
     Re-consume a message from Datagrepper.
 
@@ -491,12 +522,12 @@ def reconsume(
     a message it failed to properly process.
     """
     if callback_file:
-        callback = _callback_from_filesystem(callback_file)
+        python_callback = _callback_from_filesystem(callback_file)
     else:
-        callback = _callback_from_python_path(callback)
+        python_callback = _callback_from_python_path(callback)
     # It's not a public API, but hopefully we will not break ourselves.
-    callback_instance = api._check_callback(callback)
-    msg = _get_message(message_id, datagrepper_url)
+    callback_instance = api._check_callback(python_callback)
+    msg_dict = _get_message(message_id, datagrepper_url)
     config.conf["topic_prefix"] = ""
-    msg = message.load_message(msg)
-    callback_instance(msg)
+    msg_obj = message.load_message(msg_dict)
+    callback_instance(msg_obj)

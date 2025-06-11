@@ -551,7 +551,7 @@ def test_no_read_permissions_queue_read_failure_pika1(admin_user, queue_and_bind
             error_match = re.match(
                 r"ACCESS_REFUSED - (read )?access to queue '[\w-]+' in vhost '/' refused "
                 r"for user '[\w-]+'",
-                e.reason,
+                str(e.reason),
             )
             assert error_match is not None
         except (defer.TimeoutError, defer.CancelledError):

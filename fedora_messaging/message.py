@@ -33,15 +33,22 @@ import json
 import logging
 import re
 import uuid
+from collections.abc import Mapping
 from importlib.metadata import distribution as get_distribution
 from importlib.metadata import entry_points, PackageNotFoundError
+from typing import Any, cast, ClassVar, Optional, TYPE_CHECKING, Union
 
 import jsonschema
+import jsonschema.exceptions
 import pika
 
 from . import config
 from .exceptions import ValidationError
 from .schema_utils import user_avatar_url
+
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeAlias
 
 
 #: Indicates the message is for debugging or is otherwise very low priority. Users
@@ -69,37 +76,40 @@ SEVERITIES = (DEBUG, INFO, WARNING, ERROR)
 _log = logging.getLogger(__name__)
 
 # Maps string names of message types to classes and back
-_schema_name_to_class = {}
-_class_to_schema_name = {}
-_schema_name_to_package = {}
+_schema_name_to_class: dict[str, type["Message"]] = {}
+_class_to_schema_name: dict[type["Message"], str] = {}
+_schema_name_to_package: dict[str, str] = {}
 
 # Used to load the registry automatically on first use
 _registry_loaded = False
 
 
-def get_class(schema_name):
+HeaderType: "TypeAlias" = dict[str, Union[str, int, bool]]
+
+
+def get_class(schema_name: str) -> type["Message"]:
     """
     Retrieve the message class associated with the schema name.
 
     If no match is found, the default schema is returned and a warning is logged.
 
     Args:
-        schema_name (str): The name of the :class:`Message` sub-class;
+        schema_name: The name of the :class:`Message` sub-class;
             this is typically the Python path.
 
     Returns:
-        Message: A sub-class of :class:`Message` to create the message from.
+        A sub-class of :class:`Message` to create the message from.
     """
 
     return _get_class_from_headers(dict(fedora_messaging_schema=schema_name))
 
 
-def _get_class_from_headers(headers):
+def _get_class_from_headers(headers: HeaderType) -> type["Message"]:
     global _registry_loaded
     if not _registry_loaded:
         load_message_classes()
 
-    schema_name = headers["fedora_messaging_schema"]
+    schema_name = cast(str, headers["fedora_messaging_schema"])
     try:
         return _schema_name_to_class[schema_name]
     except KeyError:
@@ -120,12 +130,12 @@ def _get_class_from_headers(headers):
         return Message
 
 
-def get_name(cls):
+def get_name(cls: type["Message"]) -> str:
     """
     Retrieve the schema name associated with a message class.
 
     Returns:
-        str: The schema name.
+        The schema name.
 
     Raises:
         TypeError: If the message class isn't registered. Check your entry point
@@ -145,7 +155,7 @@ def get_name(cls):
         ) from e
 
 
-def _get_distribution_from_module(module):
+def _get_distribution_from_module(module: str) -> Union[str, None]:
     if not module:
         return None
     module_parts = module.split(".")
@@ -162,14 +172,14 @@ def _get_distribution_from_module(module):
     return re.sub(r"[-_.]+", "-", distribution_name).lower().replace("-", "_")
 
 
-def load_message_classes():
+def load_message_classes() -> None:
     """Load the 'fedora.messages' entry points and register the message classes."""
     try:
         eps = entry_points(group="fedora.messages")
-    except TypeError:
+    except TypeError:  # pragma: no cover
         # Python < 3.10
         # https://docs.python.org/3.10/library/importlib.metadata.html#entry-points
-        eps = entry_points().get("fedora.messages", [])
+        eps = entry_points().get("fedora.messages", [])  # type: ignore
     for message in eps:
         cls = message.load()
         _log.debug(
@@ -180,20 +190,23 @@ def load_message_classes():
         _schema_name_to_class[message.name] = cls
         _class_to_schema_name[cls] = message.name
         module = message.module
-        _schema_name_to_package[message.name] = _get_distribution_from_module(module)
+        distribution = _get_distribution_from_module(module)
+        if distribution is None:
+            continue
+        _schema_name_to_package[message.name] = distribution
     global _registry_loaded
     _registry_loaded = True
 
 
-def get_message(routing_key, properties, body):
+def get_message(routing_key: str, properties: pika.BasicProperties, body: bytes) -> "Message":
     """
     Construct a Message instance given the routing key, the properties and the
     body received from the AMQP broker.
 
     Args:
-        routing_key (str): The AMQP routing key (will become the message topic)
-        properties (pika.BasicProperties): the AMQP properties
-        body (bytes): The encoded message body
+        routing_key: The AMQP routing key (will become the message topic)
+        properties: the AMQP properties
+        body: The encoded message body
 
     Raises:
         ValidationError: If Message validation failed or message body
@@ -207,7 +220,7 @@ def get_message(routing_key, properties, body):
         properties.headers = {}
 
     try:
-        MessageClass = _get_class_from_headers(properties.headers)
+        MessageClass = _get_class_from_headers(cast(HeaderType, properties.headers))
     except KeyError:
         _log.error(
             "Message (headers=%r, body=%r) arrived without a schema header."
@@ -218,7 +231,7 @@ def get_message(routing_key, properties, body):
         MessageClass = Message
 
     try:
-        severity = properties.headers["fedora_messaging_severity"]
+        severity = cast(int, properties.headers["fedora_messaging_severity"])
     except KeyError:
         _log.error(
             "Message (headers=%r, body=%r) arrived without a severity."
@@ -232,7 +245,7 @@ def get_message(routing_key, properties, body):
         _log.error("Message arrived without a content encoding")
         properties.content_encoding = "utf-8"
     try:
-        body = body.decode(properties.content_encoding)
+        body_str = body.decode(properties.content_encoding)
     except UnicodeDecodeError as e:
         _log.error(
             "Unable to decode message body %r with %s content encoding",
@@ -242,12 +255,14 @@ def get_message(routing_key, properties, body):
         raise ValidationError(e) from e
 
     try:
-        body = json.loads(body)
+        body_dict = json.loads(body_str)
     except ValueError as e:
-        _log.error("Failed to load message body %r, %r", body, e)
+        _log.error("Failed to load message body %r, %r", body_str, e)
         raise ValidationError(e) from e
 
-    message = MessageClass(body=body, topic=routing_key, properties=properties, severity=severity)
+    message = MessageClass(
+        body=body_dict, topic=routing_key, properties=properties, severity=severity
+    )
     try:
         message.validate()
         _log.debug("Successfully validated message %r", message)
@@ -280,27 +295,24 @@ class Message:
     intended for this purpose are noted in their attribute documentation below.
 
     Args:
-        headers (dict): A set of message headers. Consult the headers schema for
+        headers: A set of message headers. Consult the headers schema for
             expected keys and values.
-        body (dict): The message body. Consult the body schema for expected keys
+        body: The message body. Consult the body schema for expected keys
             and values. This dictionary must be JSON-serializable by the default
             serializer.
-        topic (str): The message topic as a unicode string. If this is
+        topic: The message topic as a unicode string. If this is
             not provided, the default topic for the class is used. See the
             attribute documentation below for details.
-        properties (pika.BasicProperties): The AMQP properties. If this is not
+        properties: The AMQP properties. If this is not
             provided, they will be generated. Most users should not need to provide
             this, but it can be useful in testing scenarios.
-        severity (int): An integer that indicates the severity of the message. This is
+        severity: An integer that indicates the severity of the message. This is
             used to determine what messages to notify end users about and should be
             :data:`DEBUG`, :data:`INFO`, :data:`WARNING`, or :data:`ERROR`. The
             default is :data:`INFO`, and can be set as a class attribute or on
             an instance-by-instance basis.
 
     Attributes:
-        id (str): The message id as a unicode string. This attribute is
-            automatically generated and set by the library and users should only
-            set it themselves in testing scenarios.
         topic (str): The message topic as a unicode string. The topic
             is used by message consumers to filter what messages they receive.
             Topics should be a string of words separated by '.' characters,
@@ -312,16 +324,16 @@ class Message:
             update. This can be set at a class level or on a instance level.
             Dynamic, specific topics that allow for fine-grain filtering are
             preferred.
-        headers_schema (dict): A `JSON schema <http://json-schema.org/>`_ to be used with
+        headers_schema (dict[str, Any]): A `JSON schema <http://json-schema.org/>`_ to be used with
             :func:`jsonschema.validate` to validate the message headers. For
             most users, the default definition should suffice.
-        body_schema (dict): A `JSON schema <http://json-schema.org/>`_ to be used with
+        body_schema (dict[str, Any]): A `JSON schema <http://json-schema.org/>`_ to be used with
             :func:`jsonschema.validate` to validate the message body. The body_schema
             is retrieved on a message instance so it is not required to be a
             class attribute, although this is a convenient approach. Users are
             also free to write the JSON schema as a file and load the file from
             the filesystem or network if they prefer.
-        body (dict): The message body as a Python dictionary. This is validated by
+        body (dict[str, Any]): The message body as a Python dictionary. This is validated by
             the body schema before publishing and before consuming.
         severity (int): An integer that indicates the severity of the message. This is
             used to determine what messages to notify end users about and should be
@@ -335,22 +347,11 @@ class Message:
             recent version. Emits a warning when a message of this class is received,
             to let consumers know that they should plan to upgrade. Defaults to
             ``False``.
-        priority (int): The priority for the message, if the destination queue
-            supports it. Defaults to zero (lowest priority).
-
-            This value is taken into account in queues that have the ``x-max-priority``
-            argument set. Most queues in Fedora don't support priorities, in which case
-            the value will be ignored.
-
-            Larger numbers indicate higher priority, you can read more about it in
-            `RabbitMQ's documentation on priority`_.
-
-            .. _RabbitMQ's documentation on priority:  https://www.rabbitmq.com/priority.html
     """
 
-    severity = INFO
-    topic = ""
-    headers_schema = {
+    severity: int = INFO
+    topic: str = ""
+    headers_schema: ClassVar[dict[str, Any]] = {
         "$schema": "http://json-schema.org/draft-04/schema#",
         "description": "Schema for message headers",
         "type": "object",
@@ -364,14 +365,21 @@ class Message:
             "sent-at": {"type": "string"},
         },
     }
-    body_schema = {
+    body_schema: ClassVar[dict[str, Any]] = {
         "$schema": "http://json-schema.org/draft-04/schema#",
         "description": "Schema for message body",
         "type": "object",
     }
-    deprecated = False
+    deprecated: bool = False
 
-    def __init__(self, body=None, headers=None, topic=None, properties=None, severity=None):
+    def __init__(
+        self,
+        body: Optional[Mapping[str, Any]] = None,
+        headers: Optional[HeaderType] = None,
+        topic: Optional[str] = None,
+        properties: Optional[pika.BasicProperties] = None,
+        severity: Optional[int] = None,
+    ):
         self.body = body or {}
 
         if topic:
@@ -382,9 +390,9 @@ class Message:
         if severity:
             self.severity = severity
         self._properties = properties or self._build_properties(headers)
-        self.queue = None
+        self.queue: Optional[str] = None
 
-    def _build_properties(self, headers):
+    def _build_properties(self, headers: HeaderType) -> pika.BasicProperties:
         # Consumers use this to determine what schema to use and if they're out
         # of date.
         headers = headers.copy()
@@ -408,14 +416,14 @@ class Message:
             priority=config.conf["publish_priority"],
         )
 
-    def _filter_headers(self):
+    def _filter_headers(self) -> HeaderType:
         """
         Add headers designed for filtering messages based on objects.
 
         Returns:
             dict: Filter-related headers to be combined with the existing headers
         """
-        headers = {}
+        headers: HeaderType = {}
         properties = [
             ("user", "usernames"),
             ("group", "groups"),
@@ -436,40 +444,58 @@ class Message:
         return headers
 
     @property
-    def _headers(self):
+    def _headers(self) -> HeaderType:
         """
         The message headers dictionary.
 
         .. note: If there's a reason users want to use this interface, it can
               be made public. Please file a bug if you feel you need this.
         """
-        return self._properties.headers
+        return cast(Union[HeaderType, None], self._properties.headers) or {}
 
     @_headers.setter
-    def _headers(self, value):
+    def _headers(self, value: HeaderType) -> None:
         self._properties.headers = value
 
     @property
-    def id(self):
-        return self._properties.message_id
+    def id(self) -> str:
+        """The message id as a unicode string.
+
+        This attribute is automatically generated and set by the library and users should only set
+        it themselves in testing scenarios.
+        """
+        return cast(str, self._properties.message_id)
 
     @id.setter
-    def id(self, value):
+    def id(self, value: str) -> None:
         self._properties.message_id = value
 
     @property
-    def priority(self):
+    def priority(self) -> int:
+        """The priority for the message, if the destination queue supports it.
+
+        Defaults to zero (lowest priority).
+
+        This value is taken into account in queues that have the ``x-max-priority``
+        argument set. Most queues in Fedora don't support priorities, in which case
+        the value will be ignored.
+
+        Larger numbers indicate higher priority, you can read more about it in
+        `RabbitMQ's documentation on priority`_.
+
+        .. _RabbitMQ's documentation on priority:  https://www.rabbitmq.com/priority.html
+        """
         return self._properties.priority or 0
 
     @priority.setter
-    def priority(self, value):
+    def priority(self, value: Union[int, None]) -> None:
         value = value or 0  # convert None to 0
         self._properties.priority = value
         # Mirror the priority in the headers for debugging purposes
         self._headers["priority"] = value
 
     @property
-    def _encoded_routing_key(self):
+    def _encoded_routing_key(self) -> str:
         """The encoded routing key used to publish the message on the broker."""
         topic = self.topic
         if config.conf["topic_prefix"]:
@@ -477,11 +503,11 @@ class Message:
         return topic
 
     @property
-    def _encoded_body(self):
+    def _encoded_body(self) -> bytes:
         """The encoded body used to publish the message."""
         return json.dumps(self.body).encode("utf-8")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """
         Provide a printable representation of the object that can be passed to func:`eval`.
         """
@@ -489,7 +515,7 @@ class Message:
             f"{self.__class__.__name__}(id={self.id!r}, topic={self.topic!r}, body={self.body!r})"
         )
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         """
         Two messages of the same class with the same topic, headers, and body are equal.
 
@@ -497,10 +523,10 @@ class Message:
         automatically and is dependent on when the object is created.
 
         Args:
-            other (object): The object to check for equality.
+            other: The object to check for equality.
 
         Returns:
-            bool: True if the messages are equal.
+            True if the messages are equal.
         """
         if not isinstance(other, self.__class__):
             return False
@@ -518,7 +544,7 @@ class Message:
 
         return self.topic == other.topic and self.body == other.body and headers == other_headers
 
-    def validate(self):
+    def validate(self) -> None:
         """
         Validate the headers and body with the message schema, if any.
 
@@ -546,7 +572,7 @@ class Message:
             jsonschema.validate(self.body, schema)
 
     @property
-    def summary(self):
+    def summary(self) -> str:
         """
         A short, human-readable representation of this message.
 
@@ -561,7 +587,7 @@ class Message:
         """
         return self.topic
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         A human-readable representation of this message.
 
@@ -581,7 +607,7 @@ class Message:
         )
 
     @property
-    def url(self):
+    def url(self) -> Union[str, None]:
         """
         An URL to the action that caused this message to be emitted.
 
@@ -589,23 +615,23 @@ class Message:
             associated with message.
 
         Returns:
-            str or None: A relevant URL.
+            A relevant URL.
         """
         return None
 
     @property
-    def app_name(self):
+    def app_name(self) -> Union[str, None]:
         """The name of the application that generated the message.
 
         .. note:: Sub-classes should override this method.
 
         Returns:
-            str or None: The name of the application.
+            The name of the application.
         """
         return None
 
     @property
-    def app_icon(self):
+    def app_icon(self) -> Union[str, None]:
         """An URL to the icon of the application that generated the message.
 
         .. note:: Sub-classes should override this method if their application
@@ -613,36 +639,36 @@ class Message:
             consume messages.
 
         Returns:
-            str or None: The URL to the app's icon.
+            The URL to the app's icon.
         """
         return None
 
     @property
-    def agent_name(self):
+    def agent_name(self) -> Union[str, None]:
         """The username of the user who caused the action.
 
         .. note:: Sub-classes should override this method if the message was
             triggered by a particular user.
 
         Returns:
-            str or None: The agent's username.
+            The agent's username.
         """
         return None
 
     @property
-    def agent_avatar(self):
+    def agent_avatar(self) -> Union[str, None]:
         """An URL to the avatar of the user who caused the action.
 
         .. note:: Sub-classes should override this method if the default
             Libravatar and OpenID-based URL generator is not appropriate.
 
         Returns:
-            str or None: The URL to the user's avatar.
+            The URL to the user's avatar.
         """
         return user_avatar_url(self.agent_name) if self.agent_name is not None else None
 
     @property
-    def usernames(self):
+    def usernames(self) -> list[str]:
         """List of users affected by the action that generated this message.
 
         .. note:: Sub-classes should override this method if the message pertains
@@ -650,12 +676,12 @@ class Message:
             filter notifications.
 
         Returns:
-            list(str): A list of affected usernames.
+            A list of affected usernames.
         """
         return []
 
     @property
-    def groups(self):
+    def groups(self) -> list[str]:
         """List of groups affected by the action that generated this message.
 
         .. note:: Sub-classes should override this method if the message pertains
@@ -663,12 +689,12 @@ class Message:
             filter notifications.
 
         Returns:
-            list(str): A list of affected groups.
+            A list of affected groups.
         """
         return []
 
     @property
-    def packages(self):
+    def packages(self) -> list[str]:
         """List of RPM packages affected by the action that generated this message.
 
         .. note:: Sub-classes should override this method if the message pertains
@@ -676,12 +702,12 @@ class Message:
             is used to filter notifications.
 
         Returns:
-            list(str): A list of affected package names.
+            A list of affected package names.
         """
         return []
 
     @property
-    def containers(self):
+    def containers(self) -> list[str]:
         """List of containers affected by the action that generated this message.
 
         .. note:: Sub-classes should override this method if the message pertains
@@ -689,12 +715,12 @@ class Message:
             is used to filter notifications.
 
         Returns:
-            list(str): A list of affected container names.
+            A list of affected container names.
         """
         return []
 
     @property
-    def modules(self):
+    def modules(self) -> list[str]:
         """List of modules affected by the action that generated this message.
 
         .. note:: Sub-classes should override this method if the message pertains
@@ -702,12 +728,12 @@ class Message:
             used to filter notifications.
 
         Returns:
-            list(str): A list of affected module names.
+            A list of affected module names.
         """
         return []
 
     @property
-    def flatpaks(self):
+    def flatpaks(self) -> list[str]:
         """List of flatpaks affected by the action that generated this message.
 
         .. note:: Sub-classes should override this method if the message pertains
@@ -715,14 +741,14 @@ class Message:
             used to filter notifications.
 
         Returns:
-            list(str): A list of affected flatpaks names.
+            A list of affected flatpaks names.
         """
         return []
 
 
 #: The schema for each JSON object produced by :func:`dumps`, consumed by
 #: :func:`loads`, and expected by CLI commands like "fedora-messaging publish".
-SERIALIZED_MESSAGE_SCHEMA = {
+SERIALIZED_MESSAGE_SCHEMA: Mapping[str, Any] = {
     "$schema": "http://json-schema.org/draft-04/schema#",
     "description": "Schema for the JSON object used to represent messages in a file",
     "type": "object",
@@ -748,19 +774,19 @@ SERIALIZED_MESSAGE_SCHEMA = {
 }
 
 
-def load_message(message_dict):
+def load_message(message_dict: Mapping[str, Any]) -> Message:
     """Load a message from a dictionary serialization.
 
     The dictionary must conform to the :data:`SERIALIZED_MESSAGE_SCHEMA` format.
 
     Args:
-        message_dict (dict): The dictionary representing the message.
+        message_dict: The dictionary representing the message.
 
     Raises:
         ValidationError: If the dictionary does not pass the serialization schema.
 
     Returns:
-        Message: The deserialized message object, as an instance of :class:`Message`
+        The deserialized message object, as an instance of :class:`Message`
             or one of its subclasses.
     """
     try:
@@ -790,18 +816,18 @@ def load_message(message_dict):
     return message
 
 
-def dumps(messages):
+def dumps(messages: Union[Message, list[Message]]) -> str:
     """
     Serialize messages to a file format acceptable for :func:`loads` or for the
     publish CLI command. The format is a string where each line is a JSON
     object that conforms to the :data:`SERIALIZED_MESSAGE_SCHEMA` format.
 
     Args:
-        messages (list or Message): The messages to serialize. Each message in
+        messages: The messages to serialize. Each message in
             the messages is subclass of Message.
 
     Returns:
-        str: Serialized messages.
+        Serialized messages.
 
     Raises:
         ValidationError: If one of the messages provided doesn't conform to its
@@ -829,17 +855,17 @@ def dumps(messages):
     return "\n".join(serialized_messages) + "\n"
 
 
-def loads(serialized_messages):
+def loads(serialized_messages: str) -> list[Message]:
     """
     Deserialize messages from a file format produced by :func:`dumps`.  The
     format is a string where each line is a JSON object that conforms to the
     :data:`SERIALIZED_MESSAGE_SCHEMA` format.
 
     Args:
-        serialized_messages (str): A string made up of a JSON object per line.
+        serialized_messages: A string made up of a JSON object per line.
 
     Returns:
-        list: Deserialized message objects.
+        Deserialized message objects.
 
     Raises:
         ValidationError: If the string isn't formatted properly or message

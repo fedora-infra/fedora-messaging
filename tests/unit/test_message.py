@@ -40,7 +40,7 @@ class TestGetMessage:
     def test_missing_headers(self):
         """Assert missing headers results in a default message."""
         msg = message.Message()
-        msg._headers = None
+        msg._headers = {}
 
         received_msg = message.get_message(
             msg._encoded_routing_key, msg._properties, msg._encoded_body
@@ -77,6 +77,11 @@ class TestGetMessage:
             "has been received on topic 'dummy.topic'. You should check "
             "the emitting application's documentation to upgrade to the newer schema version."
         )
+
+    def test_invalid_body(self):
+        """Assert the default severity is INFO if it's not in the headers."""
+        with pytest.raises(message.ValidationError):
+            message.get_message("", pika.BasicProperties(), b"invalid json")
 
 
 class TestMessageDumps:
@@ -156,7 +161,7 @@ class TestMessageDumps:
         """Assert TypeError is raised when improper messages are provided"""
         messages = ["m1", "m2"]
         with pytest.raises(exceptions.ValidationError) as excinfo:
-            message.dumps(messages)
+            message.dumps(messages)  # type: ignore
         assert excinfo.value.summary == "'str' object has no attribute 'validate'"
 
 
@@ -390,7 +395,7 @@ class TestMessage:
 
     def test_invalid_message(self):
         """Assert that a non-object body raises a ValidationError on validation."""
-        msg = message.Message(topic="test.topic", headers={}, body="text")
+        msg = message.Message(topic="test.topic", headers={}, body="text")  # type: ignore
         with pytest.raises(jsonschema.ValidationError):
             msg.validate()
 
@@ -403,6 +408,7 @@ class TestMessage:
         assert msg._properties.content_type == "application/json"
         assert msg._properties.content_encoding == "utf-8"
         assert msg._properties.delivery_mode == 2
+        assert msg._properties.headers is not None
         assert "sent-at" in msg._properties.headers
         assert "fedora_messaging_schema" in msg._properties.headers
         assert msg._properties.headers["fedora_messaging_schema"] == "base.message"
@@ -411,6 +417,7 @@ class TestMessage:
 
     def test_headers(self):
         msg = message.Message(headers={"foo": "bar"})
+        assert msg._properties.headers is not None
         assert "foo" in msg._properties.headers
         assert msg._properties.headers["foo"] == "bar"
         # The fedora_messaging_schema keys must also be added when headers are given.
@@ -455,7 +462,7 @@ class TestMessage:
         assert 0 == msg._headers["priority"]
 
     def test_properties(self):
-        properties = object()
+        properties = pika.BasicProperties()
         msg = message.Message(properties=properties)
         assert msg._properties == properties
 
@@ -682,6 +689,15 @@ class TestClassRegistry:
             assert message.Message in message._class_to_schema_name
             assert "base.message" == message._class_to_schema_name[message.Message]
 
+    def test_load_message_class_schema_name_empty(self):
+        """Assert the schema name mapping is not populated if the distribution is not found."""
+        with mock.patch.dict(message._schema_name_to_package, {}, clear=True):
+            with mock.patch(
+                "fedora_messaging.message._get_distribution_from_module", return_value=None
+            ):
+                message.load_message_classes()
+            assert message._schema_name_to_package == {}
+
     @mock.patch("fedora_messaging.message._registry_loaded", False)
     def test_get_class_autoload(self):
         """Assert the registry is automatically loaded."""
@@ -705,7 +721,7 @@ class TestClassRegistry:
         """Assert the registry doesn't repeatedly load."""
         with mock.patch.dict(message._class_to_schema_name, {}, clear=True):
             with pytest.raises(TypeError):
-                message.get_name("this.is.not.an.entrypoint")
+                message.get_name("this.is.not.an.entrypoint")  # type: ignore
 
     @pytest.mark.parametrize(
         ("module", "result"),
