@@ -149,18 +149,17 @@ def _get_distribution_from_module(module):
     if not module:
         return None
     module_parts = module.split(".")
-    while module_parts:
+    try:
+        distribution = get_distribution(".".join(module_parts))
         try:
-            distribution = get_distribution(".".join(module_parts))
-            try:
-                distribution_name = distribution.name
-            except AttributeError:  # pragma: no cover
-                # COMPAT: Python <= 3.9
-                distribution_name = distribution.metadata["Name"]
-        except PackageNotFoundError:
-            return _get_distribution_from_module(".".join(module_parts[:-1]))
-        # Normalize the name: PEP 503 plus dashes as underscores.
-        return re.sub(r"[-_.]+", "-", distribution_name).lower().replace("-", "_")
+            distribution_name = distribution.name
+        except AttributeError:  # pragma: no cover
+            # COMPAT: Python <= 3.9
+            distribution_name = distribution.metadata["Name"]
+    except PackageNotFoundError:
+        return _get_distribution_from_module(".".join(module_parts[:-1]))
+    # Normalize the name: PEP 503 plus dashes as underscores.
+    return re.sub(r"[-_.]+", "-", distribution_name).lower().replace("-", "_")
 
 
 def load_message_classes():
