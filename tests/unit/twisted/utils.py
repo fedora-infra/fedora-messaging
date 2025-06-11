@@ -5,6 +5,7 @@
 from unittest import mock
 
 import pika
+import pika.frame
 from twisted.internet import defer
 
 from fedora_messaging.twisted.protocol import FedoraMessagingProtocolV2
@@ -47,14 +48,15 @@ class MockChannel(mock.Mock):
 class MockProtocol(FedoraMessagingProtocolV2):
     """A Protocol object that mocks the underlying channel and impl."""
 
+    _channel: MockChannel
+    channel: mock.Mock
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._impl = mock.Mock(name="_impl")
         self._impl.is_closed = True
-        self._channel = MockChannel(name="_channel")
-        self.channel = mock.Mock(name="channel", side_effect=lambda: defer.succeed(self._channel))
-
-    def _register_consumer(self, consumer):
-        consumer._protocol = self
-        consumer._channel = self._channel
-        self._consumers[consumer.queue] = consumer
+        self._channel = MockChannel(  # pyright: ignore [reportIncompatibleVariableOverride]
+            name="_channel"
+        )
+        self.channel = mock.Mock(name="channel", side_effect=lambda: defer.succeed(self._channel))  # type: ignore
+        self.factory = mock.Mock()

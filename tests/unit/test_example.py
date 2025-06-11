@@ -12,7 +12,7 @@ from fedora_messaging import api, example
 
 def test_printer():
     """Assert the printer callback prints messages."""
-    message = api.Message(body="Hello world", topic="hi")
+    message = api.Message(body={"msg": "Hello world"}, topic="hi")
     message._headers = {
         "fedora_messaging_schema": "fedora_messaging.message:Message",
         "sent-at": "2019-07-30T19:12:22+00:00",
@@ -25,7 +25,9 @@ def test_printer():
         '    "fedora_messaging_schema": "fedora_messaging.message:Message",\n'
         '    "sent-at": "2019-07-30T19:12:22+00:00"\n'
         "}\n"
-        'Body: "Hello world"\n'
+        "Body: {\n"
+        '    "msg": "Hello world"\n'
+        "}\n"
     )
 
     with mock.patch("sys.stdout", new_callable=StringIO) as mock_stdout:

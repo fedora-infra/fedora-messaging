@@ -12,12 +12,16 @@ consider contributing it here!
 """
 
 import inspect
+from collections.abc import Generator
 from contextlib import contextmanager
+from typing import Union
 from unittest import mock
+
+from .message import Message
 
 
 @contextmanager
-def mock_sends(*expected_messages):
+def mock_sends(*expected_messages: Union[Message, type[Message]]) -> Generator[list[Message]]:
     """
     Assert a block of code results in the provided messages being sent without
     actually sending them.
@@ -51,7 +55,7 @@ def mock_sends(*expected_messages):
         AssertionError: If the messages published don't match the messages asserted.
     """
 
-    sent = []
+    sent: list[Message] = []
     with mock.patch("fedora_messaging.api.crochet"):
         with mock.patch("fedora_messaging.api._twisted_publish_wrapper") as mock_pub:
             yield sent

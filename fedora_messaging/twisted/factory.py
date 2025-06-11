@@ -17,21 +17,29 @@ documentation for more information.
 
 import collections
 import logging
-from collections import namedtuple
+from collections.abc import Generator
+from typing import Any, NamedTuple, TYPE_CHECKING, Union
 
 import pika
+import pika.exceptions
 from twisted.internet import defer, error, protocol
 from twisted.python.failure import Failure
 
 from ..exceptions import ConnectionException
-from .protocol import FedoraMessagingProtocolV2
+from .consumer import Consumer
+from .protocol import BindingArgument, FedoraMessagingProtocolV2
 from .stats import ConsumerStatistics, FactoryStatistics
+
+
+if TYPE_CHECKING:
+    from ..config import BindingsType, CallbackType, NamedQueueDefinition, QueueConfig
+    from ..message import Message
 
 
 _std_log = logging.getLogger(__name__)
 
 
-def _remap_queue_name(bindings, queue_name):
+def _remap_queue_name(bindings: list[BindingArgument], queue_name: str) -> None:
     """Reset the queue name in a binding, because the queue name might be server-generated.
 
     Args:
@@ -43,19 +51,26 @@ def _remap_queue_name(bindings, queue_name):
     # The dicts are changed in-place, don't return anything to make that clear.
 
 
-#: A namedtuple representing the record of an existing AMQP consumer with its config items.
-#:
-#: * The ``consumer`` field is the consumer object
-#:   (:class:`fedora_messaging.twisted.consumer.Consumer`).
-#: * The ``queue`` field is the configuration dict for the queue it's consuming from.
-#: * The ``bindings`` field is the list of configuration dicts for the queue's bindings.
-ConsumerRecord = namedtuple("ConsumerRecord", ["consumer", "queue", "bindings"])
+class ConsumerRecord(NamedTuple):
+    """A namedtuple representing the record of an existing AMQP consumer with its config items.
+
+    * The ``consumer`` field is the consumer object
+      (:class:`fedora_messaging.twisted.consumer.Consumer`).
+    * The ``queue`` field is the configuration dict for the queue it's consuming from.
+    * The ``bindings`` field is the list of configuration dicts for the queue's bindings.
+    """
+
+    consumer: Consumer
+    queue: "NamedQueueDefinition"
+    bindings: list[BindingArgument]
 
 
 class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
     """Reconnecting factory for the Fedora Messaging protocol."""
 
-    def __init__(self, parameters, confirms=True):
+    protocol: type[FedoraMessagingProtocolV2]
+
+    def __init__(self, parameters: pika.connection.Parameters, confirms: bool = True):
         """
         Create a new factory for protocol objects.
 
@@ -69,19 +84,21 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             confirms (bool): If true, attempt to turn on publish confirms extension.
         """
         self.confirms = confirms
-        self.protocol = FedoraMessagingProtocolV2
+        self.protocol = (  # pyright: ignore [reportIncompatibleVariableOverride]
+            FedoraMessagingProtocolV2
+        )
         self._parameters = parameters
         # Used to implement the when_connected API
-        self._client_deferred = defer.Deferred()
-        self._client = None
-        self._consumers = []
+        self._client_deferred: defer.Deferred[FedoraMessagingProtocolV2] = defer.Deferred()
+        self._client: Union[FedoraMessagingProtocolV2, None] = None
+        self._consumers: list[ConsumerRecord] = []
         self._stats = FactoryStatistics()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Return the representation of the factory as a string"""
         return f"FedoraMessagingFactoryV2(parameters={self._parameters}, confirms={self.confirms})"
 
-    def buildProtocol(self, addr):
+    def buildProtocol(self, addr: Any) -> FedoraMessagingProtocolV2:
         """Create the Protocol instance.
 
         See the documentation of
@@ -91,7 +108,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
         client.factory = self
 
         @defer.inlineCallbacks
-        def on_ready(unused_param=None):
+        def on_ready(unused_param: Any = None) -> Generator[defer.Deferred[Any], Any]:
             """Reset the connection delay when the AMQP handshake is complete."""
             _std_log.debug("AMQP handshake completed; connection ready for use")
             self.resetDelay()
@@ -104,12 +121,13 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             # including queues and bindings, as the queue might not have been durable
             for record in self._consumers:
                 _std_log.info("Re-registering the %r consumer", record.consumer)
-                queue_name = yield client.declare_queue(record.queue)
+                queue_name: str = yield client.declare_queue(record.queue)
                 _remap_queue_name(record.bindings, queue_name)
                 yield client.bind_queues(record.bindings)
-                yield client.consume(record.consumer.callback, queue_name, record.consumer)
+                if record.consumer.callback is not None:
+                    yield client.consume(record.consumer.callback, queue_name, record.consumer)
 
-        def on_ready_connection_errback(failure):
+        def on_ready_connection_errback(failure: Failure) -> None:
             """If opening the connection fails or is lost, this errback is called."""
             r = failure.trap(
                 pika.exceptions.AMQPConnectionError,
@@ -141,7 +159,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             # Renew the deferred to handle reconnections.
             self._client_deferred = defer.Deferred()
 
-        def general_errback(failure):
+        def general_errback(failure: Failure) -> None:
             _std_log.error(
                 "The connection failed with an unexpected exception; please report this bug: %s",
                 failure.getTraceback(),
@@ -156,7 +174,9 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
         return client
 
     @defer.inlineCallbacks
-    def stopFactory(self):
+    def stopFactory(  # pyright: ignore [reportIncompatibleMethodOverride]
+        self,
+    ) -> Generator[defer.Deferred[None]]:
         """Stop the factory.
 
         See the documentation of
@@ -167,7 +187,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
         protocol.ReconnectingClientFactory.stopFactory(self)
 
     @defer.inlineCallbacks
-    def when_connected(self):
+    def when_connected(self) -> Generator[defer.Deferred[Any], None, FedoraMessagingProtocolV2]:
         """
         Retrieve the currently-connected Protocol, or the next one to connect.
 
@@ -192,7 +212,9 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
         defer.returnValue(self._client)
 
     @defer.inlineCallbacks
-    def publish(self, message, exchange):
+    def publish(
+        self, message: "Message", exchange: str
+    ) -> Generator[defer.Deferred[Any], FedoraMessagingProtocolV2]:
         """
         Publish a :class:`fedora_messaging.message.Message` to an `exchange`_
         on the message broker. This call will survive connection failures and try
@@ -228,7 +250,12 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
                 _std_log.info("Publish failed on %r, waiting for new connection", protocol)
 
     @defer.inlineCallbacks
-    def consume(self, callback, bindings, queues):
+    def consume(
+        self,
+        callback: "CallbackType",
+        bindings: "BindingsType",
+        queues: dict[str, "QueueConfig"],
+    ) -> Generator[defer.Deferred[Any], Any, list[Consumer]]:
         """
         Start a consumer that lasts across individual connections.
 
@@ -256,10 +283,12 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
                 not have permissions to consume from the queue.
         """
         expanded_bindings = collections.defaultdict(list)
+        if isinstance(bindings, dict):
+            bindings = [bindings]
         for binding in bindings:
             for key in binding["routing_keys"]:
-                b = binding.copy()
-                del b["routing_keys"]
+                b: BindingArgument = binding.copy()  # type: ignore
+                del b["routing_keys"]  # type: ignore
                 b["routing_key"] = key
                 if "queue" not in b:
                     b["queue"] = ""
@@ -267,27 +296,26 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
 
         expanded_queues = []
         for name, settings in queues.items():
-            q = {"queue": name}
-            q.update(settings)
+            q: NamedQueueDefinition = {"queue": name, **settings}
             expanded_queues.append(q)
 
-        protocol = yield self.when_connected()
+        protocol: FedoraMessagingProtocolV2 = yield self.when_connected()
 
         consumers = []
         for queue in expanded_queues:
             config_queue_name = queue["queue"]
-            queue_name = yield protocol.declare_queue(queue)
-            ebs = expanded_bindings.get(config_queue_name, [])
+            queue_name: str = yield protocol.declare_queue(queue)
+            ebs: list[BindingArgument] = expanded_bindings.get(config_queue_name, [])
             _remap_queue_name(ebs, queue_name)
             yield protocol.bind_queues(ebs)
-            consumer = yield protocol.consume(callback, queue_name)
+            consumer: Consumer = yield protocol.consume(callback, queue_name)
             self._consumers.append(ConsumerRecord(consumer=consumer, queue=queue, bindings=ebs))
             consumers.append(consumer)
 
         defer.returnValue(consumers)
 
     @defer.inlineCallbacks
-    def cancel(self, consumers):
+    def cancel(self, consumers: list[Consumer]) -> Generator[defer.Deferred[Any], Any, None]:
         """
         Cancel a consumer that was previously started with consume.
 
@@ -295,11 +323,12 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             consumer (list of fedora_messaging.api.Consumer): The consumers to cancel.
         """
         for consumer in consumers:
-            self._forget_consumer(consumer.queue)
-            protocol = yield self.when_connected()
-            yield protocol.cancel(consumer)
+            if consumer.queue is not None:
+                self._forget_consumer(consumer.queue)
+            # protocol: FedoraMessagingProtocolV2 = yield self.when_connected()
+            yield consumer.cancel()
 
-    def _forget_consumer(self, queue):
+    def _forget_consumer(self, queue: str) -> None:
         """Forget about a consumer.
 
         Args:
@@ -308,7 +337,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
         self._consumers = [record for record in self._consumers if record.consumer.queue != queue]
 
     @property
-    def stats(self) -> ConsumerStatistics:
+    def stats(self) -> FactoryStatistics:
         """Statistics about this factory's consumer(s)."""
         self._stats.consumed = sum(
             (record.consumer.stats for record in self._consumers), start=ConsumerStatistics()

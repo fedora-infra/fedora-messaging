@@ -63,6 +63,12 @@ treq = "^22.2.0 || ^23.0.0 || ^24.0.0"
 twisted = ">22.4.0"
 ruff = ">=0.3.4"
 diff-cover = ">=8.0.3"
+types-pika = "^1.2.0b1"
+mypy = "^1.16.0"
+types-jsonschema = "^4.24.0.20250528"
+types-requests = "^2.32.0.20250602"
+typing-extensions = "^4.14.0"
+pyright = "^1.1.402"
 
 
 [tool.poetry.scripts]
@@ -169,10 +175,17 @@ exclude_lines = [
     "raise NotImplementedError",
     "\\.\\.\\.",
     "if typing.TYPE_CHECKING:",
+    "if TYPE_CHECKING:",
 ]
 omit = [
     "tests/*",
 ]
+
+[tool.mypy]
+
+[[tool.mypy.overrides]]
+module = ["pytest_twisted.*", "zope.interface.*", "twisted.*"]
+follow_untyped_imports = true
 
 
 [build-system]

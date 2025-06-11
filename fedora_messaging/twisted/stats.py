@@ -14,7 +14,7 @@ from typing import Any
 class Statistics:
     """A datastructure to manager integers as attributes."""
 
-    def __add__(self, other):
+    def __add__(self, other: "Statistics") -> "Statistics":
         if not isinstance(other, self.__class__):
             raise TypeError(
                 f"{self.__class__.__name__} instances can only be added to other "

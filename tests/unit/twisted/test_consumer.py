@@ -3,9 +3,11 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import json
-from unittest.mock import AsyncMock, Mock
+from typing import cast
+from unittest.mock import AsyncMock, Mock, patch
 
 import pika
+import pika.exceptions
 import pytest
 from twisted.internet import defer, error
 
@@ -19,7 +21,7 @@ from fedora_messaging.exceptions import (
 )
 from fedora_messaging.twisted.consumer import Consumer
 
-from .utils import MockProtocol
+from .utils import MockChannel, MockProtocol
 
 
 try:
@@ -59,7 +61,7 @@ def _call_read_one(consumer, topic, headers, body):
     queue.get.return_value = defer.succeed(
         (
             consumer._channel,
-            pika.spec.Basic.Deliver(routing_key=topic, delivery_tag="delivery_tag"),
+            pika.spec.Basic.Deliver(routing_key=topic, delivery_tag=42),
             pika.spec.BasicProperties(headers=full_headers),
             json.dumps(body).encode("utf-8"),
         )
@@ -71,8 +73,9 @@ def _make_consumer_with_callback(callback):
     protocol = MockProtocol(None)
     protocol._impl.is_closed = False
     consumer = Consumer("my_queue_name", callback)
-    protocol._register_consumer(consumer)
-    protocol.factory = Mock()
+    consumer._protocol = protocol
+    consumer._channel = cast(MockChannel, protocol._channel)
+    protocol._consumers["my_queue_name"] = consumer
     return consumer
 
 
@@ -82,7 +85,10 @@ class TestConsumer:
     def setup_method(self):
         self.callback = Mock()
         self.consumer = _make_consumer_with_callback(self.callback)
+        self.consumer._protocol = cast(MockProtocol, self.consumer._protocol)
+        self.consumer._channel = cast(MockChannel, self.consumer._channel)
         self.protocol = self.consumer._protocol
+        self.channel = self.consumer._channel
 
     # Canceling
 
@@ -99,11 +105,35 @@ class TestConsumer:
     @pytest_twisted.inlineCallbacks
     def test_cancel_channel_error(self):
         """Assert channel errors are caught; a closed channel cancels consumers."""
-        self.consumer._channel.basic_cancel.side_effect = pika.exceptions.AMQPChannelError()
+        self.channel.basic_cancel.side_effect = pika.exceptions.AMQPChannelError()
         yield self.consumer.cancel()
         assert len(self.protocol._consumers) == 0
         # consumer._protocol._forget_consumer.assert_called_with("my_queue")
-        self.consumer._channel.basic_cancel.assert_called_once_with(consumer_tag=self.consumer._tag)
+        self.channel.basic_cancel.assert_called_once_with(consumer_tag=self.consumer._tag)
+
+    @pytest_twisted.inlineCallbacks
+    def test_cancel_no_protocol(self):
+        """The cancel method must work when no protocol or no channel has been set."""
+        consumer = Consumer("my_queue_name", self.callback)
+        # This must not raise an exception
+        yield consumer.cancel()
+
+    # Init errors
+
+    @pytest_twisted.inlineCallbacks
+    def test_no_channel(self):
+        """Assert the channel is set before we consume."""
+        consumer = Consumer("my_queue_name", Mock())
+        with pytest.raises(RuntimeError):
+            yield consumer.consume()
+
+    @pytest_twisted.inlineCallbacks
+    def test_no_queue(self):
+        """Assert the queue is set before we consume."""
+        consumer = Consumer(callback=Mock())
+        consumer._channel = MockChannel()
+        with pytest.raises(RuntimeError):
+            yield consumer.consume()
 
     # Consuming
 
@@ -121,7 +151,7 @@ class TestConsumer:
             [
                 defer.succeed(
                     (
-                        self.consumer._channel,
+                        self.channel,
                         MockDeliveryFrame("dt1", "rk1"),
                         props,
                         "body1",
@@ -129,7 +159,7 @@ class TestConsumer:
                 ),
                 defer.succeed(
                     (
-                        self.consumer._channel,
+                        self.channel,
                         MockDeliveryFrame("dt2", "rk2"),
                         props,
                         "body2",
@@ -137,7 +167,7 @@ class TestConsumer:
                 ),
                 defer.succeed(
                     (
-                        self.consumer._channel,
+                        self.channel,
                         MockDeliveryFrame("dt3", "rk3"),
                         props,
                         "body3",
@@ -162,7 +192,7 @@ class TestConsumer:
             ((message,), {}),
             ((message,), {}),
         ]
-        assert self.consumer._channel.basic_ack.call_args_list == [
+        assert self.channel.basic_ack.call_args_list == [
             (tuple(), dict(delivery_tag="dt1")),
             (tuple(), dict(delivery_tag="dt2")),
             (tuple(), dict(delivery_tag="dt3")),
@@ -185,9 +215,7 @@ class TestConsumer:
         # When a message is invalid, it should be Nacked.
         yield _call_read_one(self.consumer, "testing.topic", {}, "invalid-json-body")
         self.callback.assert_not_called()
-        self.consumer._channel.basic_nack.assert_called_with(
-            delivery_tag="delivery_tag", requeue=False
-        )
+        self.channel.basic_nack.assert_called_with(delivery_tag=42, requeue=False)
         assert self.consumer.stats.received == 0
 
     @pytest.mark.parametrize("error_class", [HaltConsumer, ValueError])
@@ -198,9 +226,9 @@ class TestConsumer:
         message = Mock(name="message")
         mocker.patch("fedora_messaging.twisted.consumer.get_message", return_value=message)
         props = MockProperties()
-        yield self.consumer._channel.queue_object.put(
+        yield self.channel.queue_object.put(
             (
-                self.consumer._channel,
+                self.channel,
                 MockDeliveryFrame("dt1", "rk1"),
                 props,
                 "body1",
@@ -222,30 +250,40 @@ class TestConsumer:
         assert self.consumer.stats.rejected == 0
         assert self.consumer.stats.dropped == 0
         if error_class == HaltConsumer:
-            self.consumer._channel.basic_ack.assert_called_once_with(delivery_tag="dt1")
+            self.channel.basic_ack.assert_called_once_with(delivery_tag="dt1")
             assert self.consumer.stats.processed == 1
             assert self.consumer.stats.failed == 0
         else:
-            self.consumer._channel.basic_nack.assert_called_once_with(
+            self.channel.basic_nack.assert_called_once_with(
                 delivery_tag=0, multiple=True, requeue=True
             )
             assert self.consumer.stats.failed == 1
             assert self.consumer.stats.processed == 0
+
+    @pytest_twisted.inlineCallbacks
+    def test_consume_no_protocol(self):
+        """The consume method must raise when no protocol has been set."""
+        consumer = Consumer("my_queue_name", self.callback)
+        # Set the channel but not the protocol
+        consumer._channel = MockChannel()
+        with patch.object(consumer, "_read_one", side_effect=pika.exceptions.ConsumerCancelled()):
+            yield consumer.consume()
+        assert consumer._running is False
+        with pytest.raises(ConsumerCanceled):
+            yield consumer.result
 
     # Handling read errors
 
     @pytest_twisted.inlineCallbacks
     def test_consume_channel_closed(self):
         # Check consuming when the channel is closed
-        self.consumer._channel.basic_consume.side_effect = pika.exceptions.ChannelClosed(
-            42, "testing"
-        )
+        self.channel.basic_consume.side_effect = pika.exceptions.ChannelClosed(42, "testing")
         self.consumer._read = Mock()
 
         try:
             yield self.consumer.consume()
         except ConnectionException:
-            assert self.consumer._read_loop is None
+            assert self.consumer._read_loop.result is None
             self.consumer._read.assert_not_called()
         else:
             pytest.fail("This should have raised ConnectionException")
@@ -253,15 +291,13 @@ class TestConsumer:
     @pytest_twisted.inlineCallbacks
     def test_consume_channel_forbidden(self):
         # Check consuming when the channel is forbidden
-        self.consumer._channel.basic_consume.side_effect = pika.exceptions.ChannelClosed(
-            403, "testing"
-        )
+        self.channel.basic_consume.side_effect = pika.exceptions.ChannelClosed(403, "testing")
         self.consumer._read = Mock()
 
         try:
             yield self.consumer.consume()
         except PermissionException:
-            assert self.consumer._read_loop is None
+            assert self.consumer._read_loop.result is None
             self.consumer._read.assert_not_called()
         else:
             pytest.fail("This should have raised PermissionException")
@@ -272,7 +308,7 @@ class TestConsumer:
         log = mocker.patch("fedora_messaging.twisted.consumer._std_log")
         queue = Mock()
         queue.get.side_effect = error.ConnectionDone()
-        self.consumer._channel.queue_object = queue
+        self.channel.queue_object = queue
         yield self.consumer.consume()
 
         yield self.consumer._read_loop
@@ -288,7 +324,7 @@ class TestConsumer:
         log = mocker.patch("fedora_messaging.twisted.consumer._std_log")
         queue = Mock()
         queue.get.side_effect = pika.exceptions.ChannelClosed(42, "testing")
-        self.consumer._channel.queue_object = queue
+        self.channel.queue_object = queue
         yield self.consumer.consume()
 
         yield self.consumer._read_loop
@@ -305,7 +341,7 @@ class TestConsumer:
         # Check the exceptions that cause the read loop to exit.
         queue = Mock()
         queue.get.side_effect = pika.exceptions.ChannelClosed(403, "nope!")
-        self.consumer._channel.queue_object = queue
+        self.channel.queue_object = queue
         self.consumer.consume()
 
         yield self.consumer._read_loop
@@ -315,8 +351,8 @@ class TestConsumer:
         assert self.consumer.result.called is True
         self.consumer.result.addErrback(lambda f: f.check(PermissionException))
         # The consumer should have been cancelled and the channel should have been closed
-        self.consumer._channel.basic_cancel.assert_called_with(consumer_tag=self.consumer._tag)
-        self.consumer._channel.close.assert_called_with()
+        self.channel.basic_cancel.assert_called_with(consumer_tag=self.consumer._tag)
+        self.channel.close.assert_called_with()
         # Check the result's errback
         yield self.consumer.result
 
@@ -325,7 +361,7 @@ class TestConsumer:
         # Check the exceptions that cause the read loop to exit.
         queue = Mock()
         queue.get.side_effect = pika.exceptions.ConsumerCancelled()
-        self.consumer._channel.queue_object = queue
+        self.channel.queue_object = queue
         self.consumer.consume()
 
         yield self.consumer._read_loop
@@ -343,7 +379,7 @@ class TestConsumer:
         log = mocker.patch("fedora_messaging.twisted.consumer._std_log")
         queue = Mock()
         queue.get.side_effect = pika.exceptions.AMQPHeartbeatTimeout()
-        self.consumer._channel.queue_object = queue
+        self.channel.queue_object = queue
         self.consumer.consume()
 
         yield self.consumer._read_loop
@@ -360,7 +396,7 @@ class TestConsumer:
         # Check the exceptions that cause the read loop to exit.
         queue = Mock()
         queue.get.side_effect = RuntimeError()
-        self.consumer._channel.queue_object = queue
+        self.channel.queue_object = queue
         self.consumer.consume()
 
         yield self.consumer._read_loop
@@ -370,8 +406,8 @@ class TestConsumer:
         assert self.consumer.result.called is True
         self.consumer.result.addErrback(lambda f: f.check(RuntimeError))
         # The consumer should have been cancelled and the channel should have been closed
-        self.consumer._channel.basic_cancel.assert_called_with(consumer_tag=self.consumer._tag)
-        self.consumer._channel.close.assert_called_with()
+        self.channel.basic_cancel.assert_called_with(consumer_tag=self.consumer._tag)
+        self.channel.close.assert_called_with()
         # Check the result's errback
         yield self.consumer.result
 
@@ -387,7 +423,8 @@ class TestConsumerCallback:
         consumer = _make_consumer_with_callback(callback)
         yield _call_read_one(consumer, "testing.topic", {}, {"key": "value"})
         callback.assert_called_once()
-        consumer._channel.basic_ack.assert_called_once_with(delivery_tag="delivery_tag")
+        consumer._channel = cast(MockChannel, consumer._channel)
+        consumer._channel.basic_ack.assert_called_once_with(delivery_tag=42)
         assert consumer.stats.received == 1
         assert consumer.stats.processed == 1
 
@@ -398,7 +435,8 @@ class TestConsumerCallback:
         consumer = _make_consumer_with_callback(callback)
         yield _call_read_one(consumer, "testing.topic", {}, {"key": "value"})
         callback.assert_called()
-        consumer._channel.basic_nack.assert_called_with(delivery_tag="delivery_tag", requeue=True)
+        consumer._channel = cast(MockChannel, consumer._channel)
+        consumer._channel.basic_nack.assert_called_with(delivery_tag=42, requeue=True)
         assert consumer.stats.received == 1
         assert consumer.stats.rejected == 1
 
@@ -409,7 +447,8 @@ class TestConsumerCallback:
         consumer = _make_consumer_with_callback(callback)
         yield _call_read_one(consumer, "testing.topic", {}, {"key": "value"})
         callback.assert_called()
-        consumer._channel.basic_nack.assert_called_with(delivery_tag="delivery_tag", requeue=False)
+        consumer._channel = cast(MockChannel, consumer._channel)
+        consumer._channel.basic_nack.assert_called_with(delivery_tag=42, requeue=False)
         assert consumer.stats.received == 1
         assert consumer.stats.dropped == 1
 
@@ -427,14 +466,15 @@ class TestConsumerCallback:
             pytest.fail("This should have raised HaltConsumer")
 
         callback.assert_called()
+        consumer._channel = cast(MockChannel, consumer._channel)
         channel = consumer._channel
         assert consumer.stats.received == 1
         if requeue:
             channel.basic_ack.assert_not_called()
-            channel.basic_nack.assert_called_with(delivery_tag="delivery_tag", requeue=True)
+            channel.basic_nack.assert_called_with(delivery_tag=42, requeue=True)
             assert consumer.stats.rejected == 1
         else:
-            channel.basic_ack.assert_called_with(delivery_tag="delivery_tag")
+            channel.basic_ack.assert_called_with(delivery_tag=42)
             channel.basic_nack.assert_not_called()
             assert consumer.stats.processed == 1
 
@@ -453,6 +493,7 @@ class TestConsumerCallback:
             pytest.fail("This should have raised ValueError")
 
         callback.assert_called()
+        consumer._channel = cast(MockChannel, consumer._channel)
         channel = consumer._channel
         channel.basic_nack.assert_called_with(delivery_tag=0, multiple=True, requeue=True)
         assert consumer.stats.received == 1

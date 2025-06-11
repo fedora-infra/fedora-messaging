@@ -36,6 +36,11 @@ def echo(message):
     print(str(message))
 
 
+def callback2(message):
+    """Another test callback"""
+    print(message.topic)
+
+
 plain_object = object()
 
 
@@ -73,6 +78,26 @@ class TestConsumeCli:
             queues=config.conf["queues"],
         )
         assert 0 == result.exit_code
+
+    @mock.patch("fedora_messaging.cli.api.twisted_consume")
+    def test_callback_filesystem(
+        self,
+        mock_consume,
+        good_conf,
+    ):
+        """Assert callbacks loaded via a file work"""
+        result = self.runner.invoke(
+            cli.cli, [f"--conf={good_conf}", "consume", f"--callback-file={__file__}:callback2"]
+        )
+        assert 0 == result.exit_code
+        mock_consume.assert_called_once()
+        kwargs = mock_consume.call_args[1]
+        assert kwargs == dict(
+            bindings=[{"exchange": "e", "queue": "q", "routing_keys": ["#"]}],
+            queues=config.conf["queues"],
+        )
+        cb = mock_consume.call_args[0][0]
+        assert cb.__name__ == "callback2"
 
     @mock.patch("fedora_messaging.cli.api.twisted_consume")
     def test_conf_env_support(self, mock_consume, good_conf):
@@ -357,7 +382,7 @@ class TestConsumeCallback:
         )
 
     def test_errback_canceled(self, mock_reactor):
-        """Assert exit code is 2 when the consumer is canceled."""
+        """Assert exit code is 12 when the consumer is canceled."""
         consumers = (consumer.Consumer(),)
         e = exceptions.ConsumerCanceled()
         f = failure.Failure(e, exceptions.ConsumerCanceled)
@@ -366,6 +391,17 @@ class TestConsumeCallback:
         consumers[0].result.errback(f)
         assert 1 == mock_reactor.stop.call_count
         assert 12 == cli._exit_code
+
+    def test_errback_permission(self, mock_reactor):
+        """Assert exit code is 15 on permission exceptions."""
+        consumers = (consumer.Consumer(),)
+        e = exceptions.PermissionException()
+        f = failure.Failure(e, exceptions.PermissionException)
+        cli._consume_callback(consumers)
+
+        consumers[0].result.errback(f)
+        assert 1 == mock_reactor.stop.call_count
+        assert 15 == cli._exit_code
 
     @mock.patch("fedora_messaging.cli._log")
     def test_errback_general_exception(self, mock_log, mock_reactor):
@@ -435,7 +471,7 @@ class CallbackFromFilesytem:
     def test_good_callback(self, fixtures_dir):
         """Assert loading a callback from a file works."""
         cb = cli._callback_from_filesystem(os.path.join(fixtures_dir, "callback.py") + ":rand")
-        assert 4 == cb(None)
+        assert 4 == cb(message.Message())
 
     def test_bad_format(self):
         """Assert an exception is raised if the format is bad."""
@@ -676,7 +712,8 @@ class TestRecorderClass:
             topic="test_topic1",
             severity=message.INFO,
         )
-        msg1._properties.headers["sent-at"] = "2018-11-18T10:11:41+00:00"
+        # TODO: bug in pika-stubs: this is actually a MutableMapping
+        msg1._properties.headers["sent-at"] = "2018-11-18T10:11:41+00:00"  # type: ignore
         msg1.id = "273ed91d-b8b5-487a-9576-95b9fbdf3eec"
 
         msg2 = message.Message(
@@ -684,7 +721,7 @@ class TestRecorderClass:
             topic="test_topic2",
             severity=message.INFO,
         )
-        msg2._properties.headers["sent-at"] = "2018-11-18T10:11:41+00:00"
+        msg2._properties.headers["sent-at"] = "2018-11-18T10:11:41+00:00"  # type: ignore
         msg2.id = "273ed91d-b8b5-487a-9576-95b9fbdf3eec"
 
         mock_file = mock.MagicMock()
@@ -715,12 +752,12 @@ class TestRecorderClass:
             '"topic": "test_topic2"}\n'
         )
 
-    def test_recorded_messages_dumps_failed(self):
+    def test_recorded_messages_dumps_failed(self) -> None:
         """Assert that attempt to save improper recorded message is reported."""
         mock_file = mock.MagicMock()
         test_recorder = cli.Recorder(1, mock_file)
         with pytest.raises(exceptions.HaltConsumer) as cm:
-            test_recorder.collect_message("msg1")
+            test_recorder.collect_message("msg1")  # type: ignore
         the_exception = cm.value
         assert the_exception.exit_code == 1
         assert test_recorder.counter == 0
@@ -798,21 +835,27 @@ class TestReconsumeCli:
     @mock.patch("fedora_messaging.cli._callback_from_filesystem")
     @mock.patch("fedora_messaging.cli.requests.get")
     def test_callback_file(self, mock_get, mock_loader):
-        """Assert callbacks loaded via a path work with reconsuming"""
+        """Assert callbacks loaded via a file work with reconsuming"""
 
         def callback(msg):
             assert msg.topic == expected_message["topic"]
             assert msg.body == expected_message["body"]
+            print(msg.topic)
 
         expected_message = {"topic": "test.topic", "body": {"some": "data"}}
         mock_get.return_value.json.return_value = expected_message
         mock_loader.return_value = callback
 
-        self.runner.invoke(
+        result = self.runner.invoke(
             cli.reconsume,
-            ["abc123", "--datagrepper-url=http://example.com", "--callback-file=/my/cb.py"],
-            catch_exceptions=False,
+            [
+                "00000000-0000-0000-0000-000000000000",
+                "--datagrepper-url=http://example.com",
+                "--callback-file=/my/cb.py",
+            ],
+            catch_exceptions=True,
         )
+        assert result.output == "test.topic\n"
 
     @mock.patch("fedora_messaging.cli._callback_from_python_path")
     @mock.patch("fedora_messaging.cli.requests.get")
@@ -822,13 +865,45 @@ class TestReconsumeCli:
         def callback(msg):
             assert msg.topic == expected_message["topic"]
             assert msg.body == expected_message["body"]
+            print(msg.topic)
 
         expected_message = {"topic": "test.topic", "body": {"some": "data"}}
         mock_get.return_value.json.return_value = expected_message
         mock_loader.return_value = callback
 
-        self.runner.invoke(
+        result = self.runner.invoke(
             cli.reconsume,
-            ["abc123", "--datagrepper-url=http://example.com", "--callback=my.cb:func"],
+            [
+                "00000000-0000-0000-0000-000000000000",
+                "--datagrepper-url=http://example.com",
+                "--callback=my.cb:func",
+            ],
             catch_exceptions=False,
         )
+        assert result.output == "test.topic\n"
+
+
+def test_callback_filesystem_wrong_format():
+    with pytest.raises(click.ClickException):
+        cli._callback_from_filesystem("::")
+
+
+def test_callback_filesystem_wrong_path():
+    with pytest.raises(click.ClickException):
+        cli._callback_from_filesystem("/does/not/exist.py:cb")
+
+
+def test_callback_filesystem_wrong_function(tmp_path):
+    callback_path = tmp_path.joinpath("callback.py")
+    with open(callback_path, "w") as f:
+        f.write("")
+    with pytest.raises(click.ClickException):
+        cli._callback_from_filesystem(f"{callback_path}:cb")
+
+
+def test_callback_filesystem_wrong_code(tmp_path):
+    callback_path = tmp_path.joinpath("callback.py")
+    with open(callback_path, "w") as f:
+        f.write("this is not valid python")
+    with pytest.raises(click.ClickException):
+        cli._callback_from_filesystem(f"{callback_path}:cb")

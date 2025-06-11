@@ -90,19 +90,19 @@ class TestObj:
 class TestValidateBindings:
     """Unit tests for :func:`fedora_messaging.config.validate_bindings`."""
 
-    def test_valid(self):
+    def test_valid(self) -> None:
         """Assert no exceptions are raised if the bindings are valid."""
-        bindings = [
+        bindings: msg_config.BindingsType = [
             {"queue": "q1", "exchange": "e1", "routing_keys": ["#"]},
             {"queue": "q2", "exchange": "e2", "routing_keys": ("#",)},
         ]
 
         msg_config.validate_bindings(bindings)
 
-    def test_wrong_type(self):
+    def test_wrong_type(self) -> None:
         """Assert a useful message is provided if bindings isn't a list or tuple"""
         with pytest.raises(ConfigurationException) as cm:
-            msg_config.validate_bindings(TestObj())
+            msg_config.validate_bindings(TestObj())  # type: ignore
         assert (
             "Configuration error: bindings must be a list or tuple of dictionaries, "
             "but was a <class 'tests.unit.test_config.TestObj'>" == str(cm.value)
@@ -112,16 +112,16 @@ class TestValidateBindings:
         """Assert a useful message is provided if "queue" is missing from the config."""
         bindings = [{}]
         with pytest.raises(ConfigurationException) as cm:
-            msg_config.validate_bindings(bindings)
+            msg_config.validate_bindings(bindings)  # type: ignore
         assert "Configuration error: a binding is missing the following keys" in str(cm.value)
         assert "exchange" in str(cm.value)
         assert "routing_keys" in str(cm.value)
 
-    def test_routing_key_str(self):
+    def test_routing_key_str(self) -> None:
         """Assert a useful message is provided if "routing_keys" is not a list or tuple."""
         bindings = [{"exchange": "e1", "queue": "q1", "routing_keys": TestObj()}]
         with pytest.raises(ConfigurationException) as cm:
-            msg_config.validate_bindings(bindings)
+            msg_config.validate_bindings(bindings)  # type: ignore
         assert (
             "Configuration error: routing_keys must be a list or tuple, but was a "
             "<class 'tests.unit.test_config.TestObj'>" == str(cm.value)
@@ -131,9 +131,9 @@ class TestValidateBindings:
 class TestValidateQueues:
     """Unit tests for :func:`fedora_messaging.config.validate_queues`."""
 
-    def test_valid(self):
+    def test_valid(self) -> None:
         """Assert no exception is raised with a valid configuration."""
-        queues = {
+        queues: dict[str, msg_config.QueueConfig] = {
             "q1": {
                 "durable": True,
                 "auto_delete": False,
@@ -144,17 +144,17 @@ class TestValidateQueues:
 
         msg_config.validate_queues(queues)
 
-    def test_invalid_type(self):
+    def test_invalid_type(self) -> None:
         with pytest.raises(ConfigurationException) as cm:
-            msg_config.validate_queues([])
+            msg_config.validate_queues([])  # type: ignore
         assert (
             "Configuration error: 'queues' must be a dictionary mapping queue names to settings."
             == str(cm.value)
         )
 
-    def test_settings_invalid_type(self):
+    def test_settings_invalid_type(self) -> None:
         with pytest.raises(ConfigurationException) as cm:
-            msg_config.validate_queues({"q1": TestObj()})
+            msg_config.validate_queues({"q1": TestObj()})  # type: ignore
         assert (
             "Configuration error: the q1 queue in the 'queues' setting has a value of type "
             "<class 'tests.unit.test_config.TestObj'>, but it should be a "
@@ -162,9 +162,9 @@ class TestValidateQueues:
         )
         assert "it should be a dictionary of settings." in str(cm.value)
 
-    def test_missing_keys(self):
+    def test_missing_keys(self) -> None:
         with pytest.raises(ConfigurationException) as cm:
-            msg_config.validate_queues({"q1": {}})
+            msg_config.validate_queues({"q1": {}})  # type: ignore
         assert (
             "Configuration error: the q1 queue is missing the following keys from its settings"
             in str(cm.value)
@@ -178,7 +178,7 @@ class TestValidateQueues:
 class TestLoad:
     """Unit tests for :func:`fedora_messaging.config.load`."""
 
-    def test_deep_copy(self):
+    def test_deep_copy(self) -> None:
         """Assert nested dictionaries in DEFAULTS are not copied into the config instance."""
         config = msg_config.LazyConfig().load_config()
 

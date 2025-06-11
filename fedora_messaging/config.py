@@ -293,44 +293,149 @@ import copy
 import logging
 import logging.config
 import os
+from collections.abc import Coroutine, Mapping, Sequence
 from importlib.metadata import version
+from typing import (
+    Any,
+    Callable,
+    Optional,
+    TYPE_CHECKING,
+    TypedDict,
+    Union,
+)
 
 
 try:
     import tomllib
-except ImportError:
-    import tomli as tomllib
+except ImportError:  # pragma: no cover
+    import tomli as tomllib  # type: ignore
 
 from . import exceptions
 
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeAlias
+
+    from .message import Message
 
 _log = logging.getLogger(__name__)
 
 _fedora_version = version("fedora_messaging")
 _pika_version = version("pika")
 
+
+CallbackType: "TypeAlias" = Union[
+    Callable[["Message"], None], Callable[["Message"], Coroutine[Any, Any, None]]
+]
+
+
+class _BaseBinding(TypedDict):
+    exchange: str
+
+
+class BaseBinding(_BaseBinding, total=False):
+    queue: str
+
+
+class BindingConfig(BaseBinding):
+    routing_keys: Sequence[str]
+
+
+BindingsType: "TypeAlias" = Union[BindingConfig, list[BindingConfig]]
+
+
+class QueueConfig(TypedDict):
+    durable: bool
+    auto_delete: bool
+    exclusive: bool
+    arguments: Mapping[str, Any]
+
+
+class QueueDefinition(QueueConfig, total=False):
+    passive: bool
+
+
+class NamedQueueDefinition(QueueDefinition):
+    queue: str
+
+
+class BaseExchangeConfig(TypedDict):
+    durable: bool
+    auto_delete: bool
+    arguments: Union[Mapping[str, Any], None]
+
+
+class _ExchangeDefinition(BaseExchangeConfig):
+    exchange: str
+    exchange_type: str
+
+
+class ExchangeDefinition(_ExchangeDefinition, total=False):
+    passive: bool
+
+
+class ExchangeConfig(BaseExchangeConfig):
+    type: str
+
+
+class ClientProperties(TypedDict):
+    app: str
+    product: str
+    information: str
+    version: str
+
+
+class QOSConfig(TypedDict):
+    prefetch_size: int
+    prefetch_count: int
+
+
+class TLSConfig(TypedDict):
+    ca_cert: Optional[str]
+    certfile: Optional[str]
+    keyfile: Optional[str]
+
+
+class ConfigType(TypedDict):
+    amqp_url: str
+    client_properties: ClientProperties
+    publish_exchange: str
+    topic_prefix: str
+    publish_priority: Optional[int]
+    passive_declares: bool
+    exchanges: dict[str, ExchangeConfig]
+    queues: dict[str, QueueConfig]
+    bindings: list[BindingConfig]
+    qos: QOSConfig
+    callback: Optional[str]
+    monitoring: dict[str, Any]
+    consumer_config: dict[str, Any]
+    tls: TLSConfig
+    log_config: dict[str, Any]
+
+
 # By default, use a server-generated queue name
-_default_queue_name = ""
+_default_queue_name: str = ""
 
 #: The default configuration settings for fedora-messaging. This should not be
 #: modified and should be copied with :func:`copy.deepcopy`.
-DEFAULTS = dict(
-    amqp_url="amqp://?connection_attempts=3&retry_delay=5",
+DEFAULTS: ConfigType = {
+    "amqp_url": "amqp://?connection_attempts=3&retry_delay=5",
     #: The default client properties reported to the AMQP broker in the "start-ok"
     #: method of the connection negotiation. This allows the broker administrators
     #: to easily identify what a connection is being used for and the client's
     #: capabilities.
-    client_properties={
+    "client_properties": {
         "app": "Unknown",
         "product": "Fedora Messaging with Pika",
         "information": "https://fedora-messaging.readthedocs.io/en/stable/",
         "version": f"fedora_messaging-{_fedora_version} with pika-{_pika_version}",
     },
-    publish_exchange="amq.topic",
-    topic_prefix="",
-    publish_priority=None,
-    passive_declares=False,
-    exchanges={
+    "publish_exchange": "amq.topic",
+    "topic_prefix": "",
+    "publish_priority": None,
+    "passive_declares": False,
+    "exchanges": {
         "amq.topic": {
             "type": "topic",
             "durable": True,
@@ -338,7 +443,7 @@ DEFAULTS = dict(
             "arguments": {},
         }
     },
-    queues={
+    "queues": {
         _default_queue_name: {
             "durable": False,
             "auto_delete": True,
@@ -346,13 +451,13 @@ DEFAULTS = dict(
             "arguments": {},
         }
     },
-    bindings=[{"queue": _default_queue_name, "exchange": "amq.topic", "routing_keys": ["#"]}],
-    qos={"prefetch_size": 0, "prefetch_count": 10},
-    callback=None,
-    monitoring={},
-    consumer_config={},
-    tls={"ca_cert": None, "certfile": None, "keyfile": None},
-    log_config={
+    "bindings": [{"queue": _default_queue_name, "exchange": "amq.topic", "routing_keys": ["#"]}],
+    "qos": {"prefetch_size": 0, "prefetch_count": 10},
+    "callback": None,
+    "monitoring": {},
+    "consumer_config": {},
+    "tls": {"ca_cert": None, "certfile": None, "keyfile": None},
+    "log_config": {
         "version": 1,
         "disable_existing_loggers": False,
         "formatters": {"simple": {"format": "[%(name)s %(levelname)s] %(message)s"}},
@@ -374,10 +479,10 @@ DEFAULTS = dict(
         # that applies to all log messages not handled by a different logger
         "root": {"level": "WARNING", "handlers": ["console"]},
     },
-)
+}
 
 
-def validate_bindings(bindings):
+def validate_bindings(bindings: BindingsType) -> None:
     """
     Validate the bindings configuration.
 
@@ -409,7 +514,7 @@ def validate_bindings(bindings):
             )
 
 
-def validate_queues(queues):
+def validate_queues(queues: dict[str, QueueConfig]) -> None:
     """
     Validate the queues configuration.
 
@@ -439,7 +544,7 @@ def validate_queues(queues):
             )
 
 
-def validate_client_properties(props):
+def validate_client_properties(props: dict[str, str]) -> None:
     """
     Validate the client properties setting.
 
@@ -460,7 +565,7 @@ def validate_client_properties(props):
             )
 
 
-def validate_monitoring(monitoring_conf):
+def validate_monitoring(monitoring_conf: dict[str, Any]) -> None:
     """
     Validate the monitoring setting.
 
@@ -476,40 +581,40 @@ def validate_monitoring(monitoring_conf):
         monitoring_conf["address"] = ""
 
 
-class LazyConfig(dict):
+class LazyConfig(dict[str, Any]):
     """This class lazy-loads the configuration file."""
 
     loaded = False
 
-    def __getitem__(self, *args, **kw):
+    def __getitem__(self, *args: Any, **kw: Any) -> Any:
         if not self.loaded:
             self.load_config()
         return super().__getitem__(*args, **kw)
 
-    def get(self, *args, **kw):
+    def get(self, *args: Any, **kw: Any) -> Any:
         if not self.loaded:
             self.load_config()
         return super().get(*args, **kw)
 
-    def pop(self, *args, **kw):
+    def pop(self, *args: Any, **kw: Any) -> None:
         raise exceptions.ConfigurationException("Configuration keys cannot be removed!")
 
-    def copy(self, *args, **kw):
+    def copy(self, *args: Any, **kw: Any) -> dict[str, Any]:
         if not self.loaded:
             self.load_config()
         return super().copy(*args, **kw)
 
-    def update(self, *args, **kw):
+    def update(self, *args: Any, **kw: Any) -> None:
         if not self.loaded:
             self.load_config()
         return super().update(*args, **kw)
 
-    def setup_logging(self):
+    def setup_logging(self) -> None:
         if not self.loaded:
             self.load_config()
         logging.config.dictConfig(self["log_config"])
 
-    def _validate(self):
+    def _validate(self) -> None:
         """
         Perform checks on the configuration to assert its validity
 
@@ -528,7 +633,7 @@ class LazyConfig(dict):
         validate_client_properties(self["client_properties"])
         validate_monitoring(self["monitoring"])
 
-    def load_config(self, config_path=None):
+    def load_config(self, config_path: Optional[str] = None) -> "LazyConfig":
         """
         Load application configuration from a file and merge it with the default
         configuration.
@@ -552,7 +657,7 @@ class LazyConfig(dict):
                 try:
                     file_config = tomllib.load(fd)
                     for key in file_config:
-                        config[key.lower()] = file_config[key]
+                        config[key.lower()] = file_config[key]  # type: ignore[literal-required]
                 except tomllib.TOMLDecodeError as e:
                     msg = f"Failed to parse {config_path}: {e}"
                     raise exceptions.ConfigurationException(msg) from e

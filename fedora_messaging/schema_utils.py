@@ -8,11 +8,13 @@ the Python API of your message schemas.
 """
 
 import collections
+from collections.abc import Mapping
 from hashlib import sha256
+from typing import Optional
 from urllib import parse
 
 
-def user_avatar_url(username, size=64, default="retro"):
+def user_avatar_url(username: str, size: int = 64, default: str = "retro") -> str:
     """Get the avatar URL of the provided Fedora username.
 
     The URL is returned from the Libravatar service.
@@ -28,7 +30,12 @@ def user_avatar_url(username, size=64, default="retro"):
     return libravatar_url(openid=openid, size=size, default=default)
 
 
-def libravatar_url(email=None, openid=None, size=64, default="retro"):
+def libravatar_url(
+    email: Optional[str] = None,
+    openid: Optional[str] = None,
+    size: int = 64,
+    default: str = "retro",
+) -> str:
     """Get the URL to an avatar from libravatar.
 
     Either the user's email or openid must be provided.
@@ -49,7 +56,7 @@ def libravatar_url(email=None, openid=None, size=64, default="retro"):
     """
     # We use an OrderedDict here to make testing easier (URL strings become
     # predictable).
-    params = collections.OrderedDict([("s", size), ("d", default)])
+    params: Mapping[str, object] = collections.OrderedDict([("s", size), ("d", default)])
     query = parse.urlencode(params)
     if email:
         value = email

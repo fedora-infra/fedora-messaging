@@ -49,9 +49,9 @@ class TestMockSends:
         with pytest.raises(AssertionError) as cm:
             with testing.mock_sends() as sent:
                 pub()
+            assert len(sent) == 1
+            assert isinstance(sent[0], api.Message)
         assert "Expected 0 messages to be sent, but 1 were sent" == cm.value.args[0]
-        assert len(sent) == 1
-        assert isinstance(sent[0], api.Message)
 
     def test_mix_class_instance(self):
         """Assert a mix of class and instance works."""
@@ -93,8 +93,8 @@ class TestMockSends:
         with pytest.raises(AssertionError) as cm:
             with testing.mock_sends(api.Message) as sent:
                 pub()
+            assert len(sent) == 2
         assert "Expected 1 messages to be sent, but 2 were sent" == cm.value.args[0]
-        assert len(sent) == 2
 
     def test_wrong_type(self):
         """Assert sending the wrong type of message raises an AssertionError."""
@@ -109,7 +109,7 @@ class TestMockSends:
         with pytest.raises(AssertionError) as cm:
             with testing.mock_sends(CustomMessage) as sent:
                 pub()
+            assert len(sent) == 1
+            assert isinstance(sent[0], api.Message)
+            assert not isinstance(sent[0], CustomMessage)
         assert expected_err == cm.value.args[0]
-        assert len(sent) == 1
-        assert isinstance(sent[0], api.Message)
-        assert not isinstance(sent[0], CustomMessage)
