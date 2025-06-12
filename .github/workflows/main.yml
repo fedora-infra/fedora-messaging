@@ -67,6 +67,7 @@ jobs:
           - py310-unittest
           - py311-unittest
           - py312-unittest
+          - py313-unittest
 
   integration-tests:
     name: Integration tests
@@ -101,6 +102,7 @@ jobs:
           - py310-integration
           - py311-integration
           - py312-integration
+          - py313-integration
 
 
   # https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/
