@@ -1,0 +1,1 @@
+Implement statistics as dataclasses
