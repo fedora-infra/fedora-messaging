@@ -14,6 +14,21 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## 3.8.0 (2025-06-17)
+
+### Features
+
+- Add typing to the entire library, and check it with mypy and pyright (PR #477)
+- Update the Fedora certificates ([8ce3f93](https://github.com/fedora-infra/fedora-messaging/commit/8ce3f93))
+- Make the factory directly available as an attribute of the service ([7374232](https://github.com/fedora-infra/fedora-messaging/commit/7374232))
+- Drop support for Python 3.8 and Pika < 1.0
+- Support Python 3.13
+
+### Development Changes
+
+- Implement statistics as dataclasses (#4ac5fc5)
+
+
 ## 3.7.1 (2025-04-22)
 
 ### Documentation Improvements
