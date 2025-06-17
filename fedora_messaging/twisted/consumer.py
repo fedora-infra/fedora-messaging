@@ -30,11 +30,15 @@ from .stats import ConsumerStatistics
 
 if TYPE_CHECKING:
     import pika.frame
-    from typing_extensions import TypeGuard
+    from typing_extensions import TypeAlias, TypeGuard
 
     from .protocol import FedoraMessagingProtocolV2
 
 _std_log = logging.getLogger(__name__)
+
+QueueContent: "TypeAlias" = tuple[
+    TwistedChannel, pika.spec.Basic.Deliver, pika.BasicProperties, bytes
+]
 
 
 def is_coro(
@@ -161,9 +165,9 @@ class Consumer:
 
     @defer.inlineCallbacks
     def _read_one(self, queue_object: ClosableDeferredQueue) -> Generator[
-        defer.Deferred[None],
-        tuple[TwistedChannel, pika.spec.Basic.Deliver, pika.BasicProperties, bytes],
-        None,
+        defer.Deferred[Any],
+        QueueContent,
+        Any,
     ]:
         try:
             deferred_get = queue_object.get()
@@ -234,7 +238,9 @@ class Consumer:
             channel.basic_ack(delivery_tag=delivery_frame.delivery_tag or 0)
             self.stats.processed += 1
 
-    def _on_cancel_callback(self, frame: Optional["pika.frame.Method"]) -> None:
+    def _on_cancel_callback(
+        self, frame: Optional["pika.frame.Method[pika.spec.Basic.Cancel]"]
+    ) -> None:
         """
         Called when the consumer is canceled server-side.
 

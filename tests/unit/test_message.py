@@ -10,7 +10,7 @@ import jsonschema
 import pika
 import pytest
 
-from fedora_messaging import exceptions, message
+from fedora_messaging import config, exceptions, message
 
 
 class DeprecatedMessage(message.Message):
@@ -80,7 +80,7 @@ class TestGetMessage:
 
     def test_invalid_body(self):
         """Assert the default severity is INFO if it's not in the headers."""
-        with pytest.raises(message.ValidationError):
+        with pytest.raises(exceptions.ValidationError):
             message.get_message("", pika.BasicProperties(), b"invalid json")
 
 
@@ -523,7 +523,7 @@ class TestMessage:
 
     def test_topic_prefix(self):
         """Assert the topic prefix is used in the encoded routing key."""
-        with mock.patch.dict(message.config.conf, {"topic_prefix": "prefix"}):
+        with mock.patch.dict(config.conf, {"topic_prefix": "prefix"}):
             msg = message.Message(topic="test.topic")
             assert msg._encoded_routing_key == "prefix.test.topic"
 

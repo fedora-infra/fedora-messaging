@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+from fedora_messaging.api import Message
 
-def rand(message):
+
+def rand(message: Message) -> int:
     return 4

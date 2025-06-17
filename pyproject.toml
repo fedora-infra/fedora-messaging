@@ -181,6 +181,7 @@ omit = [
     "tests/*",
 ]
 
+
 [tool.mypy]
 
 [[tool.mypy.overrides]]

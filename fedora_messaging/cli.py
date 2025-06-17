@@ -422,7 +422,7 @@ class Recorder:
         self._limit = limit
         self._file = file
         if limit:
-            self._bar: ProgressBar = click.progressbar(length=limit)
+            self._bar: ProgressBar[message.Message] = click.progressbar(length=limit)
 
     def collect_message(self, message: message.Message) -> None:
         """

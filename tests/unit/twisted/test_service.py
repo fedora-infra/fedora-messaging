@@ -22,7 +22,7 @@ from fedora_messaging.twisted.service import (
 )
 
 
-QUEUE_DEF: config.NamedQueueDefinition = {
+QUEUE_DEF: config.NamedQueueConfig = {
     "queue": "dummy",
     "durable": False,
     "auto_delete": False,

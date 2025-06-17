@@ -43,10 +43,10 @@ class TestFactoryV2:
         self.factory.buildProtocol(None)
         d = self.factory.when_connected()
 
-        def assert_equal(a, b):
+        def assert_equal(a: Any, b: Any) -> None:
             assert a == b
 
-        def assert_is(a, b):
+        def assert_is(a: Any, b: Any) -> None:
             assert a is b
 
         d.addCallback(lambda client: assert_equal(self.factory._client, client))
@@ -249,7 +249,7 @@ class TestFactoryV2:
         """Assert a consumer can be canceled."""
         consumer = mock.Mock()
         consumer.queue = "queue-name"
-        queue_config: config.NamedQueueDefinition = {
+        queue_config: config.NamedQueueConfig = {
             "queue": "queue-name",
             "durable": False,
             "auto_delete": True,
@@ -266,7 +266,7 @@ class TestFactoryV2:
     def test_consume_anonymous_reconnect(self):
         """Assert consume handles reconnecting anonymous queues."""
         # Use server-generated queue names
-        queue_config: config.NamedQueueDefinition = {
+        queue_config: config.NamedQueueConfig = {
             "queue": "queue_orig",
             "durable": False,
             "auto_delete": True,

@@ -32,7 +32,7 @@ from .stats import ConsumerStatistics, FactoryStatistics
 
 
 if TYPE_CHECKING:
-    from ..config import BindingsType, CallbackType, NamedQueueDefinition, QueueConfig
+    from ..config import BindingsType, CallbackType, NamedQueueConfig, QueueConfig
     from ..message import Message
 
 
@@ -61,7 +61,7 @@ class ConsumerRecord(NamedTuple):
     """
 
     consumer: Consumer
-    queue: "NamedQueueDefinition"
+    queue: "NamedQueueConfig"
     bindings: list[BindingArgument]
 
 
@@ -289,9 +289,9 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
                     b["queue"] = ""
                 expanded_bindings[b["queue"]].append(b)
 
-        expanded_queues = []
+        expanded_queues: list[NamedQueueConfig] = []
         for name, settings in queues.items():
-            q: NamedQueueDefinition = {"queue": name, **settings}
+            q: NamedQueueConfig = {"queue": name, **settings}
             expanded_queues.append(q)
 
         protocol: FedoraMessagingProtocolV2 = yield self.when_connected()

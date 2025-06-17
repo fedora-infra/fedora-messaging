@@ -351,25 +351,23 @@ class BindingConfig(BaseBinding):
 BindingsType: "TypeAlias" = Union[BindingConfig, list[BindingConfig]]
 
 
-class QueueConfig(TypedDict):
-    """The configuration for a queue on the broker.
-
-    See: https://www.rabbitmq.com/docs/queues#properties
-    """
-
+class _QueueConfig(TypedDict):
     durable: bool
     auto_delete: bool
     exclusive: bool
     arguments: Mapping[str, Any]
 
 
-class QueueDefinition(QueueConfig, total=False):
-    """The full queue definition as expected by RabbitMQ."""
+class QueueConfig(_QueueConfig, total=False):
+    """The configuration for a queue as expected by RabbitMQ.
+
+    See: https://www.rabbitmq.com/docs/queues#properties
+    """
 
     passive: bool
 
 
-class NamedQueueDefinition(QueueDefinition):
+class NamedQueueConfig(QueueConfig):
     """The full definition of a non-anonymous queue as expected by RabbitMQ."""
 
     queue: str

@@ -20,7 +20,8 @@ from fedora_messaging.exceptions import (
     PublishReturned,
 )
 from fedora_messaging.message import HeaderType, INFO, Message
-from fedora_messaging.twisted.protocol import BindingArgument, Consumer, FedoraMessagingProtocolV2
+from fedora_messaging.twisted.consumer import Consumer
+from fedora_messaging.twisted.protocol import BindingArgument, FedoraMessagingProtocolV2
 
 from .utils import MockProtocol
 
@@ -139,14 +140,12 @@ class TestProtocol:
         return d
 
     def test_forget_no_consumer(self):
-        """Assert forgetting a non-existent consumer just returns None."""
-        result = self.protocol._forget_consumer("my_invalid_queue")
-        assert result is None
+        """Assert forgetting a non-existent consumer does nothing."""
+        self.protocol._forget_consumer("my_invalid_queue")
 
     def test_forget_consumer_none(self):
         """Assert forget_consumer does not crash if passed None."""
-        result = self.protocol._forget_consumer(None)
-        assert result is None
+        self.protocol._forget_consumer(None)
 
     def test_forget_consumer_no_factory(self):
         """Assert forget_consumer does not crash if there is not factory."""
@@ -355,7 +354,7 @@ class TestProtocol:
 
     @pytest_twisted.inlineCallbacks
     def test_declare_queue(self):
-        queue: config.NamedQueueDefinition = {
+        queue: config.NamedQueueConfig = {
             "queue": "queue-name",
             "durable": False,
             "exclusive": False,
@@ -370,7 +369,7 @@ class TestProtocol:
 
     @pytest_twisted.inlineCallbacks
     def test_declare_queue_failure(self):
-        queue: config.NamedQueueDefinition = {
+        queue: config.NamedQueueConfig = {
             "queue": "queue-name",
             "durable": False,
             "exclusive": False,

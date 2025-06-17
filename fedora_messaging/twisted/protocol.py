@@ -287,7 +287,7 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
 
     @defer.inlineCallbacks
     def declare_queues(
-        self, queues: list[config.NamedQueueDefinition]
+        self, queues: list[config.NamedQueueConfig]
     ) -> Generator[defer.Deferred[Any], Any, list[str]]:
         """
         Declare a list of queues.
@@ -337,7 +337,7 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
 
     @defer.inlineCallbacks
     def declare_queue(
-        self, queue: config.NamedQueueDefinition
+        self, queue: config.NamedQueueConfig
     ) -> Generator[defer.Deferred[Any], list[str], str]:
         """
         Declare a queue. This is a convenience method to call :meth:`declare_queues` with a single

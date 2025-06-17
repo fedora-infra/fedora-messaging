@@ -27,7 +27,7 @@ def test_stats_add():
 
 def test_stats_add_bad_type():
     with pytest.raises(TypeError) as handler:
-        ConsumerStatistics() + 42
+        ConsumerStatistics() + 42  # type: ignore
     assert str(handler.value) == (
         "ConsumerStatistics instances can only be added to other ConsumerStatistics instances."
     )

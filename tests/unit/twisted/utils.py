@@ -2,19 +2,21 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+from typing import Any
 from unittest import mock
 
 import pika
 import pika.frame
 from twisted.internet import defer
 
+from fedora_messaging.twisted.consumer import QueueContent
 from fedora_messaging.twisted.protocol import FedoraMessagingProtocolV2
 
 
 class MockChannel(mock.Mock):
     """A mock object with Channel-specific methods that return Deferreds."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         deferred_methods = (
             "basic_qos",
@@ -39,7 +41,7 @@ class MockChannel(mock.Mock):
             )
         )
         # self.queue_object = mock.Mock(name="queue_object")
-        self.queue_object = defer.DeferredQueue()
+        self.queue_object: defer.DeferredQueue[QueueContent] = defer.DeferredQueue()
         self.basic_consume = mock.Mock(
             side_effect=lambda **kw: defer.succeed((self.queue_object, "consumer-tag"))
         )
@@ -51,12 +53,14 @@ class MockProtocol(FedoraMessagingProtocolV2):
     _channel: MockChannel
     channel: mock.Mock
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self._impl = mock.Mock(name="_impl")
         self._impl.is_closed = True
         self._channel = MockChannel(  # pyright: ignore [reportIncompatibleVariableOverride]
             name="_channel"
         )
-        self.channel = mock.Mock(name="channel", side_effect=lambda: defer.succeed(self._channel))  # type: ignore
+        self.channel = mock.Mock(  # pyright: ignore [reportIncompatibleMethodOverride]
+            name="channel", side_effect=lambda: defer.succeed(self._channel)
+        )
         self.factory = mock.Mock()

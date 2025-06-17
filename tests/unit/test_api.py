@@ -51,12 +51,14 @@ class TestCheckCallback:
         """Assert classes are instantiated."""
 
         class Callback:
+            result: str = "It failed"
+
             def __call__(self, message):
-                return "It worked"
+                self.__class__.result = "It worked"
 
         callback = api._check_callback(Callback)
-
-        assert callback(api.Message()) == "It worked"
+        callback(api.Message())
+        assert Callback.result == "It worked"
 
     def test_class_no_call(self):
         """Assert classes are instantiated."""
