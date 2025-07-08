@@ -291,7 +291,7 @@ class Consumer:
                 self.cancel()
             else:
                 _std_log.exception(
-                    "Consumer halted (%r) unexpectedly; " "the connection should restart.",
+                    "Consumer halted (%r) unexpectedly; the connection should restart.",
                     failure,
                 )
         elif failure.check(error.ConnectionDone, error.ConnectionLost):
@@ -300,6 +300,14 @@ class Consumer:
                 "the connection should restart and consuming will resume.",
                 failure.value,
             )
+        elif failure.check(pika.exceptions.ChannelWrongStateError):
+            _std_log.warning(
+                "The channel was closed by the server, you may have to increase the "
+                "consumer_timeout configuration on RabbitMQ and/or decrease qos.prefetch_count "
+                "in the fedora-messaging configuration file. Consuming will resume, starting "
+                "with the last processed message again."
+            )
+            self._restart_consuming()
         elif failure.check(pika.exceptions.AMQPError):
             _std_log.exception(
                 "An unexpected AMQP error occurred; the connection should "
@@ -308,6 +316,13 @@ class Consumer:
         else:
             self.result.errback(failure)
             self.cancel()
+
+    @defer.inlineCallbacks
+    def _restart_consuming(self):
+        if self._protocol is None:  # pragma: no cover
+            return
+        self._channel = yield self._protocol._allocate_channel()
+        yield self.consume()
 
     @defer.inlineCallbacks
     def cancel(self) -> Generator[defer.Deferred[Any], Any]:
