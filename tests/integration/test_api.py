@@ -504,6 +504,84 @@ def test_twisted_consume_serverside_cancel(queue_and_binding):
         pytest.fail("Timeout reached without consumer calling its errback!")
 
 
+@pytest.fixture
+def consumer_timeout():
+    # queues, bindings = queue_and_binding
+    # queue_name = next(iter(queues.keys()))
+
+    # Set consumer acknowledgement timeout to 1s
+    body = {
+        "policies": [
+            {
+                "vhost": "/",
+                "name": "consumer_timeout",
+                "pattern": ".*",
+                "apply-to": "queues",
+                "definition": {
+                    "consumer-timeout": 1000,
+                },
+                "priority": 0,
+            }
+        ]
+    }
+    d_response = treq.post(f"{HTTP_API}definitions/%2F/", json=body, auth=HTTP_AUTH, timeout=3)
+    response = pytest_twisted.blockon(d_response)
+    assert response.code == 204
+    yield
+    d_response = treq.delete(f"{HTTP_API}policies/%2F/consumer_timeout", auth=HTTP_AUTH, timeout=3)
+    response = pytest_twisted.blockon(d_response)
+    assert response.code == 204
+
+
+@pytest_twisted.inlineCallbacks
+def test_twisted_consume_consumer_timeout(consumer_timeout, queue_and_binding, caplog):
+    """Check that the consumer handles acknowledgement timeouts.
+
+    See: https://www.rabbitmq.com/docs/consumers#acknowledgement-timeout
+    """
+    queues, bindings = queue_and_binding
+
+    msg = message.Message(
+        topic="nice.message",
+        headers={"niceness": "very"},
+        body={"encouragement": "You're doing great!"},
+    )
+    messages_received = []
+
+    def callback(message):
+        """Wait a few seconds on each message, quit on the 2nd."""
+        messages_received.append(message)
+        if len(messages_received) == 1:
+            # Unfortunately the timeout is evaluated server-side at 1 minute intervals :-(
+            time.sleep(70)
+        else:
+            raise exceptions.HaltConsumer()
+
+    consumers = yield api.twisted_consume(callback, bindings, queues)
+
+    # Wait for a message to get through, and then send
+    # the second and wait for the consumer to finish
+    yield threads.deferToThread(api.publish, msg, "amq.topic")
+    yield threads.deferToThread(api.publish, msg, "amq.topic")
+
+    # Delete the queue and assert the consumer errbacks
+    # consumers[0].result.addTimeout(10, reactor)
+    consumers[0].result.addTimeout(80, reactor)
+    try:
+        yield consumers[0].result
+        pytest.fail("Consumer did not errback!")
+    except (defer.TimeoutError, defer.CancelledError):
+        pytest.fail("Timeout reached without consumer stopping!")
+    except exceptions.HaltConsumer as e:
+        assert len(messages_received) == 2
+        assert e.exit_code == 0
+    fm_logs = [r for r in caplog.records if r.name.startswith("fedora_messaging.")]
+    assert len(fm_logs) == 1
+    assert fm_logs[0].levelname == "WARNING"
+    assert fm_logs[0].message.startswith("The channel was closed by the server, ")
+    assert "Consuming will resume" in fm_logs[0].message
+
+
 @pytest_twisted.inlineCallbacks
 def test_no_vhost_permissions(admin_user, queue_and_binding):
     """Assert a hint is given if the user doesn't have any access to the vhost"""

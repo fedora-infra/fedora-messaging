@@ -10,6 +10,7 @@ import pika
 import pika.exceptions
 import pytest
 from twisted.internet import defer, error
+from twisted.python.failure import Failure
 
 from fedora_messaging.exceptions import (
     ConnectionException,
@@ -372,6 +373,64 @@ class TestConsumer:
         assert self.consumer.result.called is True
         self.consumer.result.addErrback(lambda f: f.check(ConsumerCanceled))
         yield self.consumer.result
+
+    @pytest_twisted.inlineCallbacks
+    def test_exit_loop_channel_wrong_state(self, mocker):
+        """Check that the consumer handles acknowledgement timeouts.
+
+        See: https://www.rabbitmq.com/docs/consumers#acknowledgement-timeout
+        """
+        log = mocker.patch("fedora_messaging.twisted.consumer._std_log")
+        # Stop after the second message
+        self.callback.side_effect = [lambda m: None, HaltConsumer()]
+        # Fail acknowledging after the first message, succeed on the second
+        self.channel.basic_ack.side_effect = [
+            pika.exceptions.ChannelWrongStateError("Channel is closed"),
+            lambda *args, **kwargs: None,
+        ]
+        queue = Mock()
+        queue.get.side_effect = lambda: defer.succeed(
+            (
+                self.channel,
+                MockDeliveryFrame("dt", "rk"),
+                MockProperties(),
+                json.dumps({"content": "foobar"}).encode("ascii"),
+            )
+        )
+        self.channel.queue_object = queue
+        yield self.consumer.consume()
+        yield self.consumer._read_loop
+
+        # A new channel should have been allocated
+        self.protocol.channel.assert_called_once_with()
+        # Consumption should have been required twice
+        assert self.channel.basic_consume.call_count == 2
+
+        # It should have restarted, wait for the 2nd read loop
+        yield self.consumer._read_loop
+
+        # The queue should have been fetched twice
+        assert queue.get.call_count == 2
+        # Callback should have been called twice
+        assert self.callback.call_count == 2
+        for call in self.callback.call_args_list:
+            assert call.args[0].body == {"content": "foobar"}
+        # Acknowledgement should have happened twice
+        assert self.channel.basic_ack.call_count == 2
+        for call in self.channel.basic_ack.call_args_list:
+            assert call.kwargs == dict(delivery_tag="dt")
+        # The AMQP error should have been handled
+        log.exception.assert_not_called()
+        log.warning.assert_called()
+        logmsg = log.warning.call_args[0][0]
+        assert "The channel was closed by the server" in logmsg
+        assert "Consuming will resume" in logmsg
+        # On 2nd try, HaltConsumer should have been raised and the consumer should be done.
+        assert self.consumer.result.called is True
+        assert isinstance(self.consumer.result.result, Failure)
+        assert isinstance(self.consumer.result.result.value, HaltConsumer)
+        # It was a temporary error, no canceling
+        self.channel.basic_cancel.assert_not_called()
 
     @pytest_twisted.inlineCallbacks
     def test_exit_loop_amqp_error(self, mocker):
