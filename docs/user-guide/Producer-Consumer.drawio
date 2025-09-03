@@ -1,0 +1,84 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (X11; Linux x86_64; rv:139.0) Gecko/20100101 Firefox/139.0" version="27.1.1">
+  <diagram name="Page-1" id="bn8OplOIhetw0x9mesjO">
+    <mxGraphModel dx="897" dy="561" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ZH3oxzkt6s_EOkN_eQQ--21" value="Publisher" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="40" y="260" width="260" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="ZH3oxzkt6s_EOkN_eQQ--22" value="Consumer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;align=center;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="330" y="260" width="300" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="ZH3oxzkt6s_EOkN_eQQ--20" value="" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="366" y="520" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ZH3oxzkt6s_EOkN_eQQ--19" value="" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="360" y="515" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="82yrU3Jxxp-SrsiXgCm8-2" value="Bus (RabbitMQ)" style="shape=doubleArrow;whiteSpace=wrap;html=1;arrowWidth=0.5071428571428612;arrowSize=0.06785714285714306;" parent="1" vertex="1">
+          <mxGeometry x="180" y="620" width="280" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ZH3oxzkt6s_EOkN_eQQ--1" value="Application" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="80" y="310" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ZH3oxzkt6s_EOkN_eQQ--2" value="Message Class&lt;br&gt;(schema package)" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="75" y="410" width="130" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ZH3oxzkt6s_EOkN_eQQ--4" value="&lt;div&gt;- topic&lt;/div&gt;&lt;div&gt;- JSON schema&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;align=left;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="95" y="460" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ZH3oxzkt6s_EOkN_eQQ--5" value="" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="ZH3oxzkt6s_EOkN_eQQ--1" target="ZH3oxzkt6s_EOkN_eQQ--2">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="320" y="520" as="sourcePoint" />
+            <mxPoint x="370" y="470" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ZH3oxzkt6s_EOkN_eQQ--6" value="&lt;font face=&quot;Courier New&quot;&gt;instance(body)&lt;/font&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="ZH3oxzkt6s_EOkN_eQQ--5">
+          <mxGeometry x="-0.3657" y="-1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ZH3oxzkt6s_EOkN_eQQ--7" value="&lt;div&gt;&lt;font face=&quot;Courier New&quot;&gt;publish(instance)&lt;/font&gt;&lt;/div&gt;&lt;div&gt;(auto-validates)&lt;/div&gt;" style="shape=step;perimeter=stepPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="100" y="530" width="170" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ZH3oxzkt6s_EOkN_eQQ--8" value="" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="ZH3oxzkt6s_EOkN_eQQ--2" target="ZH3oxzkt6s_EOkN_eQQ--7">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="320" y="520" as="sourcePoint" />
+            <mxPoint x="370" y="470" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ZH3oxzkt6s_EOkN_eQQ--9" value="&lt;div&gt;topic&lt;/div&gt;&lt;div&gt;JSON&lt;/div&gt;" style="endArrow=classic;html=1;rounded=0;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.193;entryY=0.275;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="ZH3oxzkt6s_EOkN_eQQ--7" target="82yrU3Jxxp-SrsiXgCm8-2">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="320" y="520" as="sourcePoint" />
+            <mxPoint x="370" y="470" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ZH3oxzkt6s_EOkN_eQQ--14" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="ZH3oxzkt6s_EOkN_eQQ--11" target="ZH3oxzkt6s_EOkN_eQQ--13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ZH3oxzkt6s_EOkN_eQQ--11" value="Fedora Messaging&lt;br&gt;Consumer" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="354" y="510" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ZH3oxzkt6s_EOkN_eQQ--12" value="" style="endArrow=classic;html=1;rounded=0;exitX=0.822;exitY=0.25;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="82yrU3Jxxp-SrsiXgCm8-2" target="ZH3oxzkt6s_EOkN_eQQ--11">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="320" y="520" as="sourcePoint" />
+            <mxPoint x="370" y="470" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ZH3oxzkt6s_EOkN_eQQ--18" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="ZH3oxzkt6s_EOkN_eQQ--13" target="ZH3oxzkt6s_EOkN_eQQ--17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ZH3oxzkt6s_EOkN_eQQ--13" value="&lt;div&gt;Message Class&lt;/div&gt;&lt;div&gt;(schema package)&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=top;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="360" y="330" width="120" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="ZH3oxzkt6s_EOkN_eQQ--16" value="&lt;div&gt;&lt;font face=&quot;Courier New&quot;&gt;- summary&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Courier New&quot;&gt;- __str__&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Courier New&quot;&gt;- agent&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Courier New&quot;&gt;- usernames&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font face=&quot;Courier New&quot;&gt;- …&lt;/font&gt;&lt;/div&gt;" style="whiteSpace=wrap;html=1;aspect=fixed;align=left;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="374" y="380" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="ZH3oxzkt6s_EOkN_eQQ--17" value="&lt;div&gt;Callback&lt;/div&gt;&lt;div&gt;(class or function)&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="510" y="370" width="110" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

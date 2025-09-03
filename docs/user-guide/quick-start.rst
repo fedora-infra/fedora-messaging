@@ -12,10 +12,28 @@ This is a quick-start guide that covers a few common use-cases and contains
 pointers to more in-depth documentation for the curious.
 
 
+Software Stack Overview
+=======================
+
+The following diagram shows the software stack around Fedora Messaging.
+The green blocks are the components that users of Fedora Messaging must
+implement.
+
+.. figure:: Software-Stack.png
+    :alt: Software stack
+
+Application schemas will be covered in the :ref:`messages` documentation.
+They are not strictly required, you can use the default schema for publishing
+and/or not install the expected schemas for consuming, but you will lose some
+very useful features.
+
+When consuming, the green "Application" block can be as simple as a function.
+
+
 .. _local-broker:
 
-Local Broker
-============
+Using a Local Broker
+====================
 
 To publish and consume messages locally can be a useful way to learn about the
 library, and is also helpful during development of your application or service.
@@ -62,8 +80,8 @@ documentation.
 
 .. _fedora-broker:
 
-Fedora's Public Broker
-======================
+Using Fedora's Public Broker
+============================
 
 Fedora's message broker has a publicly accessible virtual host located at
 ``amqps://rabbitmq.fedoraproject.org/%2Fpublic_pubsub``. This virtual host
@@ -141,8 +159,8 @@ consumer is interested in.
 
 .. _fedora-restricted-broker:
 
-Fedora's Restricted Broker
-==========================
+Using Fedora's Restricted Broker
+================================
 
 Connecting the Fedora's private virtual host requires working with the Fedora
 infrastructure team. The current process and configuration for this is

@@ -488,7 +488,7 @@ def _get_message(message_id: str, datagrepper_url: str) -> dict[str, Any]:
     show_default=True,
 )
 def replay(message_id: str, datagrepper_url: str) -> None:
-    """Replay a message from Datagrepper by its message ID"""
+    """Re-publish a message from Datagrepper by its message ID"""
     message_data = _get_message(message_id, datagrepper_url)
     if message_data:
         # Disable the topic prefix, the loaded message already has everything.

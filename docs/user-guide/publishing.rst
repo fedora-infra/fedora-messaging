@@ -17,6 +17,8 @@ headers, and a body. Messages are encapsulated in a
 messages, see the :ref:`messages` documentation. For details on the publishing
 API, see the :ref:`pub-api` API documentation.
 
+
+
 Topics
 ------
 
@@ -61,6 +63,24 @@ object, then pass it to the :func:`fedora_messaging.api.publish` function::
 
 The API relies on the :ref:`config` you've provided to connect to the message
 broker and publish the message to an exchange.
+
+This is the full path of a message, from the producer to the consumer(s).
+
+.. figure:: Producer-Consumer.png
+    :alt: Producers and consumers
+
+    (:download:`diagram source <Producer-Consumer.drawio>` in `draw.io <https://draw.io>`_ format)
+
+Message classes/schemas will be covered in the :ref:`messages` documentation.
+They are not strictly required, you can use the default schema for publishing,
+but you will lose some very useful features:
+
+- the body will not be validated
+- consumers of your messages will have to know your message structure instead of
+  using the Python API.
+- your messages will not be able to generate notifications for users
+- it will be harder to update you message's structure (the deprecation feature
+  will be less convenient to use)
 
 
 Handling Errors

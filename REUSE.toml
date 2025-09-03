@@ -29,3 +29,9 @@ SPDX-License-Identifier = "GPL-2.0-or-later"
 path = ["news/*"]
 SPDX-FileCopyrightText = "2024 Red Hat, Inc"
 SPDX-License-Identifier = "GPL-2.0-or-later"
+
+# Documentation non-text files
+[[annotations]]
+path = ["docs/**.png", "docs/**.drawio", "docs/**.svg"]
+SPDX-FileCopyrightText = "2024 Red Hat, Inc"
+SPDX-License-Identifier = "GPL-2.0-or-later"

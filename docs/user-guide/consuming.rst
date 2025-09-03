@@ -93,6 +93,21 @@ Consumer API
 The introduction contains a very minimal callback. This section covers the
 complete API for consumers.
 
+Message Lifecycle Overview
+--------------------------
+
+This is the full path of a message, from the producer to the consumer(s).
+
+.. figure:: Producer-Consumer.png
+    :alt: Producers and consumers
+
+    (:download:`diagram source <Producer-Consumer.drawio>` in `draw.io <https://draw.io>`_ format)
+
+Message classes/schemas will be covered in the :ref:`messages` documentation.
+They are not strictly required, you don't have to install the schemas for the
+messages you are consuming, but you will not have access to their advanced
+Python API.
+
 The Callback
 ------------
 
