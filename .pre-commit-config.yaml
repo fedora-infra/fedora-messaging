@@ -24,7 +24,7 @@ repos:
   # Ruff
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     # Ruff version.
-    rev: v0.12.11
+    rev: v0.12.12
     hooks:
       - id: ruff
 
@@ -35,6 +35,6 @@ repos:
         additional_dependencies: [sphinx, tomli]
 
   - repo: https://github.com/fsfe/reuse-tool
-    rev: v5.0.2
+    rev: v5.1.0
     hooks:
       - id: reuse-lint-file
