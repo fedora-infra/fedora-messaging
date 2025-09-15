@@ -612,7 +612,7 @@ def test_no_read_permissions_queue_read_failure_pika1(admin_user, queue_and_bind
     register itself, but not to actually read from the queue so the result is
     what errors back.
     """
-    queues, bindings = queue_and_binding
+    queues = queue_and_binding[0]
     url = f"{HTTP_API}permissions/%2F/{admin_user}"
     body = {"configure": ".*", "write": ".*", "read": ""}
     resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
