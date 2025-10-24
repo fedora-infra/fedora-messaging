@@ -28,8 +28,10 @@ jobs:
       - name: Mark the directory as safe for git
         run: git config --global --add safe.directory $PWD
 
-      - name: Install poetry
-        run: python3 -m pip install --upgrade poetry
+      - name: Install dependencies
+        run: |
+          dnf install -y libatomic
+          python3 -m pip install --upgrade poetry
 
       - name: Run tests
         run: tox -e ${{ matrix.tox_env }}
