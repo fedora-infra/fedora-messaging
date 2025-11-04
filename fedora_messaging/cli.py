@@ -8,6 +8,7 @@ The ``fedora-messaging`` `Click`_ CLI.
 .. _Click: http://click.pocoo.org/
 """
 
+import asyncio
 import errno
 import importlib
 import logging
@@ -26,7 +27,7 @@ from fedora_messaging import message
 
 
 try:
-    asyncioreactor.install()
+    asyncioreactor.install(asyncio.new_event_loop())
 except error.ReactorAlreadyInstalledError:
     # The tests install a reactor before importing this module
     from twisted.internet import reactor
