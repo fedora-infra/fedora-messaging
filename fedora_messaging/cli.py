@@ -8,6 +8,7 @@ The ``fedora-messaging`` `Click`_ CLI.
 .. _Click: http://click.pocoo.org/
 """
 
+import asyncio
 import errno
 import importlib
 import logging
@@ -26,7 +27,10 @@ from fedora_messaging import message
 
 
 try:
-    asyncioreactor.install()
+    # Twisted 25.5 does not support Python 3.14, and at the time of this writing neither
+    # does pytest-twisted. This is because Python removed a number of APIs in asyncio. This
+    # is a temporary workaround because they plan to remove these APIs too.
+    asyncioreactor.install(asyncio.new_event_loop())
 except error.ReactorAlreadyInstalledError:
     # The tests install a reactor before importing this module
     from twisted.internet import reactor

@@ -1,0 +1,1 @@
+Explicitly install an event loop to support Python 3.14, which no longer does so implicitly.
