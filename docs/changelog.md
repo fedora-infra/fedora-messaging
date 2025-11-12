@@ -14,6 +14,24 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## 3.9.0 (2025-11-12)
+
+### Features
+
+- Handle [acknowledgement timeouts](https://www.rabbitmq.com/docs/consumers#acknowledgement-timeout) in the consumer
+
+### Bug Fixes
+
+- Explicitly install an event loop to support Python 3.14, which no longer does so implicitly. (#531)
+
+### Contributors
+
+Many thanks to the contributors of bug reports, pull requests, and pull request reviews for this release:
+
+- Aurélien Bompard
+- Jeremy Cline
+
+
 ## 3.8.0 (2025-06-17)
 
 ### Features
