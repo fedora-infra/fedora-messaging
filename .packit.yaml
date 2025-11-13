@@ -20,8 +20,8 @@ srpm_build_deps:
   - curl
 
 targets:
-  - fedora-latest-stable
   - fedora-development
+  - fedora-latest-stable
   - epel-9
 
 actions:
@@ -59,8 +59,14 @@ jobs:
     trigger: commit
 
   # land upstream release in fedora dist-git - no builds
+  # https://packit.dev/docs/configuration/upstream/propose_downstream
   - job: propose_downstream
     trigger: release
+    dist_git_branches:
+      - main:
+          fast_forward_merge_into:
+            - fedora-latest-stable
+      - epel-9: {}
 
   # create an srpm from upstream and submit a scratch build to koji
   - job: upstream_koji_build
@@ -73,6 +79,7 @@ jobs:
     trigger: commit
 
   # create a new update in bodhi for a successful koji build. directly related to `koji_build`
+  # https://packit.dev/docs/configuration/downstream/bodhi_update
   - job: bodhi_update
     trigger: commit
     dist_git_branches:
