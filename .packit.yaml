@@ -63,10 +63,10 @@ jobs:
   - job: propose_downstream
     trigger: release
     dist_git_branches:
-      - main:
-          fast_forward_merge_into:
-            - fedora-latest-stable
-      - epel-9: {}
+      main:
+        fast_forward_merge_into:
+          - fedora-latest-stable
+      epel-9: {}
 
   # create an srpm from upstream and submit a scratch build to koji
   - job: upstream_koji_build
