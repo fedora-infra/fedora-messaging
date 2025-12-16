@@ -43,14 +43,16 @@ def callback2(message):
 plain_object = object()
 
 
+@mock.patch("fedora_messaging.cli.reactor", mock.Mock())
 @mock.patch("fedora_messaging.config.conf.setup_logging", mock.Mock())
 class TestBaseCli:
     """Unit tests for the base command of the CLI."""
 
-    def test_no_conf(self):
+    @mock.patch("fedora_messaging.cli.api.twisted_consume")
+    def test_no_conf(self, mock_consume):
         """Assert the CLI runs without exploding."""
         runner = CliRunner()
-        result = runner.invoke(cli.cli)
+        result = runner.invoke(cli.cli, ["consume", "--callback=tests.unit.test_cli:echo"])
         assert result.exit_code == 0
 
 
