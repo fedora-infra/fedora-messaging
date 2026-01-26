@@ -21,7 +21,6 @@ import typing
 from twisted.application.internet import TCPServer
 from twisted.web import http, resource, server
 
-
 if typing.TYPE_CHECKING:
     from twisted.application.service import MultiService
     from typing_extensions import TypeAlias

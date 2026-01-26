@@ -26,7 +26,6 @@ from argparse import ArgumentParser
 from collections import defaultdict
 from subprocess import check_output
 
-
 EXCLUDE = ["Weblate (bot)"]
 
 last_tag = check_output(["git", "tag", "--sort=creatordate"], text=True).strip().split("\n")[-1]

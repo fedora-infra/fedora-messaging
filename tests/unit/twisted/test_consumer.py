@@ -24,7 +24,6 @@ from fedora_messaging.twisted.consumer import Consumer
 
 from .utils import MockChannel, MockProtocol
 
-
 try:
     import pytest_twisted
 except ImportError:

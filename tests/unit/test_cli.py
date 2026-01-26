@@ -4,7 +4,6 @@
 
 """Tests for the :module:`fedora_messaging.cli` module."""
 
-
 import errno
 import os
 import sys

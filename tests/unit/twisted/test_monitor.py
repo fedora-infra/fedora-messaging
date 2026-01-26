@@ -9,7 +9,6 @@ from twisted.web.client import Agent, readBody
 from fedora_messaging.twisted.monitor import monitor_service
 from fedora_messaging.twisted.stats import ConsumerStatistics
 
-
 try:
     import pytest_twisted
 except ImportError:

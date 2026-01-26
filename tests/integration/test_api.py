@@ -21,7 +21,6 @@ from fedora_messaging import api, config, exceptions, message
 
 from .utils import RABBITMQ_HOST
 
-
 HTTP_API = f"http://{RABBITMQ_HOST}:15672/api/"
 HTTP_AUTH = ("guest", "guest")
 

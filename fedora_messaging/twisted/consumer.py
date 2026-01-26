@@ -27,7 +27,6 @@ from ..exceptions import (
 from ..message import get_message
 from .stats import ConsumerStatistics
 
-
 if TYPE_CHECKING:
     import pika.frame
     from typing_extensions import TypeAlias, TypeGuard

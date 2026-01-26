@@ -25,7 +25,6 @@ from twisted.python.failure import Failure
 
 from fedora_messaging import message
 
-
 try:
     # Twisted 25.5 does not support Python 3.14, and at the time of this writing neither
     # does pytest-twisted. This is because Python removed a number of APIs in asyncio. This
@@ -43,7 +42,6 @@ from twisted.python import log as legacy_twisted_log
 
 from . import api, config, exceptions
 from .message import dumps, loads
-
 
 if TYPE_CHECKING:
     from click._termui_impl import ProgressBar

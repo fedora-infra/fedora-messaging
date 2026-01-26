@@ -288,7 +288,6 @@ service will listen on all interfaces. There is no default value for
 ``port``, you will have to choose a port.
 """
 
-
 import copy
 import logging
 import logging.config
@@ -304,14 +303,12 @@ from typing import (
     Union,
 )
 
-
 try:
     import tomllib
 except ImportError:  # pragma: no cover
     import tomli as tomllib  # type: ignore
 
 from . import exceptions
-
 
 if TYPE_CHECKING:
     from typing_extensions import TypeAlias
