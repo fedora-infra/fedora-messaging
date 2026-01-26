@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 """Tests for the ``fedora-messaging`` command-line interface."""
+
 import os
 import shutil
 import subprocess

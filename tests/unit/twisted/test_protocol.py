@@ -25,7 +25,6 @@ from fedora_messaging.twisted.protocol import BindingArgument, FedoraMessagingPr
 
 from .utils import MockProtocol
 
-
 try:
     import pytest_twisted
 except ImportError:

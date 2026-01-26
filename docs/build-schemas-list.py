@@ -19,7 +19,6 @@ from urllib.parse import urljoin
 
 from sphinx.ext.napoleon.docstring import GoogleDocstring
 
-
 SCHEMAS_FILE = "schema-packages.txt"
 DOC_FILE = "user-guide/schemas.rst"
 HEADER = """.. SPDX-FileCopyrightText: 2024 Red Hat, Inc

@@ -46,7 +46,6 @@ from . import config
 from .exceptions import ValidationError
 from .schema_utils import user_avatar_url
 
-
 if TYPE_CHECKING:
     from typing_extensions import TypeAlias
 

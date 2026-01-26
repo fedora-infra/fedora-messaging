@@ -4,7 +4,6 @@
 
 import importlib.metadata
 
-
 try:
     import pytest
 

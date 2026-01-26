@@ -147,7 +147,6 @@ select = ["E", "F", "W", "I", "UP", "S", "B", "RUF"]
 ignore = ["RUF012"]
 
 [tool.ruff.lint.isort]
-lines-after-imports = 2
 order-by-type = false
 
 [tool.ruff.lint.per-file-ignores]

@@ -21,7 +21,6 @@ from fedora_messaging.twisted.service import (
     SSLOptions,
 )
 
-
 QUEUE_DEF: config.NamedQueueConfig = {
     "queue": "dummy",
     "durable": False,

@@ -6,9 +6,7 @@
 Signals sent by fedora_messaging APIs using :class:`blinker.base.Signal` signals.
 """
 
-
 import blinker
-
 
 _signals = blinker.Namespace()
 

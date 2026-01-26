@@ -14,7 +14,6 @@ See the `Twisted client
 documentation for more information.
 """
 
-
 import collections
 import logging
 from collections.abc import Generator
@@ -29,7 +28,6 @@ from ..exceptions import ConnectionException
 from .consumer import Consumer
 from .protocol import BindingArgument, FedoraMessagingProtocolV2
 from .stats import ConsumerStatistics, FactoryStatistics
-
 
 if TYPE_CHECKING:
     from ..config import BindingsType, CallbackType, NamedQueueConfig, QueueConfig

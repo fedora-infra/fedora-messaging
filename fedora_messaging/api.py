@@ -24,7 +24,6 @@ from .signals import pre_publish_signal, publish_failed_signal, publish_signal
 from .twisted import monitor, service
 from .twisted.consumer import Consumer
 
-
 _log = logging.getLogger(__name__)
 
 

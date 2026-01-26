@@ -17,7 +17,6 @@ from fedora_messaging.twisted.consumer import Consumer
 from fedora_messaging.twisted.factory import ConsumerRecord, FedoraMessagingFactoryV2
 from fedora_messaging.twisted.protocol import BindingArgument
 
-
 try:
     import pytest_twisted
 except ImportError:

@@ -17,7 +17,6 @@ For an overview of Twisted clients, see the `Twisted client documentation
 <https://twistedmatrix.com/documents/current/core/howto/clients.html#protocol>`_.
 """
 
-
 import logging
 from collections.abc import Generator
 from typing import Any, Optional, TYPE_CHECKING, Union
@@ -37,7 +36,6 @@ from ..exceptions import (
     PublishReturned,
 )
 from .consumer import Consumer
-
 
 if TYPE_CHECKING:
     from ..message import Message

@@ -17,7 +17,6 @@
 import os
 import re
 
-
 try:
     import tomllib
 except ImportError:

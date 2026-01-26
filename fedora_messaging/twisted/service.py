@@ -12,7 +12,6 @@ fedmsg-migration-tools for a use case.
 See https://twistedmatrix.com/documents/current/core/howto/application.html
 """
 
-
 import logging
 import ssl
 from collections.abc import Generator
@@ -27,7 +26,6 @@ from twisted.internet import ssl as twisted_ssl
 
 from .. import config, exceptions
 from .factory import FedoraMessagingFactoryV2
-
 
 if TYPE_CHECKING:
     from twisted.internet._sslverify import ClientTLSOptions
