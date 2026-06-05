@@ -100,7 +100,7 @@ def queue_and_binding():
             "durable": True,
             "exclusive": False,
             "auto_delete": False,
-            "arguments": {"x-expires": 60 * 1000},
+            "arguments": {"x-expires": 60 * 1000, "x-queue-type": "quorum"},
         }
     }
     bindings = [{"queue": queue, "exchange": "amq.topic", "routing_keys": ["#"]}]
@@ -571,14 +571,22 @@ def test_twisted_consume_consumer_timeout(consumer_timeout, queue_and_binding, c
         pytest.fail("Consumer did not errback!")
     except (defer.TimeoutError, defer.CancelledError):
         pytest.fail("Timeout reached without consumer stopping!")
+    except exceptions.ConsumerCanceled:
+        # Modern version of RabbitMQ (4.3.1 at least) and Pika (1.4.1) lead to a ConsumerCanceled
+        # instead. This currently causes the CLI to exit non-zero, which I guess is fine.
+        assert len(messages_received) == 1
+        fm_logs = [r for r in caplog.records if r.name.startswith("fedora_messaging.")]
+        assert len(fm_logs) == 1
+        assert fm_logs[0].levelname == "ERROR"
+        assert fm_logs[0].message.endswith("was canceled by the AMQP broker!")
     except exceptions.HaltConsumer as e:
         assert len(messages_received) == 2
         assert e.exit_code == 0
-    fm_logs = [r for r in caplog.records if r.name.startswith("fedora_messaging.")]
-    assert len(fm_logs) == 1
-    assert fm_logs[0].levelname == "WARNING"
-    assert fm_logs[0].message.startswith("The channel was closed by the server, ")
-    assert "Consuming will resume" in fm_logs[0].message
+        fm_logs = [r for r in caplog.records if r.name.startswith("fedora_messaging.")]
+        assert len(fm_logs) == 1
+        assert fm_logs[0].levelname == "WARNING"
+        assert fm_logs[0].message.startswith("The channel was closed by the server, ")
+        assert "Consuming will resume" in fm_logs[0].message
 
 
 @pytest_twisted.inlineCallbacks
