@@ -24,7 +24,7 @@ import pika.exceptions
 from twisted.internet import defer, error, protocol
 from twisted.python.failure import Failure
 
-from ..exceptions import ConnectionException
+from ..exceptions import BadDeclaration, ConnectionException
 from .consumer import Consumer
 from .protocol import BindingArgument, FedoraMessagingProtocolV2
 from .stats import ConsumerStatistics, FactoryStatistics
@@ -119,7 +119,16 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             # including queues and bindings, as the queue might not have been durable
             for record in self._consumers:
                 _std_log.info("Re-registering the %r consumer", record.consumer)
-                queue_name: str = yield client.declare_queue(record.queue)
+                try:
+                    queue_name: str = yield client.declare_queue(record.queue)
+                except BadDeclaration as e:
+                    _std_log.warning(
+                        "Failed to declare queue while registering %r: %s; restarting connection.",
+                        record.consumer,
+                        str(e),
+                    )
+                    yield client.close()
+                    return
                 _remap_queue_name(record.bindings, queue_name)
                 yield client.bind_queues(record.bindings)
                 if record.consumer.callback is not None:
