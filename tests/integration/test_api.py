@@ -97,7 +97,7 @@ def queue_and_binding():
     queue = str(uuid.uuid4())
     queues = {
         queue: {
-            "durable": False,
+            "durable": True,
             "exclusive": False,
             "auto_delete": False,
             "arguments": {"x-expires": 60 * 1000},
