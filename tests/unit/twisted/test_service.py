@@ -132,9 +132,9 @@ class ConfigureTlsParameters:
 
 
 class TestSslContextFactory:
-    @mock.patch("fedora_messaging.twisted.service.twisted_ssl.Certificate.loadPEM")
+    @mock.patch("fedora_messaging.twisted.service.twisted_ssl.trustRootFromCertificates")
     @mock.patch("fedora_messaging.twisted.service.twisted_ssl.optionsForClientTLS")
-    def test_no_key(self, mock_opts, mock_load_pem, fixtures_dir):
+    def test_no_key(self, mock_opts, mock_trfc, fixtures_dir):
         """Assert if there's no client key, the factory isn't configured to use it."""
         tls_conf = {
             "keyfile": None,
@@ -147,15 +147,15 @@ class TestSslContextFactory:
 
         mock_opts.assert_called_once_with(
             "dummy_host",
-            trustRoot=mock_load_pem.return_value,
+            trustRoot=mock_trfc.return_value,
             clientCertificate=None,
             extraCertificateOptions={"raiseMinimumTo": twisted_ssl.TLSVersion.TLSv1_2},
         )
         assert factory == mock_opts.return_value
 
-    @mock.patch("fedora_messaging.twisted.service.twisted_ssl.Certificate.loadPEM")
+    @mock.patch("fedora_messaging.twisted.service.twisted_ssl.trustRootFromCertificates")
     @mock.patch("fedora_messaging.twisted.service.twisted_ssl.optionsForClientTLS")
-    def test_no_cert(self, mock_opts, mock_load_pem, fixtures_dir):
+    def test_no_cert(self, mock_opts, mock_trfc, fixtures_dir):
         """Assert if there's no client cert, the factory isn't configured to use it."""
         tls_conf = {
             "keyfile": os.path.join(fixtures_dir, "key.pem"),
@@ -168,16 +168,16 @@ class TestSslContextFactory:
 
         mock_opts.assert_called_once_with(
             "dummy_host",
-            trustRoot=mock_load_pem.return_value,
+            trustRoot=mock_trfc.return_value,
             clientCertificate=None,
             extraCertificateOptions={"raiseMinimumTo": twisted_ssl.TLSVersion.TLSv1_2},
         )
         assert factory == mock_opts.return_value
 
     @mock.patch("fedora_messaging.twisted.service.twisted_ssl.PrivateCertificate.loadPEM")
-    @mock.patch("fedora_messaging.twisted.service.twisted_ssl.Certificate.loadPEM")
+    @mock.patch("fedora_messaging.twisted.service.twisted_ssl.trustRootFromCertificates")
     @mock.patch("fedora_messaging.twisted.service.twisted_ssl.optionsForClientTLS")
-    def test_key_and_cert(self, mock_opts, mock_load_pem, mock_priv_load_pem, fixtures_dir):
+    def test_key_and_cert(self, mock_opts, mock_trfc, mock_priv_load_pem, fixtures_dir):
         """Assert if there's a client key and cert, the factory has both."""
         tls_conf = {
             "keyfile": os.path.join(fixtures_dir, "key.pem"),
@@ -190,7 +190,7 @@ class TestSslContextFactory:
 
         mock_opts.assert_called_once_with(
             "dummy_host",
-            trustRoot=mock_load_pem.return_value,
+            trustRoot=mock_trfc.return_value,
             clientCertificate=mock_priv_load_pem.return_value,
             extraCertificateOptions={"raiseMinimumTo": twisted_ssl.TLSVersion.TLSv1_2},
         )
