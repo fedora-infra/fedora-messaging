@@ -11,7 +11,7 @@ from twisted.internet import defer
 from twisted.internet.error import ConnectionDone, ConnectionLost
 
 from fedora_messaging import config
-from fedora_messaging.exceptions import ConnectionException
+from fedora_messaging.exceptions import BadDeclaration, ConnectionException
 from fedora_messaging.message import Message
 from fedora_messaging.twisted.consumer import Consumer
 from fedora_messaging.twisted.factory import ConsumerRecord, FedoraMessagingFactoryV2
@@ -294,6 +294,44 @@ class TestFactoryV2:
 
         d.addCallback(_check)
         return d
+
+    @pytest_twisted.inlineCallbacks
+    def test_consume_passive_bad_declaration_reconnect(self):
+        """Assert consume handles reconnecting when queue declaration fails in passive mode."""
+        queue_name = "queue-name"
+        self.protocol.declare_queue.side_effect = [
+            BadDeclaration("queue", queue_name, "testing"),
+            lambda q: queue_name,
+        ]
+        self.protocol.bind_queues.side_effect = [
+            BadDeclaration("binding", queue_name, "testing"),
+            None,
+        ]
+        # Prepare the mocked existing consumer
+        queue_config: config.NamedQueueConfig = {
+            "queue": queue_name,
+            "durable": False,
+            "auto_delete": True,
+            "exclusive": True,
+            "arguments": {},
+        }
+        callback = mock.Mock()
+        bindings: list[BindingArgument] = [{"exchange": "amq.topic", "routing_key": "#"}]
+        consumer = Consumer(queue=queue_name, callback=callback)
+        self.factory._consumers = [
+            ConsumerRecord(consumer=consumer, queue=queue_config, bindings=bindings)
+        ]
+
+        # Try with failing declare_queue
+        self.factory.buildProtocol(None)
+        self.protocol.ready.callback(None)
+        yield self.factory.when_connected()
+
+        self.protocol.declare_queue.assert_called_once_with(queue_config)
+        self.protocol.bind_queues.assert_not_called()
+        self.protocol.consume.assert_not_called()
+        self.protocol.close.assert_called_once()
+        assert len(self.factory._consumers) == 1
 
 
 @pytest.mark.parametrize(
