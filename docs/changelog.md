@@ -14,6 +14,29 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## 3.9.1 (2026-06-23)
+
+### Bug Fixes
+
+- Handle queues missing on reconnect with passive declares (PR #579)
+- Allow loading multiple server certificates from the same PEM file (this fixes a bug that was introduced with the addition of the new CA certificate for our RabbitMQ PKI in [6facb16](https://github.com/fedora-infra/fedora-messaging/commit/6facb16), the code was only loading the first certificate in the file) ([035f0fc](https://github.com/fedora-infra/fedora-messaging/commit/035f0fc))
+
+### Development Changes
+
+- Switch integration tests to durable, non-exclusive queues (non-durable and non-exclusive queues are deprecated) (PR #580)
+- Fix the Packit configuration (#539)
+
+### Other Changes
+
+- Update dependencies
+
+### Contributors
+
+Many thanks to the contributors of bug reports, pull requests, and pull request reviews for this release:
+
+- Aurélien Bompard
+- Jeremy Cline
+
 ## 3.9.0 (2025-11-12)
 
 ### Features
