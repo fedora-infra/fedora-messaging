@@ -17,7 +17,7 @@ import pytest
 import pytest_twisted
 import treq
 from pika.exceptions import AMQPError
-from twisted.internet import defer, reactor, task, threads
+from twisted.internet import defer, interfaces, reactor, task, threads
 
 from fedora_messaging import api, config, exceptions, message
 from fedora_messaging.twisted.protocol import FedoraMessagingProtocolV2
@@ -37,6 +37,23 @@ def setup_function(function):
     if api._twisted_service:
         pytest_twisted.blockon(api._twisted_service.stopService())
     api._twisted_service = None
+
+
+def teardown_function(function):
+    """Ensure each test cleans up the Service and configuration after itself.
+
+    The tests for the cli can run after these and they need a clean state."""
+    config.conf = config.LazyConfig()
+    config.conf["amqp_url"] = f"amqp://{RABBITMQ_HOST}"
+    api._twisted_service = None
+
+
+@pytest_twisted.inlineCallbacks
+def set_perm(username: str, read: str = ".*", write: str = ".*", configure: str = ".*"):
+    url = f"{HTTP_API}permissions/%2F/{username}"
+    body = {"configure": configure, "write": write, "read": read}
+    resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=10)
+    assert resp.code in (201, 204)
 
 
 @pytest.fixture
@@ -59,10 +76,7 @@ def admin_user():
     @pytest_twisted.inlineCallbacks
     def cp(resp):
         assert resp.code == 201
-        url = f"{HTTP_API}permissions/%2F/{username}"
-        body = {"configure": ".*", "write": ".*", "read": ".*"}
-        resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
-        assert resp.code == 201
+        yield set_perm(username)
 
     deferred_resp.addCallbacks(cp, cp)
     pytest_twisted.blockon(deferred_resp)
@@ -96,6 +110,52 @@ def get_queue(queue_dict, delay=10):
     defer.returnValue(server_queue)
 
 
+@pytest_twisted.inlineCallbacks
+def delete_queue(queue_name: str):
+    resp = yield treq.delete(f"{HTTP_API}queues/%2F/{queue_name}", auth=HTTP_AUTH, timeout=3)
+    assert resp.code in (204, 404)
+
+
+@pytest_twisted.inlineCallbacks
+def unbind_queue(queue_name: str):
+    bindings_resp = yield treq.get(
+        f"{HTTP_API}bindings/%2F/e/amq.topic/q/{queue_name}", auth=HTTP_AUTH, timeout=3
+    )
+    bindings = yield bindings_resp.json()
+    for binding in bindings:
+        resp = yield treq.delete(
+            f"{HTTP_API}bindings/%2F/e/amq.topic/q/{queue_name}/{binding['properties_key']}",
+            auth=HTTP_AUTH,
+            timeout=3,
+        )
+        assert resp.code == 204
+
+
+@pytest_twisted.inlineCallbacks
+def kill_connection(app_name: str):
+    for _ in range(10):
+        conns = yield task.deferLater(
+            cast(interfaces.IReactorTime, reactor),
+            1,
+            treq.get,
+            HTTP_API + "connections",
+            auth=HTTP_AUTH,
+            timeout=3,
+        )
+        conns = yield conns.json()
+        this_conn = [
+            c
+            for c in conns
+            if "app" in c["client_properties"] and c["client_properties"]["app"] == app_name
+        ]
+        if this_conn:
+            cname = quote(this_conn[0]["name"])
+            yield treq.delete(HTTP_API + "connections/" + cname, auth=HTTP_AUTH, timeout=3)
+            break
+    else:
+        pytest.fail("Unable to find and kill connection!")
+
+
 @pytest.fixture
 def queue_and_binding():
     queue = str(uuid.uuid4())
@@ -109,6 +169,7 @@ def queue_and_binding():
     }
     bindings = [{"queue": queue, "exchange": "amq.topic", "routing_keys": ["#"]}]
     yield queues, bindings
+    pytest_twisted.blockon(delete_queue(queue))
 
 
 @pytest_twisted.inlineCallbacks
@@ -450,23 +511,7 @@ def test_twisted_consume_connection_reset(queue_and_binding):
     except (defer.TimeoutError, defer.CancelledError):
         pytest.fail("Timeout reached without receiving first two messages")
 
-    for _ in range(10):
-        conns = yield task.deferLater(
-            reactor, 1, treq.get, HTTP_API + "connections", auth=HTTP_AUTH, timeout=3
-        )
-        conns = yield conns.json()
-        this_conn = [
-            c
-            for c in conns
-            if "app" in c["client_properties"]
-            and c["client_properties"]["app"] == "test_twisted_consume_connection_reset"
-        ]
-        if this_conn:
-            cname = quote(this_conn[0]["name"])
-            yield treq.delete(HTTP_API + "connections/" + cname, auth=HTTP_AUTH, timeout=3)
-            break
-    else:
-        pytest.fail("Unable to find and kill connection!")
+    yield kill_connection("test_twisted_consume_connection_reset")
 
     # The consumer should receive this third message after restarting its connection
     # and then it should exit gracefully.
@@ -494,8 +539,7 @@ def test_twisted_consume_serverside_cancel(queue_and_binding):
     consumers = yield api.twisted_consume(lambda x: None, bindings, queues)
 
     # Delete the queue and assert the consumer errbacks
-    url = f"{HTTP_API}queues/%2F/{next(iter(queues.keys()))}"
-    yield treq.delete(url, auth=HTTP_AUTH, timeout=3)
+    yield delete_queue(next(iter(queues.keys())))
 
     consumers[0].result.addTimeout(10, reactor)
     try:
@@ -624,10 +668,7 @@ def test_no_read_permissions_queue_read_failure_pika1(admin_user, queue_and_bind
     what errors back.
     """
     queues = queue_and_binding[0]
-    url = f"{HTTP_API}permissions/%2F/{admin_user}"
-    body = {"configure": ".*", "write": ".*", "read": ""}
-    resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
-    assert resp.code == 204
+    yield set_perm(admin_user, read="")
 
     amqp_url = f"amqp://{admin_user}:guest@{RABBITMQ_HOST}:5672/%2F"
     with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
@@ -651,10 +692,7 @@ def test_no_read_permissions_queue_read_failure_pika1(admin_user, queue_and_bind
 def test_no_read_permissions_bind_failure(admin_user, queue_and_binding):
     """Assert the call to twisted_consume errbacks on read permissions errors on binding."""
     queues, bindings = queue_and_binding
-    url = f"{HTTP_API}permissions/%2F/{admin_user}"
-    body = {"configure": ".*", "write": ".*", "read": ""}
-    resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
-    assert resp.code == 204
+    yield set_perm(admin_user, read="")
 
     amqp_url = f"amqp://{admin_user}:guest@{RABBITMQ_HOST}:5672/%2F"
     try:
@@ -676,10 +714,7 @@ def test_no_read_permissions_bind_failure(admin_user, queue_and_binding):
 def test_no_write_permissions(admin_user, queue_and_binding):
     """Assert the call to twisted_consume errbacks on write permissions errors."""
     queues, bindings = queue_and_binding
-    url = f"{HTTP_API}permissions/%2F/{admin_user}"
-    body = {"configure": ".*", "write": "", "read": ".*"}
-    resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
-    assert resp.code == 204
+    yield set_perm(admin_user, write="")
 
     amqp_url = f"amqp://{admin_user}:guest@{RABBITMQ_HOST}:5672/%2F"
     try:
@@ -838,10 +873,7 @@ def test_protocol_publish_forbidden(admin_user):
 def test_protocol_publish_forbidden_in_vhost(admin_user):
     """Assert individual protocols raise a forbidden exception immediately when
     the user is not allowed to publish against the virtual host."""
-    url = f"{HTTP_API}permissions/%2F/{admin_user}"
-    body = {"configure": ".*", "write": "", "read": ".*"}
-    resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=3)
-    assert resp.code == 204
+    yield set_perm(admin_user, write="")
 
     amqp_url = f"amqp://{admin_user}:guest@{RABBITMQ_HOST}:5672/%2F"
     with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
@@ -973,7 +1005,7 @@ def test_pub_timeout(bad_amqp_url):
 
 
 @pytest_twisted.inlineCallbacks
-def test_passive_declare_queue_missing_on_reconnect(queue_and_binding, caplog):
+def test_passive_declare_queue_missing_on_reconnect(admin_user, queue_and_binding, caplog):
     """
     Assert that when passive declares are enabled, the connection restarts, and declaring
     the queue fails, the factory retries the connection.
@@ -993,30 +1025,13 @@ def test_passive_declare_queue_missing_on_reconnect(queue_and_binding, caplog):
 
     # The consumer will create the queue, and then we'll adjust the config to not do that
     # again. When we bonk the queue later the server will send it a 404.
-    consumers = yield api.twisted_consume(callback, bindings, queues)
+    amqp_url = f"amqp://{admin_user}:guest@{RABBITMQ_HOST}:5672/%2F"
+    with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
+        consumers = yield api.twisted_consume(callback, bindings, queues)
 
     config.conf["passive_declares"] = True
-    for _ in range(10):
-        conns = yield task.deferLater(
-            reactor, 1, treq.get, HTTP_API + "connections", auth=HTTP_AUTH, timeout=3
-        )
-        conns = yield conns.json()
-        this_conn = [
-            c
-            for c in conns
-            if "app" in c["client_properties"]
-            and c["client_properties"]["app"] == "test_passive_declare_queue_missing_on_reconnect"
-        ]
-        if this_conn:
-            cname = quote(this_conn[0]["name"])
-            yield treq.delete(HTTP_API + "connections/" + cname, auth=HTTP_AUTH, timeout=3)
-            resp = yield treq.delete(
-                f"{HTTP_API}queues/%2F/{queue_name}", auth=HTTP_AUTH, timeout=3
-            )
-            assert resp.code == 204
-            break
-    else:
-        pytest.fail("Unable to find and kill connection!")
+    yield kill_connection("test_passive_declare_queue_missing_on_reconnect")
+    yield delete_queue(queue_name)
 
     # Wait for the factory to retry and fail with BadDeclaration, then disable
     # passive declares so the next retry re-creates the queue and succeeds.
@@ -1037,6 +1052,32 @@ def test_passive_declare_queue_missing_on_reconnect(queue_and_binding, caplog):
         yield consumers[0].cancel()
         pytest.fail("Queue was not re-created after retry!")
 
+    # Now test the binding bad declaration
+    yield set_perm(admin_user, write="")  # Prevent the user from recreating the binding
+    yield kill_connection("test_passive_declare_queue_missing_on_reconnect")
+    yield unbind_queue(queue_name)
+    # Wait for the factory to retry and fail with BadDeclaration, then restore permissions
+    # so the next retry re-creates the binding and succeeds.
+    yield task.deferLater(reactor, 5, lambda: None)
+    yield set_perm(admin_user, write=".*")
+
+    for _ in range(30):
+        resp = yield task.deferLater(
+            reactor,
+            1,
+            treq.get,
+            f"{HTTP_API}bindings/%2F/e/amq.topic/q/{queue_name}",
+            auth=HTTP_AUTH,
+            timeout=3,
+        )
+        current_bindings = yield resp.json()
+        if len(current_bindings) == 1:
+            break
+    else:
+        yield consumers[0].cancel()
+        pytest.fail("Queue was not re-created after retry!")
+
+    # Publish a message to make sure we are still consuming
     yield threads.deferToThread(api.publish, msg, "amq.topic")
 
     consumers[0].result.addTimeout(30, reactor)
@@ -1053,4 +1094,10 @@ def test_passive_declare_queue_missing_on_reconnect(queue_and_binding, caplog):
         for r in caplog.records
         if r.name.startswith("fedora_messaging.") and r.levelname == "WARNING"
     ]
-    assert any("Failed to declare queue while registering" in r.message for r in fm_logs)
+    expected_logs = [
+        r.message
+        for r in fm_logs
+        if "Failed to declare queue or binding while registering" in r.message
+    ]
+    assert any("Unable to declare the queue object" in msg for msg in expected_logs)
+    assert any("Unable to declare the binding object" in msg for msg in expected_logs)
