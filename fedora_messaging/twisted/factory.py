@@ -17,7 +17,7 @@ documentation for more information.
 import collections
 import logging
 from collections.abc import Generator
-from typing import Any, NamedTuple, TYPE_CHECKING, Union
+from typing import Any, NamedTuple, Optional, TYPE_CHECKING, Union
 
 import pika
 import pika.exceptions
@@ -117,16 +117,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             # including queues and bindings, as the queue might not have been durable
             for record in self._consumers:
                 _std_log.info("Re-registering the %r consumer", record.consumer)
-                try:
-                    queue_name: str = yield client.declare_queue(record.queue)
-                except BadDeclaration as e:
-                    _std_log.warning(
-                        "Failed to declare queue while registering %r: %s; restarting connection.",
-                        record.consumer,
-                        str(e),
-                    )
-                    yield client.close()
-                    return
+                queue_name: str = yield client.declare_queue(record.queue)
                 _remap_queue_name(record.bindings, queue_name)
                 yield client.bind_queues(record.bindings)
                 if record.consumer.callback is not None:
@@ -164,6 +155,16 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             # Renew the deferred to handle reconnections.
             self._client_deferred = defer.Deferred()
 
+        def on_ready_declaration_errback(failure: Failure) -> Optional[defer.Deferred[Any]]:
+            """If declaring the queue or the bindings fail, this errback is called."""
+            failure.trap(BadDeclaration)
+            _std_log.warning(
+                "Failed to declare queue or binding while registering the consumer: %s; "
+                "restarting connection.",
+                failure.getErrorMessage(),
+            )
+            return self._client.close() if self._client else None
+
         def general_errback(failure: Failure) -> None:
             _std_log.error(
                 "The connection failed with an unexpected exception; please report this bug: %s",
@@ -175,6 +176,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
 
         client.ready.addCallback(on_ready)
         client.ready.addErrback(on_ready_connection_errback)
+        client.ready.addErrback(on_ready_declaration_errback)
         client.ready.addErrback(general_errback)
         return client
 

@@ -16,19 +16,22 @@ import requests
 from twisted.internet import error, reactor, threads
 from twisted.web.client import Agent, readBody
 
-from fedora_messaging import api, exceptions, message
+from fedora_messaging import api, config, exceptions, message
 
 from .utils import RABBITMQ_HOST, sleep
 
 
 @pytest.fixture
 def cli_conf(fixtures_dir, tmp_path, available_port):
+    base_config_path = os.path.join(fixtures_dir, "cli_integration.toml")
     config_path = tmp_path.joinpath("config.toml")
     with open(config_path, "w") as config_fh:
-        with open(os.path.join(fixtures_dir, "cli_integration.toml")) as ref_fh:
+        with open(base_config_path) as ref_fh:
             config_fh.write(ref_fh.read())
         config_fh.write("\n")
         config_fh.write(f"[monitoring]\nport = {available_port}\n")
+    # Also load the base config (no monitoring) to call api.publish()
+    config.conf.load_config(base_config_path)
     return config_path
 
 

@@ -333,6 +333,17 @@ class TestFactoryV2:
         self.protocol.close.assert_called_once()
         assert len(self.factory._consumers) == 1
 
+        # Now try with failing bind_queues
+        self.protocol.ready = defer.Deferred()
+        self.factory.buildProtocol(None)
+        self.protocol.ready.callback(None)
+        yield self.factory.when_connected()
+
+        assert self.protocol.declare_queue.call_count == 2
+        self.protocol.bind_queues.assert_called_once_with(bindings)
+        self.protocol.consume.assert_not_called()
+        assert self.protocol.close.call_count == 2
+
 
 @pytest.mark.parametrize(
     "parameters,confirms,msg",
