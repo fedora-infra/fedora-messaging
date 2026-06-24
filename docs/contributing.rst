@@ -166,7 +166,8 @@ When cutting a new release, follow these steps:
 * tag the commit with ``-s`` to generate a signed tag
 * push the commit to the upstream Github repository with ``git push`` and the
   new tag with ``git push --tags``
-* generate a tarball and push to PyPI with the command ``poetry publish --build``
-* create `the release on GitHub <https://github.com/fedora-infra/fedora-messaging/tags>`_
-  and copy the release notes in there
+* watch the `Github actions <https://github.com/fedora-infra/fedora-messaging/actions>`_
+  check and publish the new release to PyPI
+* check that the new `release on GitHub <https://github.com/fedora-infra/fedora-messaging/releases>`_
+  looks good
 * deploy and announce
