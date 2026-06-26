@@ -9,7 +9,7 @@ import socket
 import time
 import uuid
 from collections import defaultdict
-from typing import cast
+from typing import cast, Optional, Union
 from unittest import mock
 from urllib.parse import quote
 
@@ -49,10 +49,53 @@ def teardown_function(function):
 
 
 @pytest_twisted.inlineCallbacks
+def retry_treq(
+    method,
+    *args,
+    **kwargs,
+):
+    """Retry treq HTTP requests on specific exceptions.
+
+    Args:
+        method: The treq method to call (e.g., treq.put, treq.get)
+        *args: Positional arguments to pass to the treq method
+        exception_class: The exception class or tuple of exception classes to catch and retry on
+        retries: Maximum number of retry attempts (default: 3)
+        delay: Delay in seconds between retries (default: 1)
+        **kwargs: Keyword arguments to pass to the treq method
+
+    Returns:
+        The response from the successful treq call
+
+    Raises:
+        The last exception if all retries are exhausted
+    """
+    exception_class: Union[type[BaseException], tuple[type[BaseException], ...]] = kwargs.pop(
+        "exception_class"
+    )
+    retries: int = kwargs.pop("retries", 3)
+    delay: float = kwargs.pop("delay", 1)
+    last_exception: Optional[BaseException] = None
+    for attempt in range(retries):
+        try:
+            response = yield method(*args, **kwargs)
+            defer.returnValue(response)
+        except exception_class as e:
+            last_exception = e
+            if attempt < retries - 1:
+                yield task.deferLater(cast(interfaces.IReactorTime, reactor), delay, lambda: None)
+            continue
+    if last_exception is not None:
+        raise last_exception
+
+
+@pytest_twisted.inlineCallbacks
 def set_perm(username: str, read: str = ".*", write: str = ".*", configure: str = ".*"):
     url = f"{HTTP_API}permissions/%2F/{username}"
     body = {"configure": configure, "write": write, "read": read}
-    resp = yield treq.put(url, json=body, auth=HTTP_AUTH, timeout=10)
+    resp = yield retry_treq(
+        treq.put, url, json=body, auth=HTTP_AUTH, timeout=10, exception_class=ConnectionError
+    )
     assert resp.code in (201, 204)
 
 
