@@ -192,6 +192,11 @@ def _ssl_context_factory(parameters: pika.connection.Parameters) -> "ClientTLSOp
         with open(key, "rb") as fd:
             client_keypair = fd.read()
         with open(cert, "rb") as fd:
+            # Insert an extra newline between the key and cert to avoid the
+            # situation where the trailer for the key shares the same line as
+            # the header for the cert. This will cause a parsing error in
+            # loadPEM().
+            client_keypair += b"\n"
             client_keypair += fd.read()
         client_cert = twisted_ssl.PrivateCertificate.loadPEM(client_keypair)
 
