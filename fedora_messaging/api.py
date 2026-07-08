@@ -276,7 +276,7 @@ def consume(
 @defer.inlineCallbacks
 def twisted_publish(
     message: Message, exchange: Optional[str] = None
-) -> Generator[defer.Deferred[None]]:
+) -> Generator[defer.Deferred[Any], Any, None]:
     """
     Publish messages via Twisted.
 

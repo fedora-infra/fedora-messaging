@@ -107,6 +107,8 @@ class Consumer:
             raise RuntimeError("No channel, open one first")
         if self.queue is None:
             raise RuntimeError("No queue name defined")
+        if self.callback is None:
+            raise RuntimeError("No callback defined")
         yield self._channel.basic_qos(
             prefetch_count=config.conf["qos"]["prefetch_count"],
             prefetch_size=config.conf["qos"]["prefetch_size"],
@@ -168,6 +170,8 @@ class Consumer:
         QueueContent,
         Any,
     ]:
+        if self.callback is None:
+            raise RuntimeError("No callback defined")
         try:
             deferred_get = queue_object.get()
             # Type ignored because of https://github.com/twisted/twisted/issues/9909
@@ -201,7 +205,7 @@ class Consumer:
                 message.topic,
                 properties.message_id,
             )
-            if self.callback is not None and is_coro(self.callback):
+            if is_coro(self.callback):
                 d = defer.Deferred.fromFuture(asyncio.ensure_future(self.callback(message)))
             else:
                 d = threads.deferToThread(self.callback, message)

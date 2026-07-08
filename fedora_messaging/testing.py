@@ -60,7 +60,7 @@ def mock_sends(*expected_messages: Union[Message, type[Message]]) -> Generator[l
         with mock.patch("fedora_messaging.api._twisted_publish_wrapper") as mock_pub:
             yield sent
 
-    messages = [call[0][0] for call in mock_pub.call_args_list]
+    messages: list[Message] = [call[0][0] for call in mock_pub.call_args_list]
     sent.extend(messages)
     if len(expected_messages) != len(messages):
         raise AssertionError(
@@ -74,6 +74,6 @@ def mock_sends(*expected_messages: Union[Message, type[Message]]) -> Generator[l
                 )
         else:
             assert msg.topic == expected.topic
-            assert msg.body == expected.body
+            assert msg.body == expected.body  # type: ignore[misc]
             assert msg == expected
         msg.validate()

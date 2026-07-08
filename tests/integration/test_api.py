@@ -9,15 +9,19 @@ import socket
 import time
 import uuid
 from collections import defaultdict
+from typing import cast
 from unittest import mock
 from urllib.parse import quote
 
 import pytest
 import pytest_twisted
 import treq
+from pika.exceptions import AMQPError
 from twisted.internet import defer, reactor, task, threads
 
 from fedora_messaging import api, config, exceptions, message
+from fedora_messaging.twisted.protocol import FedoraMessagingProtocolV2
+from fedora_messaging.twisted.service import FedoraMessagingServiceV2
 
 from .utils import RABBITMQ_HOST
 
@@ -215,7 +219,7 @@ def test_twisted_consume_cancel(queue_and_binding):
     # Assert that the number of consumers we think we started is the number the
     # server things we started. This will fail if other tests don't clean up properly.
     # If it becomes problematic perhaps each test should have a vhost.
-    consumers = yield api.twisted_consume(lambda m: m, bindings, queues)
+    consumers = yield api.twisted_consume(lambda m: None, bindings, queues)
     consumers[0].result.addErrback(pytest.fail)
 
     server_queue = yield get_queue(queues)
@@ -487,7 +491,7 @@ def test_twisted_consume_serverside_cancel(queue_and_binding):
     """
     queues, bindings = queue_and_binding
 
-    consumers = yield api.twisted_consume(lambda x: x, bindings, queues)
+    consumers = yield api.twisted_consume(lambda x: None, bindings, queues)
 
     # Delete the queue and assert the consumer errbacks
     url = f"{HTTP_API}queues/%2F/{next(iter(queues.keys()))}"
@@ -601,7 +605,7 @@ def test_no_vhost_permissions(admin_user, queue_and_binding):
     amqp_url = f"amqp://{admin_user}:guest@{RABBITMQ_HOST}:5672/%2F"
     with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
         try:
-            yield api.twisted_consume(lambda x: x, [], queues)
+            yield api.twisted_consume(lambda x: None, [], queues)
         except exceptions.ConnectionException as e:
             assert e.reason == (
                 "The TCP connection appears to have started, but the TLS or AMQP "
@@ -628,7 +632,7 @@ def test_no_read_permissions_queue_read_failure_pika1(admin_user, queue_and_bind
     amqp_url = f"amqp://{admin_user}:guest@{RABBITMQ_HOST}:5672/%2F"
     with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
         try:
-            consumers = api.twisted_consume(lambda x: x, [], queues)
+            consumers = api.twisted_consume(lambda x: None, [], queues)
             consumers.addTimeout(5, reactor)
             yield consumers
             pytest.fail("Call failed to raise an exception")
@@ -655,9 +659,10 @@ def test_no_read_permissions_bind_failure(admin_user, queue_and_binding):
     amqp_url = f"amqp://{admin_user}:guest@{RABBITMQ_HOST}:5672/%2F"
     try:
         with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
-            yield api.twisted_consume(lambda x: x, bindings, queues)
+            yield api.twisted_consume(lambda x: None, bindings, queues)
         pytest.fail("Call failed to raise an exception")
     except exceptions.BadDeclaration as e:
+        e.reason = cast(AMQPError, e.reason)
         assert e.reason.args[0] == 403
         error_match = re.match(
             r"ACCESS_REFUSED - (read )?access to exchange 'amq\.topic' in vhost '/' refused "
@@ -679,9 +684,10 @@ def test_no_write_permissions(admin_user, queue_and_binding):
     amqp_url = f"amqp://{admin_user}:guest@{RABBITMQ_HOST}:5672/%2F"
     try:
         with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
-            yield api.twisted_consume(lambda x: x, bindings, queues)
+            yield api.twisted_consume(lambda x: None, bindings, queues)
         pytest.fail("Call failed to raise an exception")
     except exceptions.BadDeclaration as e:
+        e.reason = cast(AMQPError, e.reason)
         assert e.reason.args[0] == 403
         error_match = re.match(
             r"ACCESS_REFUSED - (write )?access to queue '[\w-]+' in vhost '/' refused "
@@ -762,11 +768,13 @@ def test_publish_channel_error(queue_and_binding):
     def delayed_publish():
         """Publish, break the channel, and publish again."""
         yield threads.deferToThread(api.publish, message.Message(), "amq.topic")
-        protocol = yield api._twisted_service.factory.when_connected()
+        protocol = yield cast(
+            FedoraMessagingServiceV2, api._twisted_service
+        ).factory.when_connected()
         yield protocol._publish_channel.close()
         yield threads.deferToThread(api.publish, message.Message(), "amq.topic")
 
-    reactor.callLater(5, delayed_publish)
+    reactor.callLater(seconds=5, f=delayed_publish)
 
     deferred_consume = threads.deferToThread(api.consume, counting_callback, bindings, queues)
     deferred_consume.addTimeout(30, reactor)
@@ -783,6 +791,7 @@ def test_publish_channel_error(queue_and_binding):
 def test_protocol_publish_connection_error(queue_and_binding):
     """Assert individual protocols raise connection exceptions if closed."""
     api._init_twisted_service()
+    api._twisted_service = cast(FedoraMessagingServiceV2, api._twisted_service)
     protocol = yield api._twisted_service.factory.when_connected()
     yield protocol.close()
     try:
@@ -802,16 +811,18 @@ def test_protocol_publish_forbidden(admin_user):
 
     amqp_url = f"amqp://{admin_user}:guest@{RABBITMQ_HOST}:5672/%2F"
     with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
+        api._init_twisted_service()
+        api._twisted_service = cast(FedoraMessagingServiceV2, api._twisted_service)
+        protocol: FedoraMessagingProtocolV2 = (yield api._twisted_service.factory.when_connected())
+        d = protocol.publish(message.Message(topic="not-allowed"), "amq.topic")
+        d.addTimeout(5, reactor)
         try:
-            api._init_twisted_service()
-            protocol = yield api._twisted_service.factory.when_connected()
-            d = protocol.publish(message.Message(topic="not-allowed"), "amq.topic")
-            d.addTimeout(5, reactor)
             yield d
             pytest.fail("Publish failed to raise an exception")
         except (defer.TimeoutError, defer.CancelledError):
             pytest.fail("Publishing hit the timeout, probably stuck in a retry loop")
         except exceptions.PublishForbidden as e:
+            e.reason = cast(AMQPError, e.reason)
             assert e.reason.args[0] == 403
             error_match = re.match(
                 r"ACCESS_REFUSED - (write )?access to topic 'not-allowed' in "
@@ -836,6 +847,7 @@ def test_protocol_publish_forbidden_in_vhost(admin_user):
     with mock.patch.dict(config.conf, {"amqp_url": amqp_url}):
         try:
             api._init_twisted_service()
+            api._twisted_service = cast(FedoraMessagingServiceV2, api._twisted_service)
             protocol = yield api._twisted_service.factory.when_connected()
             d = protocol.publish(message.Message(topic="not-allowed"), "amq.topic")
             d.addTimeout(5, reactor)
@@ -844,6 +856,7 @@ def test_protocol_publish_forbidden_in_vhost(admin_user):
         except (defer.TimeoutError, defer.CancelledError):
             pytest.fail("Publishing hit the timeout, probably stuck in a retry loop")
         except exceptions.PublishForbidden as e:
+            e.reason = cast(AMQPError, e.reason)
             assert e.reason.args[0] == 403
             error_match = re.match(
                 r"ACCESS_REFUSED - (write )?access to exchange 'amq.topic' in "
@@ -870,9 +883,9 @@ def test_publish_from_callback(queue_and_binding):
     def delayed_publish():
         """Publish, break the channel, and publish again."""
         yield threads.deferToThread(api.publish, message.Message(topic="source"), "amq.topic")
-        yield api._twisted_service.factory.when_connected()
+        yield cast(FedoraMessagingServiceV2, api._twisted_service).factory.when_connected()
 
-    reactor.callLater(5, delayed_publish)
+    reactor.callLater(seconds=5, f=delayed_publish)
 
     deferred_consume = threads.deferToThread(api.consume, publishing_callback, bindings, queues)
     deferred_consume.addTimeout(30, reactor)
@@ -920,7 +933,7 @@ def test_pub_sub_default_settings(queue_and_binding):
             except exceptions.ConnectionException:
                 pytest.fail("Failed to publish message, is the broker running?")
 
-    reactor.callLater(5, delayed_publish)
+    reactor.callLater(seconds=5, f=delayed_publish)
     deferred_consume.addTimeout(30, reactor)
     try:
         yield deferred_consume
@@ -948,12 +961,15 @@ def bad_amqp_url():
 def test_pub_timeout(bad_amqp_url):
     """Assert PublishTimeout is raised if a connection just hangs."""
     try:
-        yield threads.deferToThread(api.publish, api.Message(), 5)
+        yield threads.deferToThread(api.publish, api.Message(), timeout=5)
     except Exception as e:
         if not isinstance(e, exceptions.PublishTimeout):
             pytest.fail(f"Expected a timeout exception, not {e}")
     # Ensure the deferred has been renewed
-    assert api._twisted_service.factory.when_connected().called is False
+    assert (
+        cast(FedoraMessagingServiceV2, api._twisted_service).factory.when_connected().called
+        is False
+    )
 
 
 @pytest_twisted.inlineCallbacks
