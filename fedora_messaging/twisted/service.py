@@ -189,16 +189,16 @@ def _ssl_context_factory(parameters: pika.connection.Parameters) -> "ClientTLSOp
     if key and cert:
         # Note that _configure_tls_parameters sets the auth mode to EXTERNAL
         # if both key and cert are defined, so we don't need to do that here.
-        with open(key) as fd:
+        with open(key, "rb") as fd:
             client_keypair = fd.read()
-        with open(cert) as fd:
+        with open(cert, "rb") as fd:
             client_keypair += fd.read()
         client_cert = twisted_ssl.PrivateCertificate.loadPEM(client_keypair)
 
     hostname = parameters.host
     context_factory: ClientTLSOptions = twisted_ssl.optionsForClientTLS(
         hostname,
-        trustRoot=ca_certs or twisted_ssl.platformTrust(),
+        trustRoot=ca_certs or twisted_ssl.platformTrust(),  # type: ignore[arg-type]
         clientCertificate=client_cert,
         extraCertificateOptions={"raiseMinimumTo": twisted_ssl.TLSVersion.TLSv1_2},
     )

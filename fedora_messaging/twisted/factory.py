@@ -66,7 +66,7 @@ class ConsumerRecord(NamedTuple):
 class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
     """Reconnecting factory for the Fedora Messaging protocol."""
 
-    protocol: type[FedoraMessagingProtocolV2]
+    protocol: type[FedoraMessagingProtocolV2]  # type: ignore[assignment]
 
     def __init__(self, parameters: pika.connection.Parameters, confirms: bool = True):
         """
@@ -82,9 +82,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             confirms: If true, attempt to turn on publish confirms extension.
         """
         self.confirms = confirms
-        self.protocol = (  # pyright: ignore [reportIncompatibleVariableOverride]
-            FedoraMessagingProtocolV2
-        )
+        self.protocol = FedoraMessagingProtocolV2  # type: ignore[assignment]
         self._parameters = parameters
         # Used to implement the when_connected API
         self._client_deferred: defer.Deferred[FedoraMessagingProtocolV2] = defer.Deferred()
@@ -96,7 +94,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
         """Return the representation of the factory as a string"""
         return f"FedoraMessagingFactoryV2(parameters={self._parameters}, confirms={self.confirms})"
 
-    def buildProtocol(self, addr: Any) -> FedoraMessagingProtocolV2:
+    def buildProtocol(self, addr: Any) -> FedoraMessagingProtocolV2:  # type: ignore[override]
         """Create the Protocol instance.
 
         See the documentation of
@@ -181,7 +179,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
         return client
 
     @defer.inlineCallbacks
-    def stopFactory(  # pyright: ignore [reportIncompatibleMethodOverride]
+    def stopFactory(  # pyright: ignore[reportIncompatibleMethodOverride]
         self,
     ) -> Generator[defer.Deferred[None]]:
         """Stop the factory.
@@ -191,7 +189,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
         """
         if self._client:
             yield self._client.halt()
-        protocol.ReconnectingClientFactory.stopFactory(self)
+        protocol.ReconnectingClientFactory.stopFactory(self)  # type: ignore[arg-type]
 
     @defer.inlineCallbacks
     def when_connected(self) -> Generator[defer.Deferred[Any], None, FedoraMessagingProtocolV2]:

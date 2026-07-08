@@ -76,7 +76,7 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         self._publish_channel: Union[TwistedChannel, None] = None
         # Map queue names to fedora_messaging.twisted.consumer.Consumer objects
         self._consumers: dict[str, Consumer] = {}
-        self.factory: Union[FedoraMessagingFactoryV2, None] = None  # pyright: ignore
+        self.factory: Union[FedoraMessagingFactoryV2, None] = None
 
     @defer.inlineCallbacks
     def _allocate_channel(self) -> Generator[defer.Deferred[Any], TwistedChannel, TwistedChannel]:

@@ -232,7 +232,7 @@ class TestConsumer:
                 MockDeliveryFrame("dt1", "rk1"),
                 props,
                 "body1",
-            )
+            )  # pyright: ignore[reportArgumentType]
         )
         self.consumer.cancel = Mock(return_value=defer.succeed(None))
 
@@ -271,6 +271,16 @@ class TestConsumer:
         assert consumer._running is False
         with pytest.raises(ConsumerCanceled):
             yield consumer.result
+
+    @pytest_twisted.inlineCallbacks
+    def test_no_callback(self):
+        """Assert the channel is set before we consume."""
+        consumer = Consumer("my_queue_name", None)
+        consumer._channel = MockChannel()
+        with pytest.raises(RuntimeError):
+            yield consumer.consume()
+        with pytest.raises(RuntimeError):
+            yield consumer._read_one(Mock())
 
     # Handling read errors
 
