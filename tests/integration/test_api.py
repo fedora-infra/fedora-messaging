@@ -18,6 +18,7 @@ import pytest_twisted
 import treq
 from pika.exceptions import AMQPError
 from twisted.internet import defer, interfaces, reactor, task, threads
+from twisted.web.client import RequestTransmissionFailed
 
 from fedora_messaging import api, config, exceptions, message
 from fedora_messaging.twisted.protocol import FedoraMessagingProtocolV2
@@ -94,7 +95,12 @@ def set_perm(username: str, read: str = ".*", write: str = ".*", configure: str 
     url = f"{HTTP_API}permissions/%2F/{username}"
     body = {"configure": configure, "write": write, "read": read}
     resp = yield retry_treq(
-        treq.put, url, json=body, auth=HTTP_AUTH, timeout=10, exception_class=ConnectionError
+        treq.put,
+        url,
+        json=body,
+        auth=HTTP_AUTH,
+        timeout=10,
+        exception_class=(ConnectionError, RequestTransmissionFailed),
     )
     assert resp.code in (201, 204)
 
