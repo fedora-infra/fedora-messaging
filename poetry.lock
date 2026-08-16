@@ -1024,15 +1024,15 @@ toml = ["tomli (>=1.2.1)"]
 
 [[package]]
 name = "diff-cover"
-version = "10.5.0"
+version = "10.5.1"
 description = "Run coverage and linting reports on diffs"
 optional = false
 python-versions = ">=3.10"
 groups = ["dev"]
 markers = "python_version >= \"3.14\" and platform_python_implementation != \"PyPy\" or python_version >= \"3.15\""
 files = [
-    {file = "diff_cover-10.5.0-py3-none-any.whl", hash = "sha256:5619f924e838b8f8c4c7b243b32a6068d8c449c1766c6f6a1110b152195ed9b9"},
-    {file = "diff_cover-10.5.0.tar.gz", hash = "sha256:a1734543baaaa7d0860a6526016d487be24a0ffe9efb4eca0824c391d4a09d06"},
+    {file = "diff_cover-10.5.1-py3-none-any.whl", hash = "sha256:67ce07494e605b5d7d7b04aeec2cf524950ed0c12f026dd176883cf33c74fba0"},
+    {file = "diff_cover-10.5.1.tar.gz", hash = "sha256:f1c9417c62111e40a81c482c692c5cdd131ff93317baa993044cb291912ebba3"},
 ]
 
 [package.dependencies]
