@@ -4,7 +4,14 @@
 
 import asyncio
 import logging
+import sys
 import uuid
+
+if sys.version_info < (3, 10, 6):  # pragma: no cover
+    from asyncio import iscoroutinefunction
+else:  # pragma: no cover
+    from inspect import iscoroutinefunction  # type: ignore
+
 from collections.abc import Coroutine, Generator
 from typing import Any, Callable, cast, Optional, TYPE_CHECKING, Union
 
@@ -44,11 +51,8 @@ def is_coro(
     func_or_obj: config.CallbackType,
 ) -> "TypeGuard[Callable[..., Coroutine[Any, Any, Any]]]":
     """Tests if a function is a coroutine function or a callable coroutine object."""
-    # Until Python 3.10, inspect.iscoroutinefunction() will fail to identify AsyncMocks
-    # as coroutines: https://github.com/python/cpython/issues/84753
-    # Use asyncio.iscoroutinefunction() instead.
-    return asyncio.iscoroutinefunction(func_or_obj) or (
-        callable(func_or_obj) and asyncio.iscoroutinefunction(func_or_obj.__call__)  # type: ignore
+    return iscoroutinefunction(func_or_obj) or (
+        callable(func_or_obj) and iscoroutinefunction(func_or_obj.__call__)  # type: ignore
     )
 
 
