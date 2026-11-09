@@ -8,6 +8,8 @@ from typing import cast
 
 from twisted.internet import defer, error, interfaces, protocol
 
+from fedora_messaging.config import COMPAT_TWISTED_USE_RETURNVALUE
+
 
 @defer.inlineCallbacks
 def get_available_port() -> Generator[defer.Deferred[int]]:
@@ -24,4 +26,7 @@ def get_available_port() -> Generator[defer.Deferred[int]]:
             continue
         else:
             yield twisted_port.stopListening()
-            defer.returnValue(port)
+            if COMPAT_TWISTED_USE_RETURNVALUE:
+                defer.returnValue(port)
+            else:
+                return port

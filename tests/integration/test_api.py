@@ -80,7 +80,10 @@ def retry_treq(
     for attempt in range(retries):
         try:
             response = yield method(*args, **kwargs)
-            defer.returnValue(response)
+            if config.COMPAT_TWISTED_USE_RETURNVALUE:
+                defer.returnValue(response)
+            else:
+                return response
         except exception_class as e:
             last_exception = e
             if attempt < retries - 1:
@@ -156,7 +159,10 @@ def get_queue(queue_dict, delay=10):
     url = f"{HTTP_API}queues/%2F/{name}"
     server_queue = yield task.deferLater(reactor, delay, treq.get, url, auth=HTTP_AUTH, timeout=3)
     server_queue = yield server_queue.json()
-    defer.returnValue(server_queue)
+    if config.COMPAT_TWISTED_USE_RETURNVALUE:
+        defer.returnValue(server_queue)
+    else:
+        return server_queue
 
 
 @pytest_twisted.inlineCallbacks

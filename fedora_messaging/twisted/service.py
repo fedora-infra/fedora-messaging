@@ -97,7 +97,10 @@ class FedoraMessagingServiceV2(service.MultiService):
         self.factory.stopTrying()
         yield self.factory.stopFactory()
         result = yield service.MultiService.stopService(self)
-        defer.returnValue(result)
+        if config.COMPAT_TWISTED_USE_RETURNVALUE:
+            defer.returnValue(result)  # pragma: no cover
+        else:
+            return result
 
     @property
     def stats(self) -> "FactoryStatistics":

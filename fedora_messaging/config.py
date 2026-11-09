@@ -303,6 +303,8 @@ from typing import (
     Union,
 )
 
+from packaging.version import Version
+
 try:
     import tomllib
 except ImportError:  # pragma: no cover
@@ -319,6 +321,8 @@ _log = logging.getLogger(__name__)
 
 _fedora_version = version("fedora_messaging")
 _pika_version = version("pika")
+
+COMPAT_TWISTED_USE_RETURNVALUE = Version(version("twisted")) < Version("24.7.0")
 
 
 #: Possible values for a message callback.

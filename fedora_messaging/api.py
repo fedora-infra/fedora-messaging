@@ -189,7 +189,10 @@ def _twisted_consume_wrapper(
         yield defer.gatherResults([c.result for c in consumers])
     except defer.FirstError as e:
         e.subFailure.raiseException()
-    defer.returnValue(consumers)
+    if config.COMPAT_TWISTED_USE_RETURNVALUE:
+        defer.returnValue(consumers)  # pragma: no cover
+    else:
+        return consumers
 
 
 def consume(

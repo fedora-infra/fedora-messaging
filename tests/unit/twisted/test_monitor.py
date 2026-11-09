@@ -33,6 +33,9 @@ def client():
 
 class TestMonitorService:
 
+    @pytest.mark.filterwarnings(
+        "ignore:Using readBody with a transport that does not have an abortConnection method:DeprecationWarning"
+    )
     @pytest_twisted.inlineCallbacks
     def test_liveness(self, available_port, service, client):
         response = yield client.request(
@@ -41,6 +44,9 @@ class TestMonitorService:
         body = yield readBody(response)
         assert body == b'{"status": "OK"}\n'
 
+    @pytest.mark.filterwarnings(
+        "ignore:Using readBody with a transport that does not have an abortConnection method:DeprecationWarning"
+    )
     @pytest_twisted.inlineCallbacks
     def test_readiness(self, available_port, service, client):
         service.consuming = True

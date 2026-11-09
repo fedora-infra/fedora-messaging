@@ -3,7 +3,9 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import asyncio
+import inspect
 import logging
+import sys
 import uuid
 from collections.abc import Coroutine, Generator
 from typing import Any, Callable, cast, Optional, TYPE_CHECKING, Union
@@ -33,6 +35,7 @@ if TYPE_CHECKING:
 
     from .protocol import FedoraMessagingProtocolV2
 
+
 _std_log = logging.getLogger(__name__)
 
 QueueContent: "TypeAlias" = tuple[
@@ -47,8 +50,12 @@ def is_coro(
     # Until Python 3.10, inspect.iscoroutinefunction() will fail to identify AsyncMocks
     # as coroutines: https://github.com/python/cpython/issues/84753
     # Use asyncio.iscoroutinefunction() instead.
-    return asyncio.iscoroutinefunction(func_or_obj) or (
-        callable(func_or_obj) and asyncio.iscoroutinefunction(func_or_obj.__call__)  # type: ignore
+    if sys.version_info >= (3, 10):
+        iscoroutinefunction = inspect.iscoroutinefunction
+    else:
+        iscoroutinefunction = asyncio.iscoroutinefunction
+    return iscoroutinefunction(func_or_obj) or (
+        callable(func_or_obj) and iscoroutinefunction(func_or_obj.__call__)  # type: ignore
     )
 
 

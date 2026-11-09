@@ -24,6 +24,7 @@ import pika.exceptions
 from twisted.internet import defer, error, protocol
 from twisted.python.failure import Failure
 
+from ..config import COMPAT_TWISTED_USE_RETURNVALUE
 from ..exceptions import BadDeclaration, ConnectionException
 from .consumer import Consumer
 from .protocol import BindingArgument, FedoraMessagingProtocolV2
@@ -214,7 +215,10 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
                 # Renew the deferred to handle future connections.
                 self._client_deferred = defer.Deferred()
                 raise
-        defer.returnValue(self._client)
+        if COMPAT_TWISTED_USE_RETURNVALUE:
+            defer.returnValue(self._client)  # pragma: no cover
+        else:
+            return self._client
 
     @defer.inlineCallbacks
     def publish(
@@ -314,7 +318,10 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
             self._consumers.append(ConsumerRecord(consumer=consumer, queue=queue, bindings=ebs))
             consumers.append(consumer)
 
-        defer.returnValue(consumers)
+        if COMPAT_TWISTED_USE_RETURNVALUE:
+            defer.returnValue(consumers)  # pragma: no cover
+        else:
+            return consumers
 
     @defer.inlineCallbacks
     def cancel(self, consumers: list[Consumer]) -> Generator[defer.Deferred[Any], Any, None]:

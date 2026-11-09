@@ -96,7 +96,10 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         _std_log.debug("Created AMQP channel id %d", channel.channel_number)
         if self._confirms:
             yield channel.confirm_delivery()
-        defer.returnValue(channel)
+        if config.COMPAT_TWISTED_USE_RETURNVALUE:
+            defer.returnValue(channel)  # pragma: no cover
+        else:
+            return channel
 
     @defer.inlineCallbacks
     # TODO: bug in types-pika: this can also return a Deferred[TwistedProtocolConnection]
@@ -114,7 +117,10 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
                 versions lower than 1.0.0.
         """
         self._channel = yield self._allocate_channel()
-        defer.returnValue(self)
+        if config.COMPAT_TWISTED_USE_RETURNVALUE:
+            defer.returnValue(self)  # pragma: no cover
+        else:
+            return self
 
     @defer.inlineCallbacks
     def publish(
@@ -219,7 +225,10 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         """
         if queue in self._consumers:
             self._consumers[queue].callback = callback
-            defer.returnValue(self._consumers[queue])
+            if config.COMPAT_TWISTED_USE_RETURNVALUE:
+                defer.returnValue(self._consumers[queue])  # pragma: no cover
+            else:
+                return self._consumers[queue]
 
         if previous_consumer is not None:
             consumer = previous_consumer
@@ -234,7 +243,10 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
 
         self._consumers[queue] = consumer
         _std_log.info("Successfully registered AMQP consumer %r", consumer)
-        defer.returnValue(consumer)
+        if config.COMPAT_TWISTED_USE_RETURNVALUE:
+            defer.returnValue(consumer)  # pragma: no cover
+        else:
+            return consumer
 
     @defer.inlineCallbacks
     def declare_exchanges(
@@ -331,7 +343,10 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
                 channel.close()
             except pika.exceptions.AMQPError:
                 pass  # pika doesn't handle repeated closes gracefully
-        defer.returnValue(result_queues)
+        if config.COMPAT_TWISTED_USE_RETURNVALUE:
+            defer.returnValue(result_queues)  # pragma: no cover
+        else:
+            return result_queues
 
     @defer.inlineCallbacks
     def declare_queue(
@@ -342,7 +357,10 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         argument.
         """
         names = yield self.declare_queues([queue])
-        defer.returnValue(names[0])
+        if config.COMPAT_TWISTED_USE_RETURNVALUE:
+            defer.returnValue(names[0])  # pragma: no cover
+        else:
+            return names[0]
 
     @defer.inlineCallbacks
     def bind_queues(self, bindings: list[BindingArgument]) -> Generator[defer.Deferred[Any], Any]:
