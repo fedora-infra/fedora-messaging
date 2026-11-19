@@ -19,7 +19,7 @@ For an overview of Twisted clients, see the `Twisted client documentation
 
 import logging
 from collections.abc import Generator
-from typing import Any, Optional, TYPE_CHECKING, Union
+from typing import Any, cast, Optional, TYPE_CHECKING, Union
 
 import pika
 import pika.exceptions
@@ -76,7 +76,9 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
         self._publish_channel: Union[TwistedChannel, None] = None
         # Map queue names to fedora_messaging.twisted.consumer.Consumer objects
         self._consumers: dict[str, Consumer] = {}
-        self.factory: Union[FedoraMessagingFactoryV2, None] = None
+        self.factory: Union[  # pyright: ignore[reportIncompatibleVariableOverride]
+            FedoraMessagingFactoryV2, None
+        ] = None
 
     @defer.inlineCallbacks
     def _allocate_channel(self) -> Generator[defer.Deferred[Any], TwistedChannel, TwistedChannel]:
@@ -337,7 +339,7 @@ class FedoraMessagingProtocolV2(TwistedProtocolConnection):
                     )
                 except pika.exceptions.ChannelClosed as e:
                     raise BadDeclaration("queue", args, e) from e
-                result_queues.append(frame.method.queue)
+                result_queues.append(cast(str, frame.method.queue))
         finally:
             try:
                 channel.close()

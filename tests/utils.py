@@ -12,7 +12,7 @@ from fedora_messaging.config import COMPAT_TWISTED_USE_RETURNVALUE
 
 
 @defer.inlineCallbacks
-def get_available_port() -> Generator[defer.Deferred[int]]:
+def get_available_port() -> Generator[defer.Deferred[int], None, int]:
     from twisted.internet import reactor
 
     dummy_server = protocol.ServerFactory()

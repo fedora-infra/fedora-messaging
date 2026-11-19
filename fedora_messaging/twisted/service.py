@@ -87,7 +87,7 @@ class FedoraMessagingServiceV2(service.MultiService):
     @defer.inlineCallbacks
     def stopService(  # pyright: ignore [reportIncompatibleMethodOverride]
         self,
-    ) -> Generator[defer.Deferred[Any], None, defer.Deferred[Any]]:
+    ) -> Generator[defer.Deferred[Any], Any, Any]:
         """
         Gracefully stop the service.
 

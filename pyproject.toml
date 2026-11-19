@@ -71,7 +71,7 @@ mypy = "^1.16.0"
 types-jsonschema = "^4.24.0.20250528"
 types-requests = "^2.32.0.20250602"
 typing-extensions = "^4.14.0"
-pyright = "^1.1.402"
+pyright = {version = "^1.1.402", extras = ["nodejs"]}
 
 
 [tool.poetry.scripts]
