@@ -17,7 +17,7 @@ documentation for more information.
 import collections
 import logging
 from collections.abc import Generator
-from typing import Any, NamedTuple, Optional, TYPE_CHECKING, Union
+from typing import Any, cast, NamedTuple, Optional, TYPE_CHECKING, Union
 
 import pika
 import pika.exceptions
@@ -218,7 +218,7 @@ class FedoraMessagingFactoryV2(protocol.ReconnectingClientFactory):
         if COMPAT_TWISTED_USE_RETURNVALUE:
             defer.returnValue(self._client)  # pragma: no cover
         else:
-            return self._client
+            return cast(FedoraMessagingProtocolV2, self._client)
 
     @defer.inlineCallbacks
     def publish(
